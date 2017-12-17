@@ -82,9 +82,8 @@ char* compilation_unit_store_string(compilation_unit* cu, char* str, char* str_e
 	}
 }
 
-void compilation_unit_consume_token(compilation_unit* cu){
-redo:
-	cu->next_token = cu->current_token;
+void compilation_unit_get_token(compilation_unit* cu, token* tok){
+redo:;
 	char curr = *cu->pos;
 	if((curr>= 'a' && curr <= 'z') || (curr >= 'A' && curr <= 'Z') || curr == '_'){
 		char* str_start = cu->pos;
@@ -97,9 +96,9 @@ redo:
 			str_end++;
 			c = *str_end;
 		}
-		cu->current_token.str = 
-			compilation_unit_store_string(cu, str_start, str_end, &cu->current_token.str_rel);			
-		cu->current_token.type = TOKEN_TYPE_STRING;
+		tok->str = 
+			compilation_unit_store_string(cu, str_start, str_end, &tok->str_rel);			
+		tok->type = TOKEN_TYPE_STRING;
 		cu->pos = str_end;
 		return;
 	}
@@ -112,9 +111,9 @@ redo:
 			str_end++;
 			c = *str_end;
 		}
-		cu->current_token.str = 
-			compilation_unit_store_string(cu, str_start, str_end, &cu->current_token.str_rel);			
-		cu->current_token.type = TOKEN_TYPE_NUMBER;
+		tok->str = 
+			compilation_unit_store_string(cu, str_start, str_end, &tok->str_rel);			
+		tok->type = TOKEN_TYPE_NUMBER;
 		cu->pos = str_end;
 		return;
 	}
@@ -126,9 +125,9 @@ redo:
 			str_end++;
 			if(*str_end == '\\')str_end ++;
 		}
-		cu->current_token.str = 
-			compilation_unit_store_string(cu, str_start, str_end, &cu->current_token.str_rel);			
-		cu->current_token.type = TOKEN_TYPE_LITERAL;
+		tok->str = 
+			compilation_unit_store_string(cu, str_start, str_end, &tok->str_rel);			
+		tok->type = TOKEN_TYPE_LITERAL;
 		cu->pos = str_end;
 		return;
 	}
@@ -143,9 +142,9 @@ redo:
 				ASSERT_NEOF(*str_end);
 			}
 		}
-		cu->current_token.str = 
-			compilation_unit_store_string(cu, str_start, str_end, &cu->current_token.str_rel);			
-		cu->current_token.type = TOKEN_TYPE_BINARY_LITERAL;
+		tok->str = 
+			compilation_unit_store_string(cu, str_start, str_end, &tok->str_rel);			
+		tok->type = TOKEN_TYPE_BINARY_LITERAL;
 		cu->pos = str_end;
 		return;
 	}
@@ -156,7 +155,7 @@ redo:
 		}
 		cu->pos = cmt_end;
 		if(*cmt_end == '\0'){
-			cu->current_token.type = TOKEN_TYPE_EOF;
+			tok->type = TOKEN_TYPE_EOF;
 			return;
 		}
 		goto redo;
@@ -182,13 +181,13 @@ redo:
 		case '&':{
 			char nxt = *(cu->pos+1);
 			if(nxt == curr){
-				cu->current_token.type = TOKEN_TYPE_DOUBLE(curr);	
+				tok->type = TOKEN_TYPE_DOUBLE(curr);	
 			}
 			else if(nxt == '='){
-				cu->current_token.type = TOKEN_TYPE_EQUAL_COMB(curr);	
+				tok->type = TOKEN_TYPE_EQUAL_COMB(curr);	
 			}
 			else{
-				cu->current_token.type = curr;
+				tok->type = curr;
 			}
 			cu->pos ++;
 			return;
@@ -201,11 +200,11 @@ redo:
 		case '$':
 		case '#':
 		case ';':
-			cu->current_token.type = curr; 
+			tok->type = curr; 
 			cu->pos++;
 			return;
 		case '\0':
-			cu->current_token.type = TOKEN_TYPE_EOF;
+			tok->type = TOKEN_TYPE_EOF;
 			cu->pos++;
 			return;
 		default:

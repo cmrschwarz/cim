@@ -7,12 +7,13 @@ int main(){
 	char* str = "int a = 4";
 	cu.str = str;
 	cu.pos = str;
-	compilation_unit_consume_token(&cu);
-	while(cu.current_token.type != TOKEN_TYPE_EOF){
-		compilation_unit_print_token(&cu, &cu.current_token);
-		printf(" (%i)", cu.current_token.str_rel);
+	token t;
+	compilation_unit_get_token(&cu, &t);
+	while(t.type != TOKEN_TYPE_EOF){
+		compilation_unit_print_token(&cu, &t);
+		printf(" (%i)", t.str_rel);
 		putchar('\n');
-		compilation_unit_consume_token(&cu);
+		compilation_unit_get_token(&cu, &t);
 	}	
 	printf("Hello gcc, my love");
 	return 0;

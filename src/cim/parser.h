@@ -21,9 +21,6 @@ typedef struct compilation_unit_t{
 	//later on, this will read the file live, but this is easier for now
 	char* str;
 	char* pos;
-	token current_token;
-	token next_token;
-	
 	dbuffer string_store;
 	dbuffer string_ptrs;
 	//eventually, one ast per function?
@@ -32,7 +29,7 @@ typedef struct compilation_unit_t{
 
 
 void compilation_unit_init(compilation_unit* c);
-void compilation_unit_consume_token(compilation_unit* c);
+void compilation_unit_get_token(compilation_unit* c, token* t);
 char* compilation_unit_store_string(compilation_unit* cu, char* str, char* str_end, ureg* str_pos);
 void compilation_unit_parse(compilation_unit* c, char* str);
 void compilation_unit_print_ast(compilation_unit* c);
