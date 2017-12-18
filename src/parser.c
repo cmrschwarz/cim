@@ -68,7 +68,7 @@ char* compilation_unit_store_string(compilation_unit* cu, char* str, char* str_e
 			*str_pos = *sptrs_start;
 			return tgt;
 		}
-		res = cmp_string_with_stored(str, str_end, cu->string_store.start + *pivot);
+		res = cmp_string_with_stored(str, str_end, (char*)cu->string_store.start + *pivot);
 		if(res < 0){
 			sptrs_end = pivot;
 		}
@@ -77,7 +77,7 @@ char* compilation_unit_store_string(compilation_unit* cu, char* str, char* str_e
 		}
 		else{
 			*str_pos = *pivot;
-			return cu->string_store.start + *pivot;
+			return (char*)cu->string_store.start + *pivot;
 		}
 	}
 }

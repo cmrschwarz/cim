@@ -4,7 +4,7 @@
 int main(){
 	compilation_unit cu;
 	compilation_unit_init(&cu);
-	char* str = "int a = 4";
+	char* str = "int a = 4;";
 	cu.str = str;
 	cu.pos = str;
 	token t;
