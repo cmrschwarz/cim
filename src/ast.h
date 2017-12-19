@@ -36,7 +36,10 @@ typedef struct astn_function_call_t{
     u8 astnt;
     ureg arg_count;
 }astn_function_call;
-
+typedef struct astn_expression_t{
+    u8 astnt;
+    ureg end;
+}astn_expression;
 //operators are used in expressions. 
 //These are backwards in the ast because of shunting yard
 //Therefore, they need to have constant size and are accessed through a union

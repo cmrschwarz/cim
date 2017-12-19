@@ -2,15 +2,20 @@
 #include <stdio.h>
 #include <memory.h>
 #include "ast.h"
-
+static u8 prec_table [255];
 void cunit_init(cunit* cu){
+    if(prec_table[0] == 0){
+        prec_table[0] = 1; //initialization flag
+        prec_table ['/'] = 2;
+        prec_table['*'] = 3;
+    }
 	dbuffer_init(&cu->string_store);
 	dbuffer_init(&cu->string_ptrs);
 	dbuffer_init(&cu->ast);
 }
 #define ASSERT_NEOF(c) do{if((c) == '\0'){printf("Unexpected EOF"); assert(false);}}while(0)
 #define UNEXPECTED_TOKEN() do{                                         \
-    printf("%s(%s): Unexpected token", __FILE__, __LINE__); exit(-1); \
+    printf("%s(%d): Unexpected token", __FILE__, __LINE__); exit(-1); \
 }while(0)
 static void cunit_print_rel_str(cunit* cu, ureg str){
    fputs((char*)(cu->string_store.start + str), stdout);
@@ -172,57 +177,119 @@ redo:;
 		goto redo;
 	}
 	switch(curr){
-		case '\n':
-		case ' ':	
+		case ' ':{
+            cu->pos++;
+        }goto redo;
+
+        case '\n':
+		case '\\':
+		case '$':
+		case ';':{
+            tok->type = curr;
 			cu->pos++;
-			goto redo;
+        }return;
+
 		case '+':
-		case '-':
-		case '~':
-		case '|':
-		case '=':
-		case '&':{
+		case '-':{
 			char nxt = *(cu->pos+1);
 			if(nxt == curr){
-				tok->type = TOKEN_TYPE_DOUBLE(curr);	
+                tok->type = TOKEN_TYPE_OPERATOR_L;
+				tok->str = OPERATOR_DOUBLE(curr);
 			    cu->pos += 2;
 			}
 			else if(nxt == '='){
-				tok->type = TOKEN_TYPE_EQUAL_COMB(curr);	
+                tok->type = TOKEN_TYPE_OPERATOR_LR;
+				tok->str = OPERATOR_EQUAL_COMB(curr);
+			    cu->pos += 2;
+			}
+			else {
+                tok->type = TOKEN_TYPE_POSSIBLY_UNARY;
+                tok->str = curr;
+			    cu->pos ++;
+			}
+		}return;
+
+		case '|':
+		case '&':{
+            tok->type = TOKEN_TYPE_OPERATOR_LR;
+			char nxt = *(cu->pos+1);
+			if(nxt == curr){
+				tok->str = OPERATOR_DOUBLE(curr);
+			    cu->pos += 2;
+			}
+			else if(nxt == '='){
+				tok->str = OPERATOR_EQUAL_COMB(curr);
 			    cu->pos += 2;
 			}
 			else{
-				tok->type = curr;
+                tok->str = curr;
 			    cu->pos ++;
 			}
-			return;
-		}
-		case '*':
-		case '/':
+		}return;
+
+        case '~':{
+			char nxt = *(cu->pos+1);
+			if(nxt == '='){
+                tok->type = TOKEN_TYPE_OPERATOR_LR;
+				tok->str = OPERATOR_EQUAL_COMB(curr);
+			    cu->pos += 2;
+			}
+			else{
+                tok->type = TOKEN_TYPE_OPERATOR_R;
+				tok->str = curr;
+			    cu->pos ++;
+			}
+		}return;
+
+        case '*':
+        case '=':{
+			char nxt = *(cu->pos+1);
+			if(nxt == '='){
+                tok->type = TOKEN_TYPE_OPERATOR_LR;
+				tok->str = OPERATOR_EQUAL_COMB(curr);
+			    cu->pos += 2;
+			}
+			else{
+                tok->type = curr;
+			    cu->pos ++;
+			}
+		}return;
+
+        case '/':
 		case '%':
-		case '\\':
-		case '$':
-		case ';':
-			tok->type = curr; 
-			cu->pos++;
-			return;
-        case '#':
+		{
+            tok->type = TOKEN_TYPE_OPERATOR_LR;
+			char nxt = *(cu->pos+1);
+			if(nxt == '='){
+				tok->str = OPERATOR_EQUAL_COMB(curr);
+			    cu->pos += 2;
+			}
+			else{
+				tok->str = curr;
+			    cu->pos ++;
+			}
+
+		}return;
+
+        case '#':{
             if(*(cu->pos + 1) == curr){
-				tok->type = TOKEN_TYPE_DOUBLE(curr);	
+				tok->type = TOKEN_TYPE_DOUBLE_HASH;
                 cu->pos+=2;
 			}
             else{
-                tok->type = curr;
+                tok->type = TOKEN_TYPE_HASH;
                 cu->pos+=1;
             }
-            return;
-		case '\0':
-			tok->type = TOKEN_TYPE_EOF;
+        } return;
+
+		case '\0':{
+            tok->type = TOKEN_TYPE_EOF;
 			cu->pos++;
-			return;
-		default:
-			printf("unknown token: %c", curr);
-			assert(false);
+        }return;
+
+		default:{
+            printf("unknown token: %c", curr);
+        }assert(false);
 	}
 }
 void print_indent(ureg indent){
@@ -247,42 +314,95 @@ void cunit_print_ast(cunit* cu){
                     break;
                 }
                 fputs(" = ", stdout);
-                break;
-            }
+            }break;
             case ASTNT_NUMBER:{
                 astn_number* n = (void*)astn;
                 astn+= sizeof(*n);
                 cunit_print_rel_str(cu, n->number_str);
                 putchar(';');
                 putchar('\n');
-                break;
-            }               
-            default:
-                UNEXPECTED_TOKEN();
-                return;
+            }break;
+            case ASTNT_VARIABLE:{
+                astn_variable* v = (void*)astn;
+                astn+= sizeof(*v);
+                cunit_print_rel_str(cu, v->name);
+                putchar(';');
+                putchar('\n');
+            }break;
+            default:{
+                 UNEXPECTED_TOKEN();
+            }return;
         } 
     }
 }
 static void cunit_parse_meta(cunit* cu, token* t1){
     
 }
+static int flush_shy_ops(cunit* cu, ureg shy_ops_head){
 
+}
+struct shy_op{
+    u8 op_type;
+    char op;
+};
 static int cunit_parse_expression(cunit* cu, char term, token* t1, token* t2){
+    dbuffer* sho = &cu->shy_ops;
+    ureg shy_ops_head = sho->head - sho->start;
+    u8 last_prec=0;
+    u8 prec;
     if(t2->type == term){
         //short expression optimization
+        if (t1->type == TOKEN_TYPE_OPERATOR_LR){
+            u8 v = t1->str;
+            dbuffer_push_back_val(sho,v);
+        }
         if(t1->type == TOKEN_TYPE_NUMBER){
             astn_number* n = dbuffer_claim_small_space(&cu->ast, sizeof(astn_number));
             n->astnt = ASTNT_NUMBER;
             n->number_str = t1->str;
-        }  
+        }
+		if(t1->type == TOKEN_TYPE_STRING){
+            astn_variable* v = dbuffer_claim_small_space(&cu->ast, sizeof(astn_variable));
+            v->astnt = ASTNT_VARIABLE;
+            v->name = t1->str;
+        }
         return 0;
     }
-    token t;
-    t.type = TOKEN_TYPE_NONE;
-    while(t.type != term && t.type != TOKEN_TYPE_EOF){
-       cunit_get_token(cu, &t); 
+    astn_expression* expr = dbuffer_claim_small_space(&cu->ast, sizeof(astn_expression));
+    expr->astnt = ASTNT_EXPRESSION;
+    ureg offs = (u8*)expr - cu->ast.start;
+    expr_elem* e;
+    bool handled_first = false;
+    while(true){
+        if(t1->type == term){
+                expr = (astn_expression*)(cu->ast.start + offs);
+                expr->end = dbuffer_get_size(&cu->ast);
+                return 0;
+        }
+        switch(t1->type){
+            case TOKEN_TYPE_OPERATOR_LR:
+                prec = prec_table[t1->str];
+                if(prec < last_prec){
+                    flush_shy_ops(cu, shy_ops_head);
+                }
+            case TOKEN_TYPE_NUMBER:
+                e = dbuffer_claim_small_space(&cu->ast, sizeof(*e));
+                e->astnt = TOKEN_TYPE_NUMBER;
+                e->el.number.str = t1->str;
+                break;
+            case TOKEN_TYPE_EOF:
+                expr = (astn_expression*)(cu->ast.start + offs);
+                expr->end = dbuffer_get_size(&cu->ast);
+                return -1;
+        }
+        if(handled_first){
+            cunit_get_token(cu, t1);
+        }
+        else {
+            handled_first = true;
+            *t1 = *t2;
+        }
     }
-    if(t.type == TOKEN_TYPE_EOF)return -1;
 }
 static int cunit_parse_normal_declaration(cunit* cu, token* t1, token* t2){
     astn_declaration* d =
@@ -290,17 +410,15 @@ static int cunit_parse_normal_declaration(cunit* cu, token* t1, token* t2){
     d->astnt = ASTNT_DECLARATION;
     d->type = t1->str;
     d->name = t2->str;
-    token nt1;
-    cunit_get_token(cu, &nt1);
-    if(nt1.type == ';'){
+    cunit_get_token(cu, t1);
+    if(t1->type == ';'){
         d->assigning = false;
     }
-    else if(nt1.type == '='){
+    else if(t1->type == '='){
         d->assigning = true;
-        cunit_get_token(cu, &nt1);
-        token nt2;
-        cunit_get_token(cu, &nt2);
-        return cunit_parse_expression(cu, ';', &nt1, &nt2);
+        cunit_get_token(cu, t1);
+        cunit_get_token(cu, t2);
+        return cunit_parse_expression(cu, ';', t1, t2);
     }
     else{
         UNEXPECTED_TOKEN();    
@@ -322,7 +440,7 @@ static int cunit_parse_next(cunit* cu){
             cunit_get_token(cu, &t2);
             return cunit_parse_expression(cu, ';', &t1, &t2);
         case '#':
-        case TOKEN_TYPE_DOUBLE('#'):
+        case TOKEN_TYPE_DOUBLE_HASH:
             cunit_parse_meta(cu, &t1);
             break;
         case TOKEN_TYPE_EOF:

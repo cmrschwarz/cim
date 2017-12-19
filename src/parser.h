@@ -1,12 +1,22 @@
 #include "types.h"
 #include "dbuffer.h"
-#define TOKEN_TYPE_DOUBLE(c)((c) + 128)
-#define TOKEN_TYPE_EQUAL_COMB(c) ((c) + 192)
+#define OPERATOR_DOUBLE(c)((ureg)(c) + 128)
+#define OPERATOR_EQUAL_COMB(c) ((ureg)(c) + 192)
+
+//we need to specify the value so we don't overlap, as lot's of token types
+//represent the token char directly
 typedef enum token_types_t{
 	TOKEN_TYPE_STRING = 's',
 	TOKEN_TYPE_NUMBER = 'n',
 	TOKEN_TYPE_LITERAL = 'l',
 	TOKEN_TYPE_BINARY_LITERAL = 'b',
+	TOKEN_TYPE_POSSIBLY_UNARY = 'u',
+	TOKEN_TYPE_OPERATOR_LR = 'x',
+	TOKEN_TYPE_OPERATOR_L = 'y',
+	TOKEN_TYPE_OPERATOR_R = 'z',
+    TOKEN_TYPE_HASH = '#',
+    TOKEN_TYPE_DOUBLE_HASH = 'd',
+	TOKEN_TYPE_STAR = '*',	//this is separate from other operators
 	TOKEN_TYPE_EOF = '\0',
     TOKEN_TYPE_NONE = 0xFF,
 }token_types;
@@ -25,6 +35,7 @@ typedef struct cunit_t{
 	dbuffer string_ptrs;
 	//eventually, one ast per function?
 	dbuffer ast;
+    dbuffer shy_ops;    //shunting yard operators
 }cunit;
 
 

@@ -4,8 +4,8 @@
 int main(){
 	cunit cu;
 	cunit_init(&cu);
-	char* str = "int a = 4;";
-    printf("%s\n", str);
+	char* str = "int a = 5 / 3;";
+    printf("%s\n\n", str);
 	cu.str = str;
 	cu.pos = str;
 	token t;
