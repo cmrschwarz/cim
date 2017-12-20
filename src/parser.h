@@ -1,7 +1,7 @@
 #include "types.h"
 #include "dbuffer.h"
-#define OPERATOR_DOUBLE(c)((ureg)(c) + 128)
-#define OPERATOR_EQUAL_COMB(c) ((ureg)(c) + 192)
+#define OPERATOR_DOUBLE(c)((u8)(c) + 128)
+#define OPERATOR_EQUAL_COMB(c) ((u8)(c) + 192)
 
 //we need to specify the value so we don't overlap, as lot's of token types
 //represent the token char directly

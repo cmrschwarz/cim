@@ -4,7 +4,7 @@
 int main(){
 	cunit cu;
 	cunit_init(&cu);
-	char* str = "int a = 5 / 3;";
+	char* str = "int a = 5 / 3 / 7;";
     printf("%s\n\n", str);
 	cu.str = str;
 	cu.pos = str;

@@ -12,7 +12,13 @@ void cunit_init(cunit* cu){
 	dbuffer_init(&cu->string_store);
 	dbuffer_init(&cu->string_ptrs);
 	dbuffer_init(&cu->ast);
+    dbuffer_init(&cu->shy_ops);
 }
+
+//we do the mask because a cast to an int of lower width is implementation defined for values
+//outside of its range. this will be optimized away anyway
+#define TO_U8(i)((u8)((i) & 0xFF))
+#define TO_CHAR(i)((char)((i) & 0xFF))
 #define ASSERT_NEOF(c) do{if((c) == '\0'){printf("Unexpected EOF"); assert(false);}}while(0)
 #define UNEXPECTED_TOKEN() do{                                         \
     printf("%s(%d): Unexpected token", __FILE__, __LINE__); exit(-1); \
@@ -22,20 +28,26 @@ static void cunit_print_rel_str(cunit* cu, ureg str){
 }
 void cunit_print_token(cunit* cu, token* t){
 	switch(t->type){
-		case 'n':
-		case 's': 
+		case TOKEN_TYPE_NUMBER:
+		case TOKEN_TYPE_STRING:
             cunit_print_rel_str(cu, t->str);
 			return;
-		case 'l': 
+		case TOKEN_TYPE_LITERAL:
 			putchar('\"'); 
             cunit_print_rel_str(cu, t->str);
 			putchar('\"'); 
 			return;
-		case 'b':
+		case TOKEN_TYPE_BINARY_LITERAL:
 			putchar('\''); 
             cunit_print_rel_str(cu, t->str);
 			putchar('\'');
 			return;
+        case TOKEN_TYPE_POSSIBLY_UNARY:
+        case TOKEN_TYPE_OPERATOR_LR:
+        case TOKEN_TYPE_OPERATOR_L:
+        case TOKEN_TYPE_OPERATOR_R:{
+            putchar(TO_CHAR(t->str));
+        }return;
 	}
 	if(t->type > 192){
 		putchar(t->type);
@@ -295,12 +307,34 @@ redo:;
 void print_indent(ureg indent){
     for(ureg i=0;i<indent; i++)fputs("    ", stdout);
 }
+u8* cunit_print_expr(cunit* cu, astn_expression* e){
+    expr_elem* it =  (void*) cu->ast.start + e->end - sizeof(expr_elem);
+    expr_elem* rend = (void*)((u8*)e + sizeof(*e) - sizeof(expr_elem));
+
+    while(it != rend){
+        switch(it->type){
+            case EXPR_ELEM_TYPE_NUMBER:
+                putchar(' ');
+                cunit_print_rel_str(cu, it->val.number_str);
+                break;
+            case EXPR_ELEM_TYPE_OP_LR:{
+                putchar(' ');
+                token t;
+                t.type = TOKEN_TYPE_OPERATOR_LR;
+                t.str = (ureg)it->op;
+                cunit_print_token(cu, &t);
+            }break;
+        }
+        it--;
+    }
+	return cu->ast.start + e->end;
+}
 void cunit_print_ast(cunit* cu){
-    u8* astn = cu->ast.start;
-    u8* end = cu->ast.head;
+    u8* astn = (void*)cu->ast.start;
+    u8* end = (void*)cu->ast.head;
     ureg indent = 0;
     while(astn!=end){
-        switch(*astn){
+        switch(*(astnt*)astn){
             case ASTNT_DECLARATION:{
                 print_indent(indent);
                 astn_declaration* d = (void*)astn;
@@ -314,6 +348,9 @@ void cunit_print_ast(cunit* cu){
                     break;
                 }
                 fputs(" = ", stdout);
+            }break;
+            case ASTNT_EXPRESSION:{
+                astn = cunit_print_expr(cu, (astn_expression*)astn);
             }break;
             case ASTNT_NUMBER:{
                 astn_number* n = (void*)astn;
@@ -335,27 +372,38 @@ void cunit_print_ast(cunit* cu){
         } 
     }
 }
+typedef struct shy_op_t{
+    expr_elem_type type;
+    u8 op;
+}shy_op;
 static void cunit_parse_meta(cunit* cu, token* t1){
     
 }
-static int flush_shy_ops(cunit* cu, ureg shy_ops_head){
+static inline expr_elem* get_op_rend(cunit* cu, expr_elem* rit, expr_elem* rend){
 
 }
-struct shy_op{
-    u8 op_type;
-    char op;
-};
-static int cunit_parse_expression(cunit* cu, char term, token* t1, token* t2){
+static inline int cunit_flush_shy_ops(cunit* cu, ureg expr_elems_start, ureg shy_ops_head){
+    expr_elem* ee_rend= (void*)(cu->ast.start + expr_elems_start);
+
+    shy_op* it = (void*)(cu->shy_ops.head - sizeof(shy_op));
+    //technically this can be a pointer outside of the allocated range, but 2B srsly
+    shy_op* rend = (void*)(cu->shy_ops.start + shy_ops_head - sizeof(shy_op));
+    expr_elem* e;
+    while(it!= rend){
+        e = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem));
+        e->type = it->type;    
+        e->op = it->op;
+        it--;
+    }
+    cu->shy_ops.head = cu->shy_ops.start + shy_ops_head;
+}
+static int cunit_parse_expr(cunit *cu, char term, token *t1, token *t2){
     dbuffer* sho = &cu->shy_ops;
     ureg shy_ops_head = sho->head - sho->start;
     u8 last_prec=0;
     u8 prec;
     if(t2->type == term){
         //short expression optimization
-        if (t1->type == TOKEN_TYPE_OPERATOR_LR){
-            u8 v = t1->str;
-            dbuffer_push_back_val(sho,v);
-        }
         if(t1->type == TOKEN_TYPE_NUMBER){
             astn_number* n = dbuffer_claim_small_space(&cu->ast, sizeof(astn_number));
             n->astnt = ASTNT_NUMBER;
@@ -370,28 +418,40 @@ static int cunit_parse_expression(cunit* cu, char term, token* t1, token* t2){
     }
     astn_expression* expr = dbuffer_claim_small_space(&cu->ast, sizeof(astn_expression));
     expr->astnt = ASTNT_EXPRESSION;
-    ureg offs = (u8*)expr - cu->ast.start;
+    ureg expr_start = (u8*)expr - cu->ast.start;
+    ureg expr_elems_start = expr_start + sizeof(astn_expression);
     expr_elem* e;
+    shy_op sop;
     bool handled_first = false;
     while(true){
         if(t1->type == term){
-                expr = (astn_expression*)(cu->ast.start + offs);
+                cunit_flush_shy_ops(cu, expr_elems_start, shy_ops_head);
+                expr = (astn_expression*)(cu->ast.start + expr_start);
                 expr->end = dbuffer_get_size(&cu->ast);
                 return 0;
         }
         switch(t1->type){
-            case TOKEN_TYPE_OPERATOR_LR:
-                prec = prec_table[t1->str];
+            case TOKEN_TYPE_OPERATOR_LR:{
+                sop.type = EXPR_ELEM_TYPE_OP_LR;
+                sop.op = TO_U8(t1->str);
+                prec = prec_table[sop.op];
+                dbuffer_push_back_val(sho, sop);
                 if(prec < last_prec){
-                    flush_shy_ops(cu, shy_ops_head);
+                    cunit_flush_shy_ops(cu, expr_elems_start, shy_ops_head);
+                    last_prec = 0;
                 }
+                else{
+                    last_prec = prec;
+                }
+            }break;
             case TOKEN_TYPE_NUMBER:
                 e = dbuffer_claim_small_space(&cu->ast, sizeof(*e));
-                e->astnt = TOKEN_TYPE_NUMBER;
-                e->el.number.str = t1->str;
+                e->type = EXPR_ELEM_TYPE_NUMBER;
+                e->val.number_str = t1->str;
                 break;
             case TOKEN_TYPE_EOF:
-                expr = (astn_expression*)(cu->ast.start + offs);
+                cunit_flush_shy_ops(cu, expr_elems_start, shy_ops_head);
+                expr = (astn_expression*)(cu->ast.start + expr_start);
                 expr->end = dbuffer_get_size(&cu->ast);
                 return -1;
         }
@@ -418,7 +478,7 @@ static int cunit_parse_normal_declaration(cunit* cu, token* t1, token* t2){
         d->assigning = true;
         cunit_get_token(cu, t1);
         cunit_get_token(cu, t2);
-        return cunit_parse_expression(cu, ';', t1, t2);
+        return cunit_parse_expr(cu, ';', t1, t2);
     }
     else{
         UNEXPECTED_TOKEN();    
@@ -435,10 +495,10 @@ static int cunit_parse_next(cunit* cu){
             cunit_get_token(cu, &t2);
             if (t2.type == TOKEN_TYPE_STRING) 
                 return cunit_parse_normal_declaration(cu, &t1, &t2);
-            else return cunit_parse_expression(cu, ';', &t1, &t2);
+            else return cunit_parse_expr(cu, ';', &t1, &t2);
         case TOKEN_TYPE_NUMBER:
             cunit_get_token(cu, &t2);
-            return cunit_parse_expression(cu, ';', &t1, &t2);
+            return cunit_parse_expr(cu, ';', &t1, &t2);
         case '#':
         case TOKEN_TYPE_DOUBLE_HASH:
             cunit_parse_meta(cu, &t1);
