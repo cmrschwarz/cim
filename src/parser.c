@@ -379,12 +379,9 @@ typedef struct shy_op_t{
 static void cunit_parse_meta(cunit* cu, token* t1){
     
 }
-static inline expr_elem* get_op_rend(cunit* cu, expr_elem* rit, expr_elem* rend){
-
-}
 static inline int cunit_flush_shy_ops(cunit* cu, ureg expr_elems_start, ureg shy_ops_head){
-    expr_elem* ee_rend= (void*)(cu->ast.start + expr_elems_start);
-
+	expr_elem* elems_rend =  (void*)(cu->ast.start + expr_elems_start - sizeof(expr_elem));;
+	expr_elem* elems_rit =  (void*)(cu->ast.head - sizeof(expr_elem));;
     shy_op* it = (void*)(cu->shy_ops.head - sizeof(shy_op));
     //technically this can be a pointer outside of the allocated range, but 2B srsly
     shy_op* rend = (void*)(cu->shy_ops.start + shy_ops_head - sizeof(shy_op));
@@ -393,6 +390,8 @@ static inline int cunit_flush_shy_ops(cunit* cu, ureg expr_elems_start, ureg shy
         e = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem));
         e->type = it->type;    
         e->op = it->op;
+		if(elems_rit == elems_rend)assert(false);
+		if()
         it--;
     }
     cu->shy_ops.head = cu->shy_ops.start + shy_ops_head;
