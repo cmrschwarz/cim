@@ -1,3 +1,4 @@
+#pragma once
 #include "types.h"
 #include "dbuffer.h"
 #define OPERATOR_DOUBLE(c)((u8)(c) + 128)
@@ -39,9 +40,9 @@ typedef struct cunit_t{
 }cunit;
 
 
-void cunit_init(cunit* cu);
-void cunit_get_token(cunit* cu, token* t);
-char* cunit_store_string(cunit* cu, char* str, char* str_end, ureg* str_pos);
-void cunit_parse(cunit* cu, char* str);
-void cunit_print_ast(cunit* cu);
-void cunit_print_token(cunit* cu, token* t);
+void init(cunit* cu);
+void get_token(cunit* cu, token* t);
+char* store_string(cunit* cu, char* str, char* str_end, ureg* str_pos);
+void parse(cunit* cu, char* str);
+void print_ast(cunit* cu);
+void print_token(cunit* cu, token* t);
