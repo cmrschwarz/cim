@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <assert.h>
-
+#include <stdio.h>
 #include "dbuffer.h"
 
 void dbuffer_init_with_capacity(dbuffer* db, ureg capacity)
@@ -50,6 +50,7 @@ void dbuffer_set_bigger_capacity(dbuffer* db, ureg capacity)
 	db->head = temp + (db->head - db->start);
 	db->end = temp + capacity;
 	db->start = temp;
+	//printf("growing capacity to %llu\n", dbuffer_get_capacity(db));
 }
 
 void dbuffer_grow(dbuffer* db)

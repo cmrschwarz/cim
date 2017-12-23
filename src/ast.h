@@ -54,21 +54,19 @@ typedef struct astn_expression_t{
 //we specify values to ensure it fits inside a u8
 typedef enum expr_elem_type_t{
     EXPR_ELEM_TYPE_NUMBER = 0,
-    EXPR_ELEM_TYPE_OP_LR = 1,
-    EXPR_ELEM_TYPE_OP_L = 2,
-    EXPR_ELEM_TYPE_OP_R = 3,
-    EXPR_ELEM_TYPE_UNARY = 4,
-    EXPR_ELEM_TYPE_BRACE = 5,   //closing will never be stored
+    EXPR_ELEM_TYPE_VARIABLE = 1,
+    EXPR_ELEM_TYPE_OP_LR = 2,
+    EXPR_ELEM_TYPE_OP_L = 3,
+    EXPR_ELEM_TYPE_OP_R = 4,
+    EXPR_ELEM_TYPE_UNARY = 5,
+    EXPR_ELEM_TYPE_BRACE = 6,   //closing will never be stored
 }expr_elem_type;
 
 
 typedef struct expr_elem_t{
     u8 type;
     u8 op;
-    union {
-        ureg op_rend;
-        ureg number_str;
-    }val;
+    ureg val;
 }expr_elem;
 
 

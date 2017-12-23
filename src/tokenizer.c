@@ -1,4 +1,5 @@
 #include "parser.h"
+#include "tokenizer.h"
 #include "ast.h"
 #include <stdio.h>
 #include <string.h>
@@ -9,6 +10,7 @@ void print_rel_str(cunit* cu, ureg str){
    fputs((char*)(cu->string_store.start + str), stdout);
 }
 void print_token(cunit* cu, token* t){
+    u8 op = TO_CHAR(t->str);
 	switch(t->type){
 		case TOKEN_TYPE_NUMBER:
 		case TOKEN_TYPE_STRING:
@@ -28,39 +30,44 @@ void print_token(cunit* cu, token* t){
             switch(TO_CHAR(t->str)) {
                 case OPS_UNYRY_PLUS:putchar('+');return;
                 case OPS_UNARY_MINUS:putchar('-');return;
-                default: printf("unknown unary op");exit(-1);
+                case OPS_DEREF:putchar('*');return;
+                default: printf("unknown unary op\n");exit(-1);
             }
         }
+        case TOKEN_TYPE_OPERATOR_R:{
+            if(OPERATOR_IS_DOUBLE(op)){
+                putchar(OPERATOR_WITHOUT_DOUBLE(op));
+                putchar(OPERATOR_WITHOUT_DOUBLE(op));
+            }
+            else if (OPERATOR_IS_EQUAL_COMB(op)){
+                putchar(OPERATOR_WITHOUT_EQUAL_COMB(op));
+                putchar('=');
+            }
+            else{
+                putchar(op);
+            }
+        }return;
         case TOKEN_TYPE_OPERATOR_LR:
         case TOKEN_TYPE_OPERATOR_L:
-        case TOKEN_TYPE_OPERATOR_R:{
-            putchar(TO_CHAR(t->str));
+        {
+            putchar(op);
         }return;
-	}
-	if(t->type > 192){
-		putchar(t->type);
-		putchar('=');
-	}
-	else if(t->type > 128){
-		putchar(t->type);
-		putchar(t->type);
-	}
-	else{
-		putchar(t->type);
+        default:
+            printf("Unknown token\n");exit(-1);
 	}
 }
 
 static inline int cmp_string_with_stored(char* str_start, char* str_end, char* stored){
 	for(;;){
+        if(str_start == str_end) return 0;
 		if(*str_start != *stored){
-			return *stored - *str_start;
+			return  *str_start - *stored;
 		}
-		if(str_start == str_end) return 0;
 		str_start++;
 		stored++;
 	}
 }
-char* store_string(cunit* cu, char* str, char* str_end, ureg* str_pos){
+ureg store_string(cunit* cu, char* str, char* str_end){
 	//we do this ahead so we don't have to worry about invalidating pointers
 	dbuffer_make_small_space(&cu->string_ptrs, sizeof(ureg));
 	ureg* sptrs_start = (ureg*)cu->string_ptrs.start;
@@ -70,16 +77,21 @@ char* store_string(cunit* cu, char* str, char* str_end, ureg* str_pos){
 	for(;;){
 		pivot = sptrs_start + (sptrs_end - sptrs_start) / 2;
 		if(pivot == sptrs_start){
-			ureg str_size = str_end - str;
-			char* tgt = dbuffer_claim_space(&cu->string_store, str_size + 1); //+1 for \0
-			memcpy(tgt, str, str_size);
-			*(tgt + str_size) = '\0';
-			memmove(sptrs_start+1, sptrs_start, cu->string_ptrs.head - (u8*)sptrs_start);
-			*sptrs_start = (u8*)tgt - cu->string_store.start;
-			*str_pos = *sptrs_start;
-			return tgt;
-		}
-		res = cmp_string_with_stored(str, str_end, (char*)cu->string_store.start + *pivot);
+            if(pivot != (ureg*)cu->string_ptrs.head){
+                if(cmp_string_with_stored(str, str_end, (char*)cu->string_store.start + *pivot) == 0){
+                    return *pivot;
+                }
+            }
+            ureg str_size = str_end - str;
+            char* tgt = dbuffer_claim_space(&cu->string_store, str_size + 1); //+1 for \0
+            memcpy(tgt, str, str_size);
+            *(tgt + str_size) = '\0';
+            ureg pos = (u8*)tgt - cu->string_store.start;
+            dbuffer_insert_at(&cu->string_ptrs, &pos, sptrs_start, sizeof(ureg));
+            printf("String cache miss for %s [%llu]\n", tgt, pos);
+            return pos;
+        }
+        res = cmp_string_with_stored(str, str_end, (char*)cu->string_store.start + *pivot);
 		if(res < 0){
 			sptrs_end = pivot;
 		}
@@ -87,8 +99,7 @@ char* store_string(cunit* cu, char* str, char* str_end, ureg* str_pos){
 			sptrs_start = pivot +1;
 		}
 		else{
-			*str_pos = *pivot;
-			return (char*)cu->string_store.start + *pivot;
+			return *pivot;
 		}
 	}
 }
@@ -107,7 +118,7 @@ redo:;
 			str_end++;
 			c = *str_end;
 		}
-		store_string(cu, str_start, str_end, &tok->str);
+        tok->str = store_string(cu, str_start, str_end);
 		tok->type = TOKEN_TYPE_STRING;
 		cu->pos = str_end;
 		return;
@@ -121,7 +132,7 @@ redo:;
 			str_end++;
 			c = *str_end;
 		}
-		store_string(cu, str_start, str_end, &tok->str);
+        tok->str = store_string(cu, str_start, str_end);
 		tok->type = TOKEN_TYPE_NUMBER;
 		cu->pos = str_end;
 		return;
@@ -134,7 +145,7 @@ redo:;
 			str_end++;
 			if(*str_end == '\\')str_end ++;
 		}
-		store_string(cu, str_start, str_end, &tok->str);
+        tok->str = store_string(cu, str_start, str_end);
 		tok->type = TOKEN_TYPE_LITERAL;
 		cu->pos = str_end;
 		return;
@@ -150,7 +161,7 @@ redo:;
 				ASSERT_NEOF(*str_end);
 			}
 		}
-		store_string(cu, str_start, str_end, &tok->str);
+        tok->str = store_string(cu, str_start, str_end);
 		tok->type = TOKEN_TYPE_BINARY_LITERAL;
 		cu->pos = str_end;
 		return;
@@ -195,11 +206,12 @@ redo:;
             cu->pos++;
         }return;
 
+        case '*':
 		case '+':
 		case '-':{
 			char nxt = *(cu->pos+1);
 			if(nxt == curr){
-                tok->type = TOKEN_TYPE_OPERATOR_L;
+                tok->type = TOKEN_TYPE_OPERATOR_R;
 				tok->str = OPERATOR_DOUBLE(curr);
 			    cu->pos += 2;
 			}
@@ -247,7 +259,7 @@ redo:;
 			}
 		}return;
 
-        case '*':
+
         case '=':{
 			char nxt = *(cu->pos+1);
 			if(nxt == '='){
@@ -256,7 +268,7 @@ redo:;
 			    cu->pos += 2;
 			}
 			else{
-                tok->type = curr;
+                tok->type = TO_U8(curr);
 			    cu->pos ++;
 			}
 		}return;
@@ -271,7 +283,7 @@ redo:;
 			    cu->pos += 2;
 			}
 			else{
-				tok->str = curr;
+				tok->str = TO_U8(curr);
 			    cu->pos ++;
 			}
 

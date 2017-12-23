@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <memory.h>
 #include "ast.h"
+#include <assert.h>
 #define POS(x)(((u8*)(x)) - cu->ast.start)
 #define UNEXPECTED_TOKEN() do{                                         \
     printf("%s(%d): Unexpected token", __FILE__, __LINE__); exit(-1); \
@@ -22,6 +23,10 @@ void init(cunit* cu){
         prec_table['-'] = 1;
         prec_table ['%'] = 2;
         prec_table['/'] = 3;
+        prec_table['*'] = 3;
+        prec_table[OPERATOR_DOUBLE('-')] = 99;
+        prec_table[OPERATOR_DOUBLE('+')] = 99;
+        prec_table[OPS_DEREF] = 99;
         prec_table[OPS_UNYRY_PLUS] = 99;
         prec_table[OPS_UNARY_MINUS] = 99;
     }
@@ -44,17 +49,18 @@ void print_indent(ureg indent){
 static void print_expr_elem(cunit* cu, expr_elem* e){
     switch(e->type){
         case EXPR_ELEM_TYPE_NUMBER:
-            print_rel_str(cu, e->val.number_str);
+        case EXPR_ELEM_TYPE_VARIABLE:
+            print_rel_str(cu, e->val);
             break;
         case EXPR_ELEM_TYPE_OP_LR:{
             putchar('(');
             expr_elem* r = (void*)(e-1);
             expr_elem* l;
-            if(r->type == EXPR_ELEM_TYPE_NUMBER){
+            if(r->type == EXPR_ELEM_TYPE_NUMBER || r->type == EXPR_ELEM_TYPE_VARIABLE){
                 l = r-1;
             }
             else{
-                l = (void*)(cu->ast.start + r->val.op_rend);
+                l = (void*)(cu->ast.start + r->val);
             }
             print_expr_elem(cu, l);
             putchar(' ');
@@ -66,11 +72,12 @@ static void print_expr_elem(cunit* cu, expr_elem* e){
             print_expr_elem(cu, r);
             putchar(')');
         }break;
+        case EXPR_ELEM_TYPE_OP_R:
         case EXPR_ELEM_TYPE_UNARY: {
             putchar('(');
             expr_elem *u = (void *) (e - 1);
             token t;
-            t.type = TOKEN_TYPE_POSSIBLY_UNARY;
+            t.type = (e->type == EXPR_ELEM_TYPE_UNARY)? TOKEN_TYPE_POSSIBLY_UNARY : TOKEN_TYPE_OPERATOR_R;
             t.str = (ureg) e->op;
             print_token(cu, &t);
             print_expr_elem(cu, u);
@@ -149,13 +156,13 @@ static inline void flush_shy_op(cunit* cu, shy_op* s, ureg expr_start){
             expr_rit--;
         }
         else{
-            expr_rit = (void*)cu->ast.start + expr_rit->val.op_rend;
+            expr_rit = (void*)cu->ast.start + expr_rit->val;
         }
     }
     expr_elem* e = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem));
     e->type = s->type;
     e->op = s->op;
-    e->val.op_rend = (u8*)expr_rit - cu->ast.start;
+    e->val = (u8*)expr_rit - cu->ast.start;
     cu->shy_ops.head -= sizeof(shy_op); //this will be inlined and brought out of the loop
 }
 static inline void push_shy_op(cunit* cu, shy_op* sop, shy_op** sho_ri, shy_op** sho_re, ureg shy_ops_start){
@@ -211,16 +218,37 @@ static int parse_expr(cunit *cu, char term, token *t1, token *t2){
                 return 0;
         }
         switch(t1->type){
+            case TOKEN_TYPE_OPERATOR_R:{
+                sop.type = EXPR_ELEM_TYPE_OP_R;
+                sop.op = TO_U8(t1->str);
+                prec =  prec_table[sop.op];
+                if(last_prec > prec){
+                    for(; sho_ri != sho_re && prec_table[sho_ri->op] > prec;sho_ri--){
+                        flush_shy_op(cu, sho_ri, expr_start);
+                    }
+                }
+                push_shy_op(cu, &sop, &sho_ri, &sho_re, shy_ops_start);
+                last_prec = prec;
+                break;
+            }
             case TOKEN_TYPE_POSSIBLY_UNARY:{
-                if(!expecting_op){
+                if(!expecting_op){ //--> unary
                     sop.type = EXPR_ELEM_TYPE_UNARY;
+
                     switch(TO_U8(t1->str)){
                         case '+': sop.op = OPS_UNYRY_PLUS;break;
                         case '-': sop.op = OPS_UNARY_MINUS;break;
+                        case '*': sop.op = OPS_DEREF;break;
                         default: printf("Unexpected unary op"); exit(-1);
                     }
+                    prec =  prec_table[sop.op];
+                    if(last_prec > prec){
+                        for(; sho_ri != sho_re && prec_table[sho_ri->op] > prec;sho_ri--){
+                            flush_shy_op(cu, sho_ri, expr_start);
+                        }
+                    }
                     push_shy_op(cu, &sop, &sho_ri, &sho_re, shy_ops_start);
-                    last_prec = prec_table[sop.op];
+                    last_prec = prec;
                     //expecting_op stays on false
                     break;
                 }
@@ -247,9 +275,17 @@ static int parse_expr(cunit *cu, char term, token *t1, token *t2){
                 expecting_op = false;
             }break;
             case TOKEN_TYPE_NUMBER:
+                assert(!expecting_op);
                 e = dbuffer_claim_small_space(&cu->ast, sizeof(*e));
                 e->type = EXPR_ELEM_TYPE_NUMBER;
-                e->val.number_str = t1->str;
+                e->val = t1->str;
+                expecting_op = true;
+                break;
+            case TOKEN_TYPE_STRING:
+                assert(!expecting_op);
+                e = dbuffer_claim_small_space(&cu->ast, sizeof(*e));
+                e->type = EXPR_ELEM_TYPE_VARIABLE;
+                e->val = t1->str;
                 expecting_op = true;
                 break;
             case '(': {

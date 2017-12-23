@@ -1,14 +1,16 @@
 #include "parser.h"
 #include "tokenizer.h"
+#include "ast.h"
 #include <string.h>
 #include <stdio.h>
 int main(){
 	cunit cu;
 	init(&cu);
     const int cnt = 1;
+    printf("expr elem size: %llu\n", sizeof(expr_elem));
     char* pre_str = "int a = ";
     ureg pre_str_len = strlen(pre_str);
-	char* str = " -1 + 17 / 3";
+	char* str = "() 5++ * *3 / ";
     ureg str_size = strlen(str);
     char* str_comb = malloc(pre_str_len + str_size * cnt + 3);
     memcpy(str_comb, pre_str, pre_str_len);
@@ -18,7 +20,7 @@ int main(){
         memcpy(str_comb_it, str, str_size);
         str_comb_it+= str_size;
     }
-    str_comb_it_end[0] = ' ';
+    str_comb_it_end[0] = 'b';
     str_comb_it_end[1] = ';';
     str_comb_it_end[2] = '\0';
     printf("input:\n%s\n\n", str_comb);
