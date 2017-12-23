@@ -1,11 +1,11 @@
 #include "parser.h"
 #include "ast.h"
 #include <stdio.h>
+#include <string.h>
+#include <assert.h>
 #define ASSERT_NEOF(c) do{if((c) == '\0'){printf("Unexpected EOF"); assert(false);}}while(0)
-#define UNEXPECTED_TOKEN() do{                                         \
-    printf("%s(%d): Unexpected token", __FILE__, __LINE__); exit(-1); \
-}while(0)
-static void print_rel_str(cunit* cu, ureg str){
+
+void print_rel_str(cunit* cu, ureg str){
    fputs((char*)(cu->string_store.start + str), stdout);
 }
 void print_token(cunit* cu, token* t){
@@ -24,7 +24,13 @@ void print_token(cunit* cu, token* t){
             print_rel_str(cu, t->str);
 			putchar('\'');
 			return;
-        case TOKEN_TYPE_POSSIBLY_UNARY:
+        case TOKEN_TYPE_POSSIBLY_UNARY:{
+            switch(TO_CHAR(t->str)) {
+                case OPS_UNYRY_PLUS:putchar('+');return;
+                case OPS_UNARY_MINUS:putchar('-');return;
+                default: printf("unknown unary op");exit(-1);
+            }
+        }
         case TOKEN_TYPE_OPERATOR_LR:
         case TOKEN_TYPE_OPERATOR_L:
         case TOKEN_TYPE_OPERATOR_R:{

@@ -19,8 +19,13 @@ typedef enum token_types_t{
     TOKEN_TYPE_DOUBLE_HASH = 'd',
 	TOKEN_TYPE_STAR = '*',	//this is separate from other operators
 	TOKEN_TYPE_EOF = '\0',
-    TOKEN_TYPE_NONE = 0xFF,
+	TOKEN_TYPE_NONE = 0xFF,
 }token_types;
+
+enum OPS{
+    OPS_UNYRY_PLUS='p',
+    OPS_UNARY_MINUS='m',
+};
 typedef struct token_t{
 	u8 type;
 	ureg str;
@@ -42,7 +47,5 @@ typedef struct cunit_t{
 
 void init(cunit* cu);
 void get_token(cunit* cu, token* t);
-char* store_string(cunit* cu, char* str, char* str_end, ureg* str_pos);
 void parse(cunit* cu, char* str);
 void print_ast(cunit* cu);
-void print_token(cunit* cu, token* t);
