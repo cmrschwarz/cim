@@ -34,6 +34,7 @@ void print_token(cunit* cu, token* t){
                 default: printf("unknown unary op\n");exit(-1);
             }
         }
+		case TOKEN_TYPE_OPERATOR_L:
         case TOKEN_TYPE_OPERATOR_R:{
             if(OPERATOR_IS_DOUBLE(op)){
                 putchar(OPERATOR_WITHOUT_DOUBLE(op));
@@ -48,7 +49,6 @@ void print_token(cunit* cu, token* t){
             }
         }return;
         case TOKEN_TYPE_OPERATOR_LR:
-        case TOKEN_TYPE_OPERATOR_L:
         {
             putchar(op);
         }return;
@@ -211,7 +211,7 @@ redo:;
 		case '-':{
 			char nxt = *(cu->pos+1);
 			if(nxt == curr){
-                tok->type = TOKEN_TYPE_OPERATOR_R;
+                tok->type = TOKEN_TYPE_OPERATOR_L_OR_R;
 				tok->str = OPERATOR_DOUBLE(curr);
 			    cu->pos += 2;
 			}

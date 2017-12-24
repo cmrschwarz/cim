@@ -17,6 +17,7 @@ typedef enum token_types_t{
     TOKEN_TYPE_OPERATOR_LR = 'x',
     TOKEN_TYPE_OPERATOR_L = 'y',
     TOKEN_TYPE_OPERATOR_R = 'z',
+    TOKEN_TYPE_OPERATOR_L_OR_R = '1',
     TOKEN_TYPE_HASH = '#',
     TOKEN_TYPE_DOUBLE_HASH = 'd',
     TOKEN_TYPE_EOF = '\0',

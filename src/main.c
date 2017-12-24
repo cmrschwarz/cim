@@ -10,7 +10,7 @@ int main(){
     printf("expr elem size: %llu\n", sizeof(expr_elem));
     char* pre_str = "int a = ";
     ureg pre_str_len = strlen(pre_str);
-	char* str = "() 5++ * *3 / ";
+	char* str = " ++5++ * *3 / ";
     ureg str_size = strlen(str);
     char* str_comb = malloc(pre_str_len + str_size * cnt + 3);
     memcpy(str_comb, pre_str, pre_str_len);

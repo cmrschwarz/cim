@@ -72,12 +72,22 @@ static void print_expr_elem(cunit* cu, expr_elem* e){
             print_expr_elem(cu, r);
             putchar(')');
         }break;
-        case EXPR_ELEM_TYPE_OP_R:
+        case EXPR_ELEM_TYPE_OP_R:{
+            putchar('(');
+            expr_elem *u = (void *) (e - 1);
+            print_expr_elem(cu, u);
+            token t;
+            t.type = TOKEN_TYPE_OPERATOR_R;
+            t.str = (ureg) e->op;
+            print_token(cu, &t);
+            putchar(')');
+        }break;
+        case EXPR_ELEM_TYPE_OP_L:
         case EXPR_ELEM_TYPE_UNARY: {
             putchar('(');
             expr_elem *u = (void *) (e - 1);
             token t;
-            t.type = (e->type == EXPR_ELEM_TYPE_UNARY)? TOKEN_TYPE_POSSIBLY_UNARY : TOKEN_TYPE_OPERATOR_R;
+            t.type = (e->type == EXPR_ELEM_TYPE_UNARY)? TOKEN_TYPE_POSSIBLY_UNARY : TOKEN_TYPE_OPERATOR_L;
             t.str = (ureg) e->op;
             print_token(cu, &t);
             print_expr_elem(cu, u);
@@ -218,8 +228,8 @@ static int parse_expr(cunit *cu, char term, token *t1, token *t2){
                 return 0;
         }
         switch(t1->type){
-            case TOKEN_TYPE_OPERATOR_R:{
-                sop.type = EXPR_ELEM_TYPE_OP_R;
+            case TOKEN_TYPE_OPERATOR_L_OR_R:{
+                sop.type = (expecting_op)? EXPR_ELEM_TYPE_OP_R : EXPR_ELEM_TYPE_OP_L;
                 sop.op = TO_U8(t1->str);
                 prec =  prec_table[sop.op];
                 if(last_prec > prec){
@@ -283,6 +293,7 @@ static int parse_expr(cunit *cu, char term, token *t1, token *t2){
                 break;
             case TOKEN_TYPE_STRING:
                 assert(!expecting_op);
+
                 e = dbuffer_claim_small_space(&cu->ast, sizeof(*e));
                 e->type = EXPR_ELEM_TYPE_VARIABLE;
                 e->val = t1->str;

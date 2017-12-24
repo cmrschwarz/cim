@@ -60,6 +60,7 @@ typedef enum expr_elem_type_t{
     EXPR_ELEM_TYPE_OP_R = 4,
     EXPR_ELEM_TYPE_UNARY = 5,
     EXPR_ELEM_TYPE_BRACE = 6,   //closing will never be stored
+    EXPR_ELEM_TYPE_FN_CALL = 7,   //closing will never be stored
 }expr_elem_type;
 
 
