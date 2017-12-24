@@ -211,7 +211,7 @@ static int parse_expr(cunit *cu, char term, token *t1, token *t2){
     ureg expr_elems_start = expr_start + sizeof(astn_expression);
     expr_elem* e;
     shy_op sop;
-    bool handled_first = false;
+    bool second_available = true;
     ureg shy_ops_start = cu->shy_ops.head - cu->shy_ops.start;
     u8 last_prec = 0;
     bool expecting_op = false;
@@ -293,10 +293,16 @@ static int parse_expr(cunit *cu, char term, token *t1, token *t2){
                 break;
             case TOKEN_TYPE_STRING:
                 assert(!expecting_op);
-
-                e = dbuffer_claim_small_space(&cu->ast, sizeof(*e));
-                e->type = EXPR_ELEM_TYPE_VARIABLE;
-                e->val = t1->str;
+                get_token(cu, t2);
+                if(t2->type == '('){
+                    //function call
+                }
+                else{
+                    e = dbuffer_claim_small_space(&cu->ast, sizeof(*e));
+                    e->type = EXPR_ELEM_TYPE_VARIABLE;
+                    e->val = t1->str;
+                    second_available = true;
+                }
                 expecting_op = true;
                 break;
             case '(': {
@@ -318,11 +324,11 @@ static int parse_expr(cunit *cu, char term, token *t1, token *t2){
             case TOKEN_TYPE_EOF:
                 printf("Unexpected eof.");exit(-1);
         }
-        if(handled_first){
+        if(!second_available){
             get_token(cu, t1);
         }
         else {
-            handled_first = true;
+            second_available = false;
             *t1 = *t2;
         }
     }
