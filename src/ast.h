@@ -10,10 +10,10 @@
 //all nodes are at least aligned to a sizeof(ureg) byte boundary
 
 typedef enum astnt_t {
-    ASTNT_NUMBER = 0,
-    ASTNT_VARIABLE = 1,
-    ASTNT_DECLARATION = 2,
-    ASTNT_EXPRESSION = 3,
+    ASTNT_EXPRESSION = 0,
+    ASTNT_NUMBER = 1,
+    ASTNT_VARIABLE = 2,
+    ASTNT_DECLARATION = 3,
     ASTNT_FUNCTION_DECLARATION = 4,
 }astnt;
 
@@ -30,14 +30,6 @@ typedef struct astn_declaration_t{
     ureg name;
 }astn_declaration;
 
-typedef struct astn_variable_t{
-    u8 astnt;
-    ureg name;
-}astn_variable;
-typedef struct astn_number_t{
-    u8 astnt;
-    ureg number_str;
-}astn_number;
 typedef struct astn_function_call_t{
     u8 astnt;
     ureg arg_count;
@@ -53,17 +45,23 @@ typedef struct astn_expression_t{
 
 //we specify values to ensure it fits inside a u8
 typedef enum expr_elem_type_t{
-    EXPR_ELEM_TYPE_NUMBER = 0,
-    EXPR_ELEM_TYPE_VARIABLE = 1,
-    EXPR_ELEM_TYPE_OP_LR = 2,
-    EXPR_ELEM_TYPE_OP_L = 3,
-    EXPR_ELEM_TYPE_OP_R = 4,
-    EXPR_ELEM_TYPE_UNARY = 5,
-    EXPR_ELEM_TYPE_BRACE = 6,   //closing will never be stored
-    EXPR_ELEM_TYPE_FN_CALL = 7,   //closing will never be stored
+    EXPR_ELEM_TYPE_EXPR = (u8)ASTNT_EXPRESSION,
+    EXPR_ELEM_TYPE_NUMBER = (u8)ASTNT_NUMBER,
+    EXPR_ELEM_TYPE_VARIABLE =(u8)ASTNT_VARIABLE,
+    EXPR_ELEM_TYPE_OP_LR = 3,
+    EXPR_ELEM_TYPE_OP_L = 4,
+    EXPR_ELEM_TYPE_OP_R = 5,
+    EXPR_ELEM_TYPE_UNARY = 6,
+    EXPR_ELEM_TYPE_BRACE = 7,   //closing will never be stored
+    EXPR_ELEM_TYPE_FN_CALL = 8,
+    EXPR_ELEM_TYPE_FN_NAME = 9,
 }expr_elem_type;
 
-
+//this is also used for:
+//astn_expression
+//astn_number
+//astn_string
+//to allow for nested expressions
 typedef struct expr_elem_t{
     u8 type;
     u8 op;

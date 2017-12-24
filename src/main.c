@@ -10,7 +10,7 @@ int main(){
     printf("expr elem size: %llu\n", sizeof(expr_elem));
     char* pre_str = "int a = ";
     ureg pre_str_len = strlen(pre_str);
-	char* str = " ++5++ * *3 / ";
+	char* str = "heureka(a, 42) +";
     ureg str_size = strlen(str);
     char* str_comb = malloc(pre_str_len + str_size * cnt + 3);
     memcpy(str_comb, pre_str, pre_str_len);
@@ -28,7 +28,7 @@ int main(){
 	cu.pos = str_comb;
 	token t;
     parse(&cu, str_comb);
-    printf("output:\n");
+    printf("\noutput:\n");
     print_ast(&cu);
 	return 0;
 }

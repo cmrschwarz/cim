@@ -46,7 +46,13 @@ void init(cunit* cu){
 void print_indent(ureg indent){
     for(ureg i=0;i<indent; i++)fputs("    ", stdout);
 }
-static void print_expr_elem(cunit* cu, expr_elem* e){
+static expr_elem* print_expr_elem(cunit* cu, expr_elem* e);
+static inline expr_elem* print_expr(cunit* cu, expr_elem* expr){
+    expr_elem* e = (void*) cu->ast.start + expr->val - sizeof(expr_elem);
+    print_expr_elem(cu, e);
+    return (void*) cu->ast.start + expr->val;
+}
+static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
     switch(e->type){
         case EXPR_ELEM_TYPE_NUMBER:
         case EXPR_ELEM_TYPE_VARIABLE:
@@ -62,7 +68,7 @@ static void print_expr_elem(cunit* cu, expr_elem* e){
             else{
                 l = (void*)(cu->ast.start + r->val);
             }
-            print_expr_elem(cu, l);
+            expr_elem* end_op = print_expr_elem(cu, l);
             putchar(' ');
             token t;
             t.type = TOKEN_TYPE_OPERATOR_LR;
@@ -71,7 +77,8 @@ static void print_expr_elem(cunit* cu, expr_elem* e){
             putchar(' ');
             print_expr_elem(cu, r);
             putchar(')');
-        }break;
+            return end_op;
+        }
         case EXPR_ELEM_TYPE_OP_R:{
             putchar('(');
             expr_elem *u = (void *) (e - 1);
@@ -81,7 +88,8 @@ static void print_expr_elem(cunit* cu, expr_elem* e){
             t.str = (ureg) e->op;
             print_token(cu, &t);
             putchar(')');
-        }break;
+            break;
+        }
         case EXPR_ELEM_TYPE_OP_L:
         case EXPR_ELEM_TYPE_UNARY: {
             putchar('(');
@@ -92,15 +100,29 @@ static void print_expr_elem(cunit* cu, expr_elem* e){
             print_token(cu, &t);
             print_expr_elem(cu, u);
             putchar(')');
-        }break;
+            break;
+        }
+        case EXPR_ELEM_TYPE_FN_CALL:{
+            expr_elem* end = (void*)(cu->ast.start  + e->val);
+            e--;
+            print_rel_str(cu, e->val);
+            e--;
+            putchar('(');
+            if(e!= end){
+                e = print_expr_elem(cu, e);
+                while(e!= end){
+                    putchar(',');
+                    e = print_expr_elem(cu, e);
+                }
+            }
+            putchar(')');
+            return e;
+        }
         default: printf("Unknown expr type"); exit(-1);
     }
+    return e-1;
 }
-static inline u8* print_expr(cunit* cu, astn_expression* expr){
-    expr_elem* e = (void*) cu->ast.start + expr->end - sizeof(expr_elem);
-    print_expr_elem(cu, e);
-    return cu->ast.start + expr->end;
-}
+
 void print_ast(cunit* cu){
     u8* astn = (void*)cu->ast.start;
     u8* end = (void*)cu->ast.head;
@@ -126,16 +148,16 @@ void print_ast(cunit* cu){
                 puts(";");
             }break;
             case ASTNT_NUMBER:{
-                astn_number* n = (void*)astn;
+                expr_elem* n = (void*)astn;
                 astn+= sizeof(*n);
-                print_rel_str(cu, n->number_str);
+                print_rel_str(cu, n->val);
                 putchar(';');
                 putchar('\n');
             }break;
             case ASTNT_VARIABLE:{
-                astn_variable* v = (void*)astn;
+                expr_elem* v = (void*)astn;
                 astn+= sizeof(*v);
-                print_rel_str(cu, v->name);
+                print_rel_str(cu, v->val);
                 putchar(';');
                 putchar('\n');
             }break;
@@ -189,24 +211,24 @@ static inline void push_shy_op(cunit* cu, shy_op* sop, shy_op** sho_ri, shy_op**
         *sho_ri = (void*)(cu->shy_ops.head - sizeof(shy_op));
     }
 }
-static int parse_expr(cunit *cu, char term,char term2, token *t1, token *t2){
+static int parse_expr(cunit *cu, char term1,char term2, token *t1, token *t2){
     //printf("parsing expr (%llu)\n", POS(cu->ast.head));
-    if(t2->type == term){
+    if(t2->type == term1 || t2->type == term2){
         //short expression optimization
         if(t1->type == TOKEN_TYPE_NUMBER){
-            astn_number* n = dbuffer_claim_small_space(&cu->ast, sizeof(astn_number));
-            n->astnt = ASTNT_NUMBER;
-            n->number_str = t1->str;
+            expr_elem* n = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem));
+            n->type = ASTNT_NUMBER;
+            n->val = t1->str;
         }
 		if(t1->type == TOKEN_TYPE_STRING){
-            astn_variable* v = dbuffer_claim_small_space(&cu->ast, sizeof(astn_variable));
-            v->astnt = ASTNT_VARIABLE;
-            v->name = t1->str;
+            expr_elem* v = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem));
+            v->type = ASTNT_VARIABLE;
+            v->val = t1->str;
         }
-        return 0;
+        return (t2->type == term1) ? 0 : 1;
     }
-    astn_expression* expr = dbuffer_claim_small_space(&cu->ast, sizeof(astn_expression));
-    expr->astnt = ASTNT_EXPRESSION;
+    expr_elem* expr = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem));
+    expr->type = ASTNT_EXPRESSION;
     ureg expr_start = (u8*)expr - cu->ast.start;
     ureg expr_elems_start = expr_start + sizeof(astn_expression);
     expr_elem* e;
@@ -219,13 +241,13 @@ static int parse_expr(cunit *cu, char term,char term2, token *t1, token *t2){
     shy_op* sho_re = (void*)(cu->shy_ops.start + shy_ops_start - sizeof(shy_op));
     shy_op* sho_ri = (void*)(cu->shy_ops.head - sizeof(shy_op));
     while(true){
-        if(t1->type == term || t1->type == term2){
+        if(t1->type == term1 || t1->type == term2){
                 for(;sho_ri != sho_re; sho_ri--){
                     flush_shy_op(cu, sho_ri, expr_start);
                 }
                 expr = (astn_expression*)(cu->ast.start + expr_start);
-                expr->end = dbuffer_get_size(&cu->ast);
-                return 0;
+                expr->val = dbuffer_get_size(&cu->ast);
+                return (t1->type == term1) ? 0 : 1;
         }
         switch(t1->type){
             case TOKEN_TYPE_OPERATOR_L_OR_R:{
@@ -293,18 +315,29 @@ static int parse_expr(cunit *cu, char term,char term2, token *t1, token *t2){
                 break;
             case TOKEN_TYPE_STRING:
                 assert(!expecting_op);
-                get_token(cu, t2);
-                if(t2->type == '('){
-                    ureg fn_str = t1->str;
-                    get_token(cu, t1);
+                if(!second_available){
                     get_token(cu, t2);
-                    parse_expr(cu, ')', ',', t1, t2);
+                    second_available = true;
+                }
+                if(t2->type == '('){
+                    ureg fn_name = t1->str;
+                    ureg fn_end = dbuffer_get_size(&cu->ast) - sizeof(expr_elem);
+                    do{
+                        get_token(cu, t1);
+                        get_token(cu, t2);
+                    }while(parse_expr(cu, ',', ')', t1, t2) == 0);
+                    e = dbuffer_claim_small_space(&cu->ast, 2*sizeof(*e));
+                    e->type = EXPR_ELEM_TYPE_FN_NAME;
+                    e->val = fn_name;
+                    e++;
+                    e->type = EXPR_ELEM_TYPE_FN_CALL;
+                    e->val = fn_end;
+                    second_available = false;
                 }
                 else{
                     e = dbuffer_claim_small_space(&cu->ast, sizeof(*e));
                     e->type = EXPR_ELEM_TYPE_VARIABLE;
                     e->val = t1->str;
-                    second_available = true;
                 }
                 expecting_op = true;
                 break;
@@ -350,7 +383,7 @@ static int parse_normal_declaration(cunit* cu, token* t1, token* t2){
         d->assigning = true;
         get_token(cu, t1);
         get_token(cu, t2);
-        return parse_expr(cu, ';', t1, t2);
+        return parse_expr(cu, ';',';', t1, t2);
     }
     else{
         UNEXPECTED_TOKEN();    
@@ -367,10 +400,10 @@ static int parse_next(cunit* cu){
             get_token(cu, &t2);
             if (t2.type == TOKEN_TYPE_STRING) 
                 return parse_normal_declaration(cu, &t1, &t2);
-            else return parse_expr(cu, ';', &t1, &t2);
+            else return parse_expr(cu, ';', ';', &t1, &t2);
         case TOKEN_TYPE_NUMBER:
             get_token(cu, &t2);
-            return parse_expr(cu, ';', &t1, &t2);
+            return parse_expr(cu, ';',';', &t1, &t2);
         case '#':
         case TOKEN_TYPE_DOUBLE_HASH:
             parse_meta(cu, &t1);

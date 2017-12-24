@@ -201,6 +201,7 @@ redo:;
         case '}':
         case ']':
         case '[':
+        case ',':
 		case ';':{
             tok->type = curr;
             cu->pos++;
