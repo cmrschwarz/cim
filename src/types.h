@@ -55,7 +55,7 @@ typedef int8_t sregq;
 #define SREGH_MIN S16_MIN
 #define SREGQ_MIN S8_MIN
 #elif INTPTR_MAX == INT64_MAX
-typedef size_t ureg;  // not defined uint64_t to silence some IDE Warnings
+typedef unsigned long long int ureg;  // not defined uint64_t to silence some IDE Warnings
 typedef int64_t sreg;
 typedef uint32_t uregh;
 typedef int32_t sregh;

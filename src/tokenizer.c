@@ -10,7 +10,7 @@ void print_rel_str(cunit* cu, ureg str){
    fputs((char*)(cu->string_store.start + str), stdout);
 }
 void print_token(cunit* cu, token* t){
-    u8 op = TO_CHAR(t->str);
+    u8 op = TO_U8(t->str);
 	switch(t->type){
 		case TOKEN_TYPE_NUMBER:
 		case TOKEN_TYPE_STRING:
@@ -57,7 +57,7 @@ void print_token(cunit* cu, token* t){
 	}
 }
 
-static inline int cmp_string_with_stored(char* str_start, char* str_end, char* stored){
+static inline int cmp_string_with_stored(char* str_start, const char* str_end, char* stored){
 	for(;;){
         if(str_start == str_end) return 0;
 		if(*str_start != *stored){
@@ -203,7 +203,7 @@ redo:;
         case '[':
         case ',':
 		case ';':{
-            tok->type = curr;
+            tok->type = TO_U8(curr);
             cu->pos++;
         }return;
 
@@ -223,7 +223,7 @@ redo:;
 			}
 			else {
                 tok->type = TOKEN_TYPE_POSSIBLY_UNARY;
-                tok->str = curr;
+                tok->str = TO_UREG(curr);
 			    cu->pos ++;
 			}
 		}return;
@@ -241,7 +241,7 @@ redo:;
 			    cu->pos += 2;
 			}
 			else{
-                tok->str = curr;
+                tok->str = TO_UREG(curr);
 			    cu->pos ++;
 			}
 		}return;
@@ -255,7 +255,7 @@ redo:;
 			}
 			else{
                 tok->type = TOKEN_TYPE_OPERATOR_R;
-				tok->str = curr;
+				tok->str = TO_UREG(curr);
 			    cu->pos ++;
 			}
 		}return;

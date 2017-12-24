@@ -3,7 +3,7 @@
 
 #define TO_U8(i)((u8)((i) & 0xFF))
 #define TO_CHAR(i)((char)((i) & 0xFF))
-
+#define TO_UREG(c)((ureg)(c))
 //ast stands for abstract syntax tree
 //astn stands for abstract syntax tree node
 //astnt stands for abstract systax tree node type
