@@ -189,7 +189,7 @@ static inline void push_shy_op(cunit* cu, shy_op* sop, shy_op** sho_ri, shy_op**
         *sho_ri = (void*)(cu->shy_ops.head - sizeof(shy_op));
     }
 }
-static int parse_expr(cunit *cu, char term, token *t1, token *t2){
+static int parse_expr(cunit *cu, char term,char term2, token *t1, token *t2){
     //printf("parsing expr (%llu)\n", POS(cu->ast.head));
     if(t2->type == term){
         //short expression optimization
@@ -219,7 +219,7 @@ static int parse_expr(cunit *cu, char term, token *t1, token *t2){
     shy_op* sho_re = (void*)(cu->shy_ops.start + shy_ops_start - sizeof(shy_op));
     shy_op* sho_ri = (void*)(cu->shy_ops.head - sizeof(shy_op));
     while(true){
-        if(t1->type == term){
+        if(t1->type == term || t1->type == term2){
                 for(;sho_ri != sho_re; sho_ri--){
                     flush_shy_op(cu, sho_ri, expr_start);
                 }
@@ -295,7 +295,10 @@ static int parse_expr(cunit *cu, char term, token *t1, token *t2){
                 assert(!expecting_op);
                 get_token(cu, t2);
                 if(t2->type == '('){
-                    //function call
+                    ureg fn_str = t1->str;
+                    get_token(cu, t1);
+                    get_token(cu, t2);
+                    parse_expr(cu, ')', ',', t1, t2);
                 }
                 else{
                     e = dbuffer_claim_small_space(&cu->ast, sizeof(*e));
