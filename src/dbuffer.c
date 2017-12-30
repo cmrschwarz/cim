@@ -111,7 +111,6 @@ void dbuffer_remove_at(dbuffer* db, void* pos, ureg size)
 	memmove(pos, (u8*)pos + size, db->head - (u8*)pos - size);
 	db->head -= size;
 }
-
 void dbuffer_insert_at(dbuffer* db, const void* data, void* pos, ureg size)
 {
 	//this is practically a reimplementation of make_space which is unfortunate,

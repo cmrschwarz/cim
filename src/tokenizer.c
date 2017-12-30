@@ -9,53 +9,6 @@
 void print_rel_str(cunit* cu, ureg str){
    fputs((char*)(cu->string_store.start + str), stdout);
 }
-void print_token(cunit* cu, token* t){
-    u8 op = TO_U8(t->str);
-	switch(t->type){
-		case TOKEN_TYPE_NUMBER:
-		case TOKEN_TYPE_STRING:
-            print_rel_str(cu, t->str);
-			return;
-		case TOKEN_TYPE_LITERAL:
-			putchar('\"');
-            print_rel_str(cu, t->str);
-			putchar('\"');
-			return;
-		case TOKEN_TYPE_BINARY_LITERAL:
-			putchar('\'');
-            print_rel_str(cu, t->str);
-			putchar('\'');
-			return;
-        case TOKEN_TYPE_POSSIBLY_UNARY:{
-            switch(TO_CHAR(t->str)) {
-                case OPS_UNYRY_PLUS:putchar('+');return;
-                case OPS_UNARY_MINUS:putchar('-');return;
-                case OPS_DEREF:putchar('*');return;
-                default: printf("unknown unary op\n");exit(-1);
-            }
-        }
-		case TOKEN_TYPE_OPERATOR_L:
-        case TOKEN_TYPE_OPERATOR_R:{
-            if(OPERATOR_IS_DOUBLE(op)){
-                putchar(OPERATOR_WITHOUT_DOUBLE(op));
-                putchar(OPERATOR_WITHOUT_DOUBLE(op));
-            }
-            else if (OPERATOR_IS_EQUAL_COMB(op)){
-                putchar(OPERATOR_WITHOUT_EQUAL_COMB(op));
-                putchar('=');
-            }
-            else{
-                putchar(op);
-            }
-        }return;
-        case TOKEN_TYPE_OPERATOR_LR:
-        {
-            putchar(op);
-        }return;
-        default:
-            printf("Unknown token\n");exit(-1);
-	}
-}
 
 static inline int cmp_string_with_stored(char* str_start, const char* str_end, char* stored){
 	for(;;){
@@ -88,7 +41,6 @@ ureg store_string(cunit* cu, char* str, char* str_end){
             *(tgt + str_size) = '\0';
             ureg pos = (u8*)tgt - cu->string_store.start;
             dbuffer_insert_at(&cu->string_ptrs, &pos, sptrs_start, sizeof(ureg));
-            printf("String cache miss for %s [%llu]\n", tgt, pos);
             return pos;
         }
         res = cmp_string_with_stored(str, str_end, (char*)cu->string_store.start + *pivot);
@@ -107,6 +59,10 @@ ureg store_string(cunit* cu, char* str, char* str_end){
 void get_token(cunit* cu, token* tok){
 redo:;
 	char curr = *(cu->pos);
+    while(curr == ' ' || curr == '\n'){
+		cu->pos++;
+        curr = *(cu->pos);
+	}
 	if((curr>= 'a' && curr <= 'z') || (curr >= 'A' && curr <= 'Z') || curr == '_'){
 		char* str_start = cu->pos;
 		char* str_end = str_start + 1;
@@ -119,7 +75,7 @@ redo:;
 			c = *str_end;
 		}
         tok->str = store_string(cu, str_start, str_end);
-		tok->type = TOKEN_TYPE_STRING;
+		tok->type = TOKEN_STRING;
 		cu->pos = str_end;
 		return;
 	}
@@ -133,7 +89,7 @@ redo:;
 			c = *str_end;
 		}
         tok->str = store_string(cu, str_start, str_end);
-		tok->type = TOKEN_TYPE_NUMBER;
+		tok->type = TOKEN_NUMBER;
 		cu->pos = str_end;
 		return;
 	}
@@ -146,7 +102,7 @@ redo:;
 			if(*str_end == '\\')str_end ++;
 		}
         tok->str = store_string(cu, str_start, str_end);
-		tok->type = TOKEN_TYPE_LITERAL;
+		tok->type = TOKEN_LITERAL;
 		cu->pos = str_end;
 		return;
 	}
@@ -162,7 +118,7 @@ redo:;
 			}
 		}
         tok->str = store_string(cu, str_start, str_end);
-		tok->type = TOKEN_TYPE_BINARY_LITERAL;
+		tok->type = TOKEN_BINARY_LITERAL;
 		cu->pos = str_end;
 		return;
 	}
@@ -173,7 +129,7 @@ redo:;
 		}
 		cu->pos = cmt_end;
 		if(*cmt_end == '\0'){
-			tok->type = TOKEN_TYPE_EOF;
+			tok->type = TOKEN_EOF;
 			return;
 		}
 		goto redo;
@@ -187,125 +143,171 @@ redo:;
 		cu->pos = cmt_end;
 		goto redo;
 	}
+    cu->pos++;
 	switch(curr){
-		case ' ':{
-            cu->pos++;
-        }goto redo;
-
-        case '\n':
-		case '\\':
-		case '$':
-        case '(':
-        case ')':
-        case '{':
-        case '}':
-        case ']':
-        case '[':
-        case ',':
-		case ';':{
-            tok->type = TO_U8(curr);
-            cu->pos++;
-        }return;
-
-        case '*':
-		case '+':
-		case '-':{
-			char nxt = *(cu->pos+1);
-			if(nxt == curr){
-                tok->type = TOKEN_TYPE_OPERATOR_L_OR_R;
-				tok->str = OPERATOR_DOUBLE(curr);
-			    cu->pos += 2;
-			}
-			else if(nxt == '='){
-                tok->type = TOKEN_TYPE_OPERATOR_LR;
-				tok->str = OPERATOR_EQUAL_COMB(curr);
-			    cu->pos += 2;
-			}
-			else {
-                tok->type = TOKEN_TYPE_POSSIBLY_UNARY;
-                tok->str = TO_UREG(curr);
-			    cu->pos ++;
-			}
-		}return;
-
-		case '|':
-		case '&':{
-            tok->type = TOKEN_TYPE_OPERATOR_LR;
-			char nxt = *(cu->pos+1);
-			if(nxt == curr){
-				tok->str = OPERATOR_DOUBLE(curr);
-			    cu->pos += 2;
-			}
-			else if(nxt == '='){
-				tok->str = OPERATOR_EQUAL_COMB(curr);
-			    cu->pos += 2;
-			}
-			else{
-                tok->str = TO_UREG(curr);
-			    cu->pos ++;
-			}
-		}return;
-
-        case '~':{
-			char nxt = *(cu->pos+1);
-			if(nxt == '='){
-                tok->type = TOKEN_TYPE_OPERATOR_LR;
-				tok->str = OPERATOR_EQUAL_COMB(curr);
-			    cu->pos += 2;
-			}
-			else{
-                tok->type = TOKEN_TYPE_OPERATOR_R;
-				tok->str = TO_UREG(curr);
-			    cu->pos ++;
-			}
-		}return;
-
-
-        case '=':{
-			char nxt = *(cu->pos+1);
-			if(nxt == '='){
-                tok->type = TOKEN_TYPE_OPERATOR_LR;
-				tok->str = OPERATOR_EQUAL_COMB(curr);
-			    cu->pos += 2;
-			}
-			else{
-                tok->type = TO_U8(curr);
-			    cu->pos ++;
-			}
-		}return;
-
-        case '/':
-		case '%':
-		{
-            tok->type = TOKEN_TYPE_OPERATOR_LR;
-			char nxt = *(cu->pos+1);
-			if(nxt == '='){
-				tok->str = OPERATOR_EQUAL_COMB(curr);
-			    cu->pos += 2;
-			}
-			else{
-				tok->str = TO_U8(curr);
-			    cu->pos ++;
-			}
-
-		}return;
-
-        case '#':{
-            if(*(cu->pos + 1) == curr){
-				tok->type = TOKEN_TYPE_DOUBLE_HASH;
-                cu->pos+=2;
-			}
+		case '$': tok->type = TOKEN_DOLLAR;return;
+        case '(': tok->type = TOKEN_PAREN_OPEN;return;
+        case ')': tok->type = TOKEN_PAREN_CLOSE;return;
+        case '{': tok->type = TOKEN_BRACE_OPEN;return;
+        case '}': tok->type = TOKEN_BRACE_CLOSE;return;
+        case ']': tok->type = TOKEN_BRACKET_OPEN;return;
+        case '[': tok->type = TOKEN_BRACKET_CLOSE;return;
+        case ',': tok->type = TOKEN_COMMA;return;
+		case ';': tok->type = TOKEN_SEMICOLON; return;
+        case '.': tok->type = TOKEN_DOT; return;
+        case '*': {
+            curr = *cu->pos;
+            if(curr == '=') {
+                cu->pos++;
+                tok->type = TOKEN_STAR_EQUALS;
+            }
             else{
-                tok->type = TOKEN_TYPE_HASH;
-                cu->pos+=1;
+                 tok->type = TOKEN_STAR;
             }
         } return;
-
+        case '+': {
+            curr = *cu->pos;
+            if(curr == '+') {
+                cu->pos++;
+                tok->type = TOKEN_DOUBLE_PLUS;
+            }
+            else if(curr == '='){
+                cu->pos++;
+                tok->type = TOKEN_PLUS_EQUALS;
+            }
+            else{
+                tok->type = TOKEN_PLUS;
+            }
+        } return;
+	    case '-': {
+            curr = *cu->pos;
+            if(curr == '-') {
+                cu->pos++;
+                tok->type = TOKEN_DOUBLE_MINUS;
+            }
+            else if(curr == '='){
+                cu->pos++;
+                tok->type = TOKEN_MINUS_EQUALS;
+            }
+            else if(curr == '>'){
+                cu->pos++;
+                tok->type = TOKEN_ARROW;
+            }
+            else{
+                tok->type = TOKEN_MINUS;
+            }
+        } return;
+        case '!': {
+            curr = *cu->pos;
+            if(curr == '=') {
+                cu->pos++;
+                tok->type = TOKEN_EXCLAMATION_MARK_EQUALS;
+            }
+            else{
+                tok->type = TOKEN_EXCLAMATION_MARK;
+            }
+        } return;
+        case '|': {
+            curr = *cu->pos;
+            if(curr == '|') {
+                cu->pos++;
+                tok->type = TOKEN_DOUBLE_PIPE;
+            }
+            else if(curr == '='){
+                cu->pos++;
+                tok->type = TOKEN_PIPE_EQUALS;
+            }
+            else{
+                tok->type = TOKEN_PIPE;
+            }
+        } return;
+		case '&': {
+            curr = *cu->pos;
+            if(curr == '&') {
+                cu->pos++;
+                tok->type = TOKEN_DOUBLE_AND;
+            }
+            else if(curr == '='){
+                cu->pos++;
+                tok->type = TOKEN_AND_EQUALS;
+            }
+            else{
+                tok->type = TOKEN_AND;
+            }
+        } return;
+        case '~': {
+            curr = *cu->pos;
+            if(curr == '=') {
+                cu->pos++;
+                tok->type = TOKEN_TILDE_EQUALS;
+            }
+            else{
+                 tok->type = TOKEN_TILDE;
+            }
+        } return;
+       case '=': {
+            curr = *cu->pos;
+            if(curr == '=') {
+                cu->pos++;
+                tok->type = TOKEN_DOUBLE_EQUALS;
+            }
+            else{
+                 tok->type = TOKEN_EQUALS;
+            }
+        } return;
+        case '/': {
+            curr = *cu->pos;
+            if(curr == '='){
+                cu->pos++;
+                tok->type = TOKEN_SLASH_EQUALS;
+            }
+            else{
+                tok->type = TOKEN_SLASH;
+            }
+        } return;
+		case '%': {
+            curr = *cu->pos;
+            if(curr == '='){
+                cu->pos++;
+                tok->type = TOKEN_PERCENT_EQUALS;
+            }
+            else{
+                tok->type = TOKEN_PERCENT;
+            }
+        } return;
+        case '#': {
+            curr = *cu->pos;
+            if(curr == '#'){
+                cu->pos++;
+                tok->type = TOKEN_DOUBLE_HASH;
+            }
+            else{
+                tok->type = TOKEN_HASH;
+            }
+        } return;
+        case '<': {
+            curr = *cu->pos;
+            if(curr == '<'){
+                cu->pos++;
+                tok->type = TOKEN_DOUBLE_LESS_THAN;
+            }
+            else{
+                tok->type = TOKEN_LESS_THAN;
+            }
+        } return;
+        case '>': {
+            curr = *cu->pos;
+            if(curr == '>'){
+                cu->pos++;
+                tok->type = TOKEN_DOUBLE_GREATER_THAN;
+            }
+            else{
+                tok->type = TOKEN_GREATER_THAN;
+            }
+        } return;
 		case '\0':{
-            tok->type = TOKEN_TYPE_EOF;
-			cu->pos++;
+            tok->type = TOKEN_EOF;
         }return;
-
 		default:{
             printf("unknown token: %c", curr);
         }assert(false);

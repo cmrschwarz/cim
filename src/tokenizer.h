@@ -1,35 +1,61 @@
 #pragma once
-#define OPERATOR_DOUBLE(c)     ((u8)((u8)(c) + 128))
-#define OPERATOR_EQUAL_COMB(c) ((u8)((u8)(c) + 192))
-#define OPERATOR_WITHOUT_DOUBLE(c)     ((u8)((u8)(c) - 128))
-#define OPERATOR_WITHOUT_EQUAL_COMB(c) ((u8)((u8)(c) - 192))
-#define OPERATOR_IS_DOUBLE(c) ((c) > 128 && (c) < 192)
-#define OPERATOR_IS_EQUAL_COMB(c) ((c) > 192)
+#include "compiler.h"
 
-//we need to specify the value so we don't overlap, as lot's of token types
-//represent the token char directly
-typedef enum token_types_t{
-    TOKEN_TYPE_STRING = 's',
-    TOKEN_TYPE_NUMBER = 'n',
-    TOKEN_TYPE_LITERAL = 'l',
-    TOKEN_TYPE_BINARY_LITERAL = 'b',
-    TOKEN_TYPE_POSSIBLY_UNARY = 'u',
-    TOKEN_TYPE_OPERATOR_LR = 'x',
-    TOKEN_TYPE_OPERATOR_L = 'y',
-    TOKEN_TYPE_OPERATOR_R = 'z',
-    TOKEN_TYPE_OPERATOR_L_OR_R = '1',
-    TOKEN_TYPE_HASH = '#',
-    TOKEN_TYPE_DOUBLE_HASH = 'd',
-    TOKEN_TYPE_EOF = '\0',
-    TOKEN_TYPE_NONE = 0xFF,
-}token_types;
+typedef enum tokens_type_e{
+    TOKEN_STRING,
+    TOKEN_NUMBER,
+    TOKEN_LITERAL,
+    TOKEN_BINARY_LITERAL,
+    TOKEN_EOF,
+    TOKEN_PLUS,
+    TOKEN_DOUBLE_PLUS,
+    TOKEN_PLUS_EQUALS,
+    TOKEN_MINUS,
+    TOKEN_DOUBLE_MINUS,
+    TOKEN_MINUS_EQUALS,
+    TOKEN_EXCLAMATION_MARK,
+    TOKEN_EXCLAMATION_MARK_EQUALS,
+    TOKEN_STAR,
+    TOKEN_STAR_EQUALS,
+    TOKEN_EQUALS,
+    TOKEN_DOUBLE_EQUALS,
+    TOKEN_PAREN_OPEN,
+    TOKEN_PAREN_CLOSE,
+    TOKEN_BRACKET_OPEN,
+    TOKEN_BRACKET_CLOSE,
+    TOKEN_BRACE_OPEN,
+    TOKEN_BRACE_CLOSE,
+    TOKEN_PERCENT,
+    TOKEN_PERCENT_EQUALS,
+    TOKEN_SLASH,
+    TOKEN_SLASH_EQUALS,
+	TOKEN_AND,
+	TOKEN_DOUBLE_AND,
+	TOKEN_AND_EQUALS,
+	TOKEN_PIPE,
+	TOKEN_DOUBLE_PIPE,
+	TOKEN_PIPE_EQUALS,
+	TOKEN_TILDE,
+	TOKEN_TILDE_EQUALS,
+	TOKEN_DOLLAR,
+	TOKEN_COMMA,
+	TOKEN_SEMICOLON,
+	TOKEN_HASH,
+	TOKEN_DOUBLE_HASH,
+    TOKEN_LESS_THAN,
+    TOKEN_DOUBLE_LESS_THAN,
+    TOKEN_GREATER_THAN,
+    TOKEN_DOUBLE_GREATER_THAN,
+    TOKEN_DOT,
+    TOKEN_ARROW,
+}token_type;
 
-enum OPS{
-    OPS_UNYRY_PLUS='p',
-    OPS_UNARY_MINUS='m',
-    OPS_DEREF = 'd',
-};
+typedef struct token_t{
+	token_type type;
+    ureg str;
+}token;
 
+void get_token(cunit* cu, token* t);
 void print_token(cunit* cu, token* t);
 void print_rel_str(cunit* cu, ureg str);
 ureg store_string(cunit* cu, char* str, char* str_end);

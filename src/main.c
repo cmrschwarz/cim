@@ -1,7 +1,8 @@
 #include "parser.h"
 #include "ast.h"
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
+
 int main(){
 	cunit cu;
 	init(&cu);
@@ -9,7 +10,7 @@ int main(){
     printf("expr elem size: %llu\n", sizeof(expr_elem));
     char* pre_str = "int a = ";
     ureg pre_str_len = strlen(pre_str);
-	char* str = "heureka(a / 3, 42 - 3 * 27) +";
+	char* str = "heureka(a / 3, 42 - 3 * 27) + 5; int y = ";
     ureg str_size = strlen(str);
     char* str_comb = malloc(pre_str_len + str_size * cnt + 3);
     memcpy(str_comb, pre_str, pre_str_len);
@@ -22,8 +23,9 @@ int main(){
     str_comb_it_end[0] = 'b';
     str_comb_it_end[1] = ';';
     str_comb_it_end[2] = '\0';
+
     printf("input:\n%s\n\n", str_comb);
-	cu.str = str_comb;
+    cu.str = str_comb;
 	cu.pos = str_comb;
     parse(&cu, str_comb);
     printf("\noutput:\n");

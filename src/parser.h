@@ -1,27 +1,59 @@
 #pragma once
-#include "types.h"
-#include "dbuffer.h"
+#include "compiler.h"
 
-typedef struct token_t{
-	u8 type;
-	ureg str;
-}token;
+enum OP{
+    OP_NONE,
+    OP_ADD,
+	OP_UNARY_PLUS,
+	OP_ADD_ASSIGN,
+    OP_PREINCREMENT,
+	OP_POSTINCREMENT,
+
+	OP_UNARY_MINUS,
+    OP_SUBTRACT,
+    OP_SUBTRACT_ASSIGN,
+    OP_PREDECREMENT,
+	OP_POSTDECREMENT,
+    OP_MINUS_EQUALS,
+    OP_DEREFERENCE,
+	OP_MULTIPLY,
+    OP_MULTIPLY_ASSIGN,
+    OP_ASSIGN,
+    OP_EQUALS,
+    OP_NOT_EQUAL,
+    OP_MODULO,
+    OP_MODULO_ASSIGN,
+    OP_DIVIDE,
+    OP_DIVIDE_ASSIGN,
+	OP_BITWISE_AND,
+	OP_LOGICAL_AND,
+	OP_BITWISE_AND_ASSIGN,
+	OP_BITWISE_OR,
+	OP_LOGICAL_OR,
+	OP_BITWISE_OR_ASSIGN,
+	OP_LOGICAL_NOT,
+    OP_BITWISE_NOT,
+	OP_BITWISE_NOT_ASSIGN,
+	OP_DOLLAR,
+	OP_COMMA,
+	OP_SEMICOLON,
+	OP_HASH,
+	OP_DOUBLE_HASH,
+    OP_ACCESS_MEMBER,
+    OP_DEREF_ACCESS_MEMBER,
+    OP_LESS_THAN,
+    OP_LSHIFT,
+    OP_GREATER_THAN,
+    OP_RSHIFT,
+    OP_TEMP_PAREN_OPEN,
+};
+
+
 
 char* read_in_file(char* filename);
 
-typedef struct cunit_t{
-	//later on, this will read the file live, but this is easier for now
-	char* str;
-	char* pos;
-	dbuffer string_store;
-	dbuffer string_ptrs;
-	//eventually, one ast per function?
-	dbuffer ast;
-    dbuffer shy_ops;    //shunting yard operators
-}cunit;
-
 
 void init(cunit* cu);
-void get_token(cunit* cu, token* t);
+
 void parse(cunit* cu, char* str);
 void print_ast(cunit* cu);
