@@ -185,7 +185,9 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
             case TOKEN_MINUS_EQUALS:
             case TOKEN_PLUS_EQUALS:
             case TOKEN_PERCENT:
-            case TOKEN_PERCENT_EQUALS:{
+            case TOKEN_PERCENT_EQUALS:
+            case TOKEN_DOUBLE_GREATER_THAN_EQUALS:
+            case TOKEN_DOUBLE_LESS_THAN_EQUALS:{
                 //for these, the toke  type is set to be equal to the op type
                 sop.op = (u8)(t1->type);
             }//fall through to op_lr
@@ -303,10 +305,10 @@ static int parse_next(cunit* cu){
             get_token(cu, &t2);
             if (t2.type == TOKEN_STRING)
                 return parse_normal_declaration(cu, &t1, &t2);
-            else return parse_expr(cu, ';', ';', &t1, &t2, false);
+            else return parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, &t1, &t2, false);
         case TOKEN_NUMBER:
             get_token(cu, &t2);
-            return parse_expr(cu, ';',';', &t1, &t2, false);
+            return parse_expr(cu, TOKEN_SEMICOLON,TOKEN_SEMICOLON, &t1, &t2, false);
         case TOKEN_HASH:
         case TOKEN_DOUBLE_HASH:
             parse_meta(cu, &t1);
