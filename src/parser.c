@@ -44,7 +44,7 @@ static inline void flush_shy_op(cunit* cu, shy_op* s, ureg expr_start){
     expr_elem* expr_rit =  (void*)(cu->ast.head - sizeof(expr_elem));
     int its;
     switch (s->type){
-        case EXPR_ELEM_TYPE_BRACE: its = 0;break;
+        case EXPR_ELEM_TYPE_PAREN: its = 0;break;
         case EXPR_ELEM_TYPE_OP_LR: its = 2;break;
         default: its = 1; break;
     }
@@ -173,14 +173,22 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                 //expecting_op is already false, otherwise it wouldn't be unary
             } break;
             case TOKEN_SLASH:
-                sop.op = OP_DIVIDE;
-                goto lbl_op_lr;
             case TOKEN_SLASH_EQUALS:
-                sop.op = OP_DIVIDE_ASSIGN;
-                goto lbl_op_lr;
             case TOKEN_STAR_EQUALS:
-                sop.op = OP_MULTIPLY_ASSIGN;
-                goto lbl_op_lr;
+            case TOKEN_LESS_THAN:
+            case TOKEN_GREATER_THAN:
+            case TOKEN_DOUBLE_LESS_THAN:
+            case TOKEN_DOUBLE_GREATER_THAN:
+            case TOKEN_EQUALS:
+            case TOKEN_DOUBLE_EQUALS:
+            case TOKEN_EXCLAMATION_MARK_EQUALS:
+            case TOKEN_MINUS_EQUALS:
+            case TOKEN_PLUS_EQUALS:
+            case TOKEN_PERCENT:
+            case TOKEN_PERCENT_EQUALS:{
+                //for these, the toke  type is set to be equal to the op type
+                sop.op = (u8)(t1->type);
+            }//fall through to op_lr
             lbl_op_lr: {
                 sop.type = EXPR_ELEM_TYPE_OP_LR;
                 prec = prec_table[sop.op];
@@ -197,7 +205,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                 expecting_op = false;
             }break;
             case TOKEN_PAREN_OPEN: {
-                sop.type = EXPR_ELEM_TYPE_BRACE;
+                sop.type = EXPR_ELEM_TYPE_PAREN;
                 sop.op = OP_TEMP_PAREN_OPEN;
                 push_shy_op(cu, &sop, &sho_ri, &sho_re, shy_ops_start);
                 expecting_op = false;

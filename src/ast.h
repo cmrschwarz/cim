@@ -48,7 +48,7 @@ typedef enum expr_elem_type_t{
     EXPR_ELEM_TYPE_OP_L = 4,
     EXPR_ELEM_TYPE_OP_R = 5,
     EXPR_ELEM_TYPE_UNARY = 6,
-    EXPR_ELEM_TYPE_BRACE = 7,   //closing will never be stored
+    EXPR_ELEM_TYPE_PAREN = 7,   //closing will never be stored
     EXPR_ELEM_TYPE_FN_CALL = 8,
     EXPR_ELEM_TYPE_FN_NAME = 9,
 }expr_elem_type;

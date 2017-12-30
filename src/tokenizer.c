@@ -289,7 +289,14 @@ redo:;
             curr = *cu->pos;
             if(curr == '<'){
                 cu->pos++;
-                tok->type = TOKEN_DOUBLE_LESS_THAN;
+                curr = *cu->pos;
+                if(curr == '='){
+                    cu->pos++;
+                    tok->type = TOKEN_DOUBLE_LESS_THAN_EQUALS;
+                }
+                else{
+                    tok->type = TOKEN_DOUBLE_LESS_THAN;
+                }
             }
             else{
                 tok->type = TOKEN_LESS_THAN;
@@ -299,7 +306,14 @@ redo:;
             curr = *cu->pos;
             if(curr == '>'){
                 cu->pos++;
-                tok->type = TOKEN_DOUBLE_GREATER_THAN;
+                curr = *cu->pos;
+                if(curr == '='){
+                    cu->pos++;
+                    tok->type = TOKEN_DOUBLE_GREATER_THAN_EQUALS;
+                }
+                else{
+                    tok->type = TOKEN_DOUBLE_GREATER_THAN;
+                }
             }
             else{
                 tok->type = TOKEN_GREATER_THAN;

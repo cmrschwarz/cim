@@ -67,7 +67,11 @@ void print_op(u8 op){
         case OP_GREATER_THAN: putchar('>'); return;
         case OP_RSHIFT: puts(">>"); return;
         case OP_ACCESS_MEMBER: putchar('.'); return;
-        case OP_DEREF_ACCESS_MEMBER: puts("->"); return;
+        case OP_DEREFERENCE_ACCESS_MEMBER: puts("->"); return;
+        case OP_LSHIFT_ASSIGN: puts("<<=");return;
+        case OP_RSHIFT_ASSIGN: puts(">>=");return;
+        case OP_BITWISE_XOR: putchar('^');return;
+        case OP_BITWISE_XOR_ASSIGN: puts("^=");return;
         default:{
             printf("Unknown token\n");
         } exit(-1);
