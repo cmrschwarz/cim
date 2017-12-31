@@ -3,7 +3,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include "dbuffer.h"
-
+#include "compiler.h"
 void dbuffer_init_with_capacity(dbuffer* db, ureg capacity)
 {
 	assert(capacity >= 8);  // we do this so we don't have to bounds check in
@@ -46,7 +46,7 @@ void dbuffer_set_capacity(dbuffer* db, ureg capacity)
 void dbuffer_set_bigger_capacity(dbuffer* db, ureg capacity)
 {
 	uint8_t* temp = realloc(db->start, capacity);
-	assert(temp);
+	if(!temp)CIM_ERROR("Memory allocation failed");
 	db->head = temp + (db->head - db->start);
 	db->end = temp + capacity;
 	db->start = temp;

@@ -14,7 +14,7 @@ void reverse_print_func_args(cunit* cu, expr_elem* elem, expr_elem* end){
         nxt = elem-1;
     }
     if(nxt != end){
-        print_expr_elem(cu, nxt);
+        reverse_print_func_args(cu, nxt, end);
         putchar(',');
         putchar(' ');
     }
@@ -72,9 +72,7 @@ void print_op(u8 op){
         case OP_RSHIFT_ASSIGN: puts(">>=");return;
         case OP_BITWISE_XOR: putchar('^');return;
         case OP_BITWISE_XOR_ASSIGN: puts("^=");return;
-        default:{
-            printf("Unknown token\n");
-        } exit(-1);
+        default:CIM_ERROR("Unknown token");
 	}
 }
 static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
@@ -83,11 +81,21 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
         case EXPR_ELEM_TYPE_VARIABLE:
             print_rel_str(cu, e->val);
             break;
+        case EXPR_ELEM_TYPE_LITERAL:
+            print_literal(cu, e->val);
+            break;
+        case EXPR_ELEM_TYPE_BINARY_LITERAL:
+            print_binary_literal(cu, e->val);
+            break;
         case EXPR_ELEM_TYPE_OP_LR:{
             putchar('(');
             expr_elem* r = (void*)(e-1);
             expr_elem* l;
-            if(r->type == EXPR_ELEM_TYPE_NUMBER || r->type == EXPR_ELEM_TYPE_VARIABLE){
+            if( r->type == EXPR_ELEM_TYPE_NUMBER ||
+                r->type == EXPR_ELEM_TYPE_VARIABLE ||
+                r->type == EXPR_ELEM_TYPE_LITERAL ||
+                r->type == EXPR_ELEM_TYPE_BINARY_LITERAL)
+            {
                 l = r-1;
             }
             else{
@@ -131,7 +139,7 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
             putchar(')');
             return end;
         }
-        default: printf("Unknown expr type"); exit(-1);
+        default:CIM_ERROR("Unknown expression type");
     }
     return e-1;
 }
@@ -168,6 +176,7 @@ void print_ast(cunit* cu){
                 astn = (void*)print_expr(cu, (void*)astn);
                 puts(";");
             }break;
+            case ASTNT_VARIABLE:
             case ASTNT_NUMBER:{
                 expr_elem* n = (void*)astn;
                 astn+= sizeof(*n);
@@ -175,16 +184,19 @@ void print_ast(cunit* cu){
                 putchar(';');
                 putchar('\n');
             }break;
-            case ASTNT_VARIABLE:{
-                expr_elem* v = (void*)astn;
-                astn+= sizeof(*v);
-                print_rel_str(cu, v->val);
+            case ASTNT_LITERAL:{
+                expr_elem* e = (void*)astn;
+                print_literal(cu, e->val);
                 putchar(';');
                 putchar('\n');
-            }break;
-            default:{
-                 printf("Unexpected ASTNT");
-            }exit(-1);
+            }
+            case ASTNT_BINARY_LITERAL:{
+                expr_elem* e = (void*)astn;
+                print_binary_literal(cu, e->val);
+                putchar(';');
+                putchar('\n');
+            }
+            default:CIM_ERROR("Unexpected ASTN");
         }
     }
 }

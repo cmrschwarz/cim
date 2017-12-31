@@ -19,7 +19,7 @@ void init(cunit* cu){
         prec_table[OP_ADD] = 1;
         prec_table[OP_SUBTRACT] = 1;
         prec_table[OP_PREINCREMENT] = 99;
-        prec_table [OP_POSTINCREMENT] =9;
+        prec_table[OP_POSTINCREMENT] =9;
         prec_table[OP_DIVIDE] = 3;
         prec_table[OP_MULTIPLY] = 3;
     }
@@ -80,15 +80,21 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
     //printf("parsing expr (%llu)\n", POS(cu->ast.head));
     if(t2->type == term1 || t2->type == term2){
         //short expression optimization
-        if(t1->type == TOKEN_NUMBER){
+        if( t1->type == TOKEN_NUMBER ||
+            t1->type == TOKEN_BINARY_LITERAL ||
+            t1->type == TOKEN_LITERAL)
+        {
             expr_elem* n = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem));
-            n->type = ASTNT_NUMBER;
+            n->type = (u8)t1->type;
             n->val = t1->str;
         }
-		if(t1->type == TOKEN_STRING){
+		else if(t1->type == TOKEN_STRING){
             expr_elem* v = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem));
             v->type = ASTNT_VARIABLE;
             v->val = t1->str;
+        }
+        else{
+            CIM_ERROR("Unexpected Token");
         }
         return (t2->type == term1) ? 0 : 1;
     }
@@ -223,10 +229,13 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                 sho_ri--;
                 expecting_op = true;
             }break;
-            case TOKEN_NUMBER: {
+            case TOKEN_NUMBER:
+            case TOKEN_LITERAL:
+            case TOKEN_BINARY_LITERAL:
+            {
                 assert(!expecting_op);
                 e = dbuffer_claim_small_space(&cu->ast, sizeof(*e));
-                e->type = EXPR_ELEM_TYPE_NUMBER;
+                e->type = (u8)t1->type;
                 e->val = t1->str;
                 expecting_op = true;
             }break;
@@ -257,12 +266,8 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                 }
                 expecting_op = true;
             }break;
-            case TOKEN_EOF:{
-                printf("Unexpected eof.");
-            }exit(-1);
-            default:{
-                 printf("Unexpected token.");
-            }exit(-1);
+            case TOKEN_EOF:CIM_ERROR("Unexpected eof");
+            default:CIM_ERROR("Unexpected token");
         }
         if(!second_available){
             get_token(cu, t1);
@@ -290,8 +295,7 @@ static int parse_normal_declaration(cunit* cu, token* t1, token* t2){
         return parse_expr(cu, TOKEN_SEMICOLON,TOKEN_SEMICOLON, t1, t2, false);
     }
     else{
-        printf("Unexpected Token\n");
-        exit(-1);
+       CIM_ERROR("Unexpected token");
     }
     return 0;
     printf("parsed declaration\n"); 

@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
-#define ASSERT_NEOF(c) do{if((c) == '\0'){printf("Unexpected EOF"); assert(false);}}while(0)
+#define ASSERT_NEOF(c) do{if((c) == '\0'){CIM_ERROR("Unexpected EOF");}}while(0)
 
 void print_rel_str(cunit* cu, ureg str){
    fputs((char*)(cu->string_store.start + str), stdout);
@@ -94,8 +94,8 @@ redo:;
 		return;
 	}
 	if(curr == '\"'){
-		char* str_start = cu->pos;
-		char* str_end = str_start + 1;
+		char* str_start = cu->pos + 1;
+		char* str_end = str_start;
 		while(*str_end != '\"'){
 			ASSERT_NEOF(*str_end);
 			str_end++;
@@ -103,7 +103,7 @@ redo:;
 		}
         tok->str = store_string(cu, str_start, str_end);
 		tok->type = TOKEN_LITERAL;
-		cu->pos = str_end;
+		cu->pos = str_end + 1;
 		return;
 	}
 	if(curr == '\''){
@@ -119,7 +119,7 @@ redo:;
 		}
         tok->str = store_string(cu, str_start, str_end);
 		tok->type = TOKEN_BINARY_LITERAL;
-		cu->pos = str_end;
+		cu->pos = str_end + 1;
 		return;
 	}
 	if(curr == '/' && *(cu->pos + 1) == '/'){
@@ -140,7 +140,7 @@ redo:;
 			ASSERT_NEOF(*cmt_end);
 			cmt_end++;
 		}
-		cu->pos = cmt_end;
+		cu->pos = cmt_end + 2;
 		goto redo;
 	}
     cu->pos++;

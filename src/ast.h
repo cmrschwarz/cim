@@ -1,6 +1,6 @@
 #pragma once
 #include "types.h"
-
+#include "tokenizer.h"
 #define TO_U8(i)((u8)((i) & 0xFF))
 #define TO_CHAR(i)((char)((i) & 0xFF))
 #define TO_UREG(c)((ureg)(c))
@@ -10,11 +10,15 @@
 //all nodes are at least aligned to a sizeof(ureg) byte boundary
 
 typedef enum astnt_t {
-    ASTNT_EXPRESSION = 0,
-    ASTNT_NUMBER = 1,
-    ASTNT_VARIABLE = 2,
-    ASTNT_DECLARATION = 3,
-    ASTNT_FUNCTION_DECLARATION = 4,
+    //used instead of a single element expression
+    ASTNT_NUMBER = TOKEN_NUMBER,
+    ASTNT_LITERAL = TOKEN_LITERAL,
+    ASTNT_BINARY_LITERAL = TOKEN_BINARY_LITERAL,
+    ASTNT_VARIABLE,
+    ASTNT_EXPRESSION,
+    ASTNT_ASSIGNMENT,
+    ASTNT_DECLARATION,
+    ASTNT_FUNCTION_DECLARATION,
 }astnt;
 
 typedef struct astn_assignment_t{
@@ -41,16 +45,18 @@ typedef struct astn_function_call_t{
 
 //we specify values to ensure it fits inside a u8
 typedef enum expr_elem_type_t{
+    EXPR_ELEM_TYPE_NUMBER = TOKEN_NUMBER,
+    EXPR_ELEM_TYPE_LITERAL = TOKEN_LITERAL,
+    EXPR_ELEM_TYPE_BINARY_LITERAL = TOKEN_BINARY_LITERAL,
+    EXPR_ELEM_TYPE_VARIABLE = ASTNT_VARIABLE,
     EXPR_ELEM_TYPE_EXPR = (u8)ASTNT_EXPRESSION,
-    EXPR_ELEM_TYPE_NUMBER = (u8)ASTNT_NUMBER,
-    EXPR_ELEM_TYPE_VARIABLE =(u8)ASTNT_VARIABLE,
-    EXPR_ELEM_TYPE_OP_LR = 3,
-    EXPR_ELEM_TYPE_OP_L = 4,
-    EXPR_ELEM_TYPE_OP_R = 5,
-    EXPR_ELEM_TYPE_UNARY = 6,
-    EXPR_ELEM_TYPE_PAREN = 7,   //closing will never be stored
-    EXPR_ELEM_TYPE_FN_CALL = 8,
-    EXPR_ELEM_TYPE_FN_NAME = 9,
+    EXPR_ELEM_TYPE_OP_LR,
+    EXPR_ELEM_TYPE_OP_L,
+    EXPR_ELEM_TYPE_OP_R,
+    EXPR_ELEM_TYPE_UNARY,
+    EXPR_ELEM_TYPE_PAREN,   //closing will never be stored
+    EXPR_ELEM_TYPE_FN_CALL,
+    EXPR_ELEM_TYPE_FN_NAME,
 }expr_elem_type;
 
 //this is also used for:
