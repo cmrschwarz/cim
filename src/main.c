@@ -6,7 +6,7 @@
 int main(){
 	cunit cu;
 	init(&cu);
-    char* input = "int y=0; heureka(a+b, 123, \"test\");";
+    char* input = "int y=0; heureka![int](1+2, 3*4+1); int x = a[4 + 4];";
     printf("input:\n%s\n\n", input);
     cu.str = input;
 	cu.pos = input;

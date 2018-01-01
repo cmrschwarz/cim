@@ -47,11 +47,7 @@ enum OP{
 };
 
 
-
 char* read_in_file(char* filename);
-
-
 void init(cunit* cu);
-
 void parse(cunit* cu, char* str);
 void print_ast(cunit* cu);

@@ -8,8 +8,14 @@
 //astn stands for abstract syntax tree node
 //astnt stands for abstract systax tree node type
 //all nodes are at least aligned to a sizeof(ureg) byte boundary
+typedef struct scope_s{
+    dbuffer functions;
+    dbuffer generic_functions;
+    dbuffer variables;
+    dbuffer types;
+}scope;
 
-typedef enum astnt_t {
+typedef enum astnt_e{
     //used instead of a single element expression
     ASTNT_NUMBER = TOKEN_NUMBER,
     ASTNT_LITERAL = TOKEN_LITERAL,
@@ -20,6 +26,7 @@ typedef enum astnt_t {
     ASTNT_DECLARATION,
     ASTNT_FUNCTION_DECLARATION,
 }astnt;
+
 
 typedef struct astn_assignment_t{
     u8 astnt;
@@ -49,7 +56,7 @@ typedef enum expr_elem_type_t{
     EXPR_ELEM_TYPE_LITERAL = TOKEN_LITERAL,
     EXPR_ELEM_TYPE_BINARY_LITERAL = TOKEN_BINARY_LITERAL,
     EXPR_ELEM_TYPE_VARIABLE = ASTNT_VARIABLE,
-    EXPR_ELEM_TYPE_EXPR = (u8)ASTNT_EXPRESSION,
+    EXPR_ELEM_TYPE_EXPR = ASTNT_EXPRESSION,
     EXPR_ELEM_TYPE_OP_LR,
     EXPR_ELEM_TYPE_OP_L,
     EXPR_ELEM_TYPE_OP_R,
@@ -57,18 +64,20 @@ typedef enum expr_elem_type_t{
     EXPR_ELEM_TYPE_PAREN,   //closing will never be stored
     EXPR_ELEM_TYPE_FN_CALL,
     EXPR_ELEM_TYPE_FN_NAME,
+    EXPR_ELEM_TYPE_ARRAY_ACCESS, //possibly overloaded operator from struct
+    EXPR_ELEM_TYPE_GENERIC_FN_GENERIC_ARGS,
+    EXPR_ELEM_TYPE_GENERIC_FN_ARGS,
+    EXPR_ELEM_TYPE_GENERIC_FN_NAME,
+    EXPR_ELEM_TYPE_GENERIC_FN_CALL,
 }expr_elem_type;
 
-//this is also used for:
-//astn_expression
-//astn_number
-//astn_string
-//to allow for nested expressions
 typedef struct expr_elem_t{
     u8 type;
+    //expr_elem_type type; //for debugging purposes
     u8 op;
     ureg val;
 }expr_elem;
+
 
 
 

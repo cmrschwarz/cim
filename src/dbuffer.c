@@ -23,7 +23,7 @@ bool dbuffer_is_emtpy(dbuffer* db)
 }
 void dbuffer_free(dbuffer* db)
 {
-	free(db->start);
+    free(db->start);
 }
 ureg dbuffer_get_size(dbuffer* db)
 {
@@ -57,7 +57,7 @@ void dbuffer_grow(dbuffer* db)
 {
 	// there are currently no optimizations I can think of here so we use
 	// default
-	dbuffer_set_bigger_capacity(db, (db->end - db->start) * 2);
+	dbuffer_set_bigger_capacity(db, (db->end - db->start) << 1);
 }
 
 

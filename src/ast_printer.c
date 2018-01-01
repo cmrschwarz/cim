@@ -6,6 +6,7 @@
 
 static expr_elem* print_expr_elem(cunit* cu, expr_elem* e);
 void reverse_print_func_args(cunit* cu, expr_elem* elem, expr_elem* end){
+    if(elem == end)return;
     expr_elem* nxt;
     if(elem->type == EXPR_ELEM_TYPE_EXPR){
         nxt = (void*)(cu->ast.start + elem->val);
@@ -135,9 +136,35 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
             print_rel_str(cu, e->val);
             e--;
             putchar('(');
-            if(e != end)reverse_print_func_args(cu, e, end);
+            reverse_print_func_args(cu, e, end);
             putchar(')');
             return end;
+        }
+        case EXPR_ELEM_TYPE_GENERIC_FN_CALL:{
+            expr_elem* end = (void*)(cu->ast.start  + e->val);
+            e--;
+            print_rel_str(cu, e->val);
+            e--;
+            expr_elem* args_end = (void*)(cu->ast.start  + e->val);
+            e--;
+            putchar('!');putchar('[');
+            reverse_print_func_args(cu, args_end, end);
+            putchar(']');putchar('(');
+            reverse_print_func_args(cu, e, args_end);
+            putchar(')');
+            return end;
+    //TODO
+
+            return end;
+        }
+        case EXPR_ELEM_TYPE_ARRAY_ACCESS:{
+            print_rel_str(cu, e->val);
+            e--;
+            putchar('[');
+            expr_elem* end = (void*)(cu->ast.start  + e->val);
+            e = print_expr_elem(cu, e);
+            putchar(']');
+            return e;
         }
         default:CIM_ERROR("Unknown expression type");
     }

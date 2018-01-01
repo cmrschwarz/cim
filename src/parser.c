@@ -40,6 +40,7 @@ static void parse_meta(cunit* cu, token* t1){
     
 }
 static inline void flush_shy_op(cunit* cu, shy_op* s, ureg expr_start){
+    //TODO; bounds check?
     expr_elem* expr_rend = (void*)(cu->ast.start + expr_start + sizeof(expr_elem) - sizeof(expr_elem));
     expr_elem* expr_rit =  (void*)(cu->ast.head - sizeof(expr_elem));
     int its;
@@ -76,6 +77,16 @@ static inline void push_shy_op(cunit* cu, shy_op* sop, shy_op** sho_ri, shy_op**
         *sho_ri = (void*)(cu->shy_ops.head - sizeof(shy_op));
     }
 }
+static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, token *t2, bool sub_expr);
+static void parse_arg_list(cunit* cu, token* t1, token* t2, token_type end_tok){
+    get_token(cu, t1);
+    if(t1->type == end_tok)return;
+    get_token(cu, t2);
+    while (parse_expr(cu, TOKEN_COMMA, end_tok, t1, t2, true) == 0){
+        get_token(cu, t1);
+        get_token(cu, t2);
+    }
+}
 static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, token *t2, bool sub_expr){
     //printf("parsing expr (%llu)\n", POS(cu->ast.head));
     if(t2->type == term1 || t2->type == term2){
@@ -88,7 +99,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
             n->type = (u8)t1->type;
             n->val = t1->str;
         }
-		else if(t1->type == TOKEN_STRING){
+        else if(t1->type == TOKEN_STRING) {
             expr_elem* v = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem));
             v->type = ASTNT_VARIABLE;
             v->val = t1->str;
@@ -248,22 +259,52 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                 if (t2->type == TOKEN_PAREN_OPEN) {
                     ureg fn_name = t1->str;
                     ureg fn_end = dbuffer_get_size(&cu->ast) - sizeof(expr_elem);
-                    do {
-                        get_token(cu, t1);
-                        get_token(cu, t2);
-                    } while (parse_expr(cu, TOKEN_COMMA, TOKEN_PAREN_CLOSE, t1, t2, true) == 0);
-                    e = dbuffer_claim_small_space(&cu->ast, 2 * sizeof(*e));
+                    parse_arg_list(cu, t1, t2, TOKEN_PAREN_CLOSE);
+                    e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
                     e->type = EXPR_ELEM_TYPE_FN_NAME;
                     e->val = fn_name;
                     e++;
                     e->type = EXPR_ELEM_TYPE_FN_CALL;
                     e->val = fn_end;
                     second_available = false;
-                } else {
+                }
+                else if(t2->type == TOKEN_BRACKET_OPEN){
+                    ureg el_name = t1->str;
+                    get_token(cu, t1);
+                    get_token(cu, t2);
+                    parse_expr(cu, TOKEN_BRACKET_CLOSE, TOKEN_BRACKET_CLOSE, t1, t2, true);
+                    e = dbuffer_claim_small_space(&cu->ast, sizeof(*e));
+                    e->type = EXPR_ELEM_TYPE_ARRAY_ACCESS;
+                    e->val = el_name;
+                    second_available = false;
+                }
+                else if(t2->type == TOKEN_EXCLAMATION_MARK){
+                    ureg fn_name = t1->str;
+                    ureg fn_end = dbuffer_get_size(&cu->ast) - sizeof(expr_elem);
+                    get_token(cu, t1);
+                    assert(t1->type == TOKEN_BRACKET_OPEN);
+                    parse_arg_list(cu, t1, t2, TOKEN_BRACKET_CLOSE);
+                    ureg args_end = dbuffer_get_size(&cu->ast) - sizeof(*e);
+                    get_token(cu, t1);
+                    assert(t1->type == TOKEN_PAREN_OPEN);
+                    parse_arg_list(cu, t1, t2, TOKEN_PAREN_CLOSE);
+                    e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 3);
+                    e->type = EXPR_ELEM_TYPE_GENERIC_FN_ARGS;
+                    e->val = args_end;
+                    e++;
+                    e->type = EXPR_ELEM_TYPE_GENERIC_FN_NAME;
+                    e->val = fn_name;
+                    e++;
+                    e->type = EXPR_ELEM_TYPE_GENERIC_FN_CALL;
+                    e->val = fn_end;
+                    second_available = false;
+                }
+                else {
                     e = dbuffer_claim_small_space(&cu->ast, sizeof(*e));
                     e->type = EXPR_ELEM_TYPE_VARIABLE;
                     e->val = t1->str;
                 }
+                //true for all: fn call, var, array access and generic fn call
                 expecting_op = true;
             }break;
             case TOKEN_EOF:CIM_ERROR("Unexpected eof");
@@ -298,7 +339,6 @@ static int parse_normal_declaration(cunit* cu, token* t1, token* t2){
        CIM_ERROR("Unexpected token");
     }
     return 0;
-    printf("parsed declaration\n"); 
 }
 static int parse_next(cunit* cu){
     token t1;
@@ -327,16 +367,5 @@ static int parse_next(cunit* cu){
 }
 void parse(cunit* cu, char* str){
     cu->str = str;
-    /*
-    token t;
-	get_token(cu, &t);
-	while(t.type != TOKEN_TYPE_EOF){
-		print_token(cu, &t);
-		printf(" (%i)", t.rel_str);
-		putchar('\n');
-		get_token(cu, &t);
-	}	
-    */
-    // actual parsing
     while(parse_next(cu)!=-1); 
 }
