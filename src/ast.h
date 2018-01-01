@@ -73,8 +73,8 @@ typedef enum expr_elem_type_t{
 }expr_elem_type;
 
 typedef struct expr_elem_t{
-    //u8 type;
-    expr_elem_type type; //for debugging purposes
+    u8 type;
+    //expr_elem_type type; //for debugging purposes
     u8 op;
     ureg val;
 }expr_elem;
