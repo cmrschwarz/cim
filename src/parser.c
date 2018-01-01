@@ -15,16 +15,82 @@ enum assocs{
 void init(cunit* cu){
     if(prec_table[OP_NONE] == 0){
         prec_table[OP_NONE] = 1; //initialization flag
-        prec_table[OP_TEMP_PAREN_OPEN] = 0;   // '(' uniquely has this precedence level so it is not removed during flush
-        prec_table[OP_ADD] = 1;
-        prec_table[OP_SUBTRACT] = 1;
-        prec_table[OP_PREINCREMENT] = 99;
-        prec_table[OP_POSTINCREMENT] =9;
-        prec_table[OP_DIVIDE] = 3;
-        prec_table[OP_MULTIPLY] = 3;
+        //uniquely has this precedence level so it is not removed during flush
+        prec_table[OP_TEMP_PAREN_OPEN] = 0;
+
+        prec_table[OP_POSTINCREMENT]=15;
+        prec_table[OP_POSTINCREMENT]=15;
+
+        prec_table[OP_PREINCREMENT]=14;
+        prec_table[OP_PREDECREMENT]=14;
+        prec_table[OP_LOGICAL_NOT]=14;
+        prec_table[OP_BITWISE_NOT]=14;
+        prec_table[OP_DEREFERENCE]=14;
+        prec_table[OP_ADDRESS_OF]=14;
+
+        prec_table[OP_MULTIPLY]=13;
+        prec_table[OP_DIVIDE]=13;
+        prec_table[OP_MODULO]=13;
+
+        prec_table[OP_ADD]=12;
+        prec_table[OP_SUBTRACT]=12;
+
+        prec_table[OP_LSHIFT]=11;
+        prec_table[OP_RSHIFT]=11;
+
+        prec_table[OP_LESS_THAN]=10;
+        prec_table[OP_GREATER_THAN]=10;
+        prec_table[OP_LESS_THAN_OR_EQUAL]=10;
+        prec_table[OP_GREATER_THAN_OR_EQUAL]=10;
+
+        prec_table[OP_EQUALS] = 9;
+        prec_table[OP_NOT_EQUAL] = 9;
+
+        prec_table[OP_BITWISE_AND] = 8;
+
+        prec_table[OP_BITWISE_XOR] = 7;
+
+        prec_table[OP_BITWISE_OR] = 6;
+
+        prec_table[OP_LOGICAL_AND] = 5;
+
+        prec_table[OP_LOGICAL_XOR] = 4;
+
+        prec_table[OP_LOGICAL_OR] = 3;
+
+        prec_table[OP_ASSIGN] = 2;
+        prec_table[OP_ADD_ASSIGN] = 2;
+        prec_table[OP_SUBTRACT_ASSIGN] = 2;
+        prec_table[OP_MULTIPLY_ASSIGN] = 2;
+        prec_table[OP_DIVIDE_ASSIGN] = 2;
+        prec_table[OP_MODULO_ASSIGN] = 2;
+        prec_table[OP_LSHIFT_ASSIGN] = 2;
+        prec_table[OP_RSHIFT_ASSIGN] = 2;
+        prec_table[OP_BITWISE_AND_ASSIGN] = 2;
+        prec_table[OP_BITWISE_OR_ASSIGN] = 2;
+        prec_table[OP_BITWISE_XOR_ASSIGN] = 2;
+        prec_table[OP_BITWISE_NOT_ASSIGN] = 2;
     }
-    if(assoc_table[OP_NONE] == 0){
-        assoc_table[OP_NONE] = 1;
+    if(assoc_table[OP_NONE] == LEFT_ASSOCIATIVE){
+        assoc_table[OP_NONE] = RIGHT_ASSOCIATIVE;
+        assoc_table[OP_PREINCREMENT]=RIGHT_ASSOCIATIVE;
+        assoc_table[OP_PREDECREMENT]=RIGHT_ASSOCIATIVE;
+        assoc_table[OP_LOGICAL_NOT]=RIGHT_ASSOCIATIVE;
+        assoc_table[OP_BITWISE_NOT]=RIGHT_ASSOCIATIVE;
+        assoc_table[OP_DEREFERENCE]=RIGHT_ASSOCIATIVE;
+        assoc_table[OP_ADDRESS_OF]=RIGHT_ASSOCIATIVE;
+        assoc_table[OP_ASSIGN] = RIGHT_ASSOCIATIVE;
+        assoc_table[OP_ADD_ASSIGN] = RIGHT_ASSOCIATIVE;
+        assoc_table[OP_SUBTRACT_ASSIGN] = RIGHT_ASSOCIATIVE;
+        assoc_table[OP_MULTIPLY_ASSIGN] = RIGHT_ASSOCIATIVE;
+        assoc_table[OP_DIVIDE_ASSIGN] = RIGHT_ASSOCIATIVE;
+        assoc_table[OP_MODULO_ASSIGN] = RIGHT_ASSOCIATIVE;
+        assoc_table[OP_LSHIFT_ASSIGN] = RIGHT_ASSOCIATIVE;
+        assoc_table[OP_RSHIFT_ASSIGN] = RIGHT_ASSOCIATIVE;
+        assoc_table[OP_BITWISE_AND_ASSIGN] = RIGHT_ASSOCIATIVE;
+        assoc_table[OP_BITWISE_OR_ASSIGN] = RIGHT_ASSOCIATIVE;
+        assoc_table[OP_BITWISE_XOR_ASSIGN] = RIGHT_ASSOCIATIVE;
+        assoc_table[OP_BITWISE_NOT_ASSIGN] = RIGHT_ASSOCIATIVE;
     }
 	dbuffer_init(&cu->string_store);
 	dbuffer_init(&cu->string_ptrs);
@@ -39,9 +105,7 @@ typedef struct shy_op_t{
 static void parse_meta(cunit* cu, token* t1){
     
 }
-static inline void flush_shy_op(cunit* cu, shy_op* s, ureg expr_start){
-    //TODO; bounds check?
-    expr_elem* expr_rend = (void*)(cu->ast.start + expr_start + sizeof(expr_elem) - sizeof(expr_elem));
+static inline void flush_shy_op(cunit* cu, shy_op* s){
     expr_elem* expr_rit =  (void*)(cu->ast.head - sizeof(expr_elem));
     int its;
     switch (s->type){
@@ -50,7 +114,11 @@ static inline void flush_shy_op(cunit* cu, shy_op* s, ureg expr_start){
         default: its = 1; break;
     }
     for(int i = 0; i != its; i++){
-        if(expr_rit->type == EXPR_ELEM_TYPE_NUMBER){
+        if( expr_rit->type == EXPR_ELEM_TYPE_NUMBER ||
+            expr_rit->type == EXPR_ELEM_TYPE_VARIABLE ||
+            expr_rit->type == EXPR_ELEM_TYPE_LITERAL ||
+            expr_rit->type == EXPR_ELEM_TYPE_BINARY_LITERAL)
+        {
             expr_rit--;
         }
         else{
@@ -61,7 +129,8 @@ static inline void flush_shy_op(cunit* cu, shy_op* s, ureg expr_start){
     e->type = s->type;
     e->op = s->op;
     e->val = (u8*)expr_rit - cu->ast.start;
-    cu->shy_ops.head -= sizeof(shy_op); //this will be inlined and brought out of the loop
+    //this will hopefully be inlined and brought out of the loop
+    cu->shy_ops.head -= sizeof(shy_op);
 }
 static inline void push_shy_op(cunit* cu, shy_op* sop, shy_op** sho_ri, shy_op** sho_re, ureg shy_ops_start){
     if(dbuffer_has_space(&cu->shy_ops, sizeof(shy_op))){
@@ -127,22 +196,8 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
     u8 prec;
     shy_op* sho_re = (void*)(cu->shy_ops.start + shy_ops_start - sizeof(shy_op));
     shy_op* sho_ri = (void*)(cu->shy_ops.head - sizeof(shy_op));
+    ureg open_paren_count = 0;
     while(true){
-        if(t1->type == term1 || t1->type == term2){
-            for(;sho_ri != sho_re; sho_ri--){
-                flush_shy_op(cu, sho_ri, expr_start);
-            }
-            if(!sub_expr){
-                expr = (expr_elem*)(cu->ast.start + expr_start);
-                expr->val = dbuffer_get_size(&cu->ast);
-            }
-            else{
-                expr = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem));
-                expr->type = ASTNT_EXPRESSION;
-                expr->val = expr_start;
-            }
-            return (t1->type == term1) ? 0 : 1;
-        }
         switch(t1->type){
             case TOKEN_DOUBLE_PLUS: {
                 sop.op = (expecting_op) ? OP_POSTINCREMENT : OP_PREINCREMENT;
@@ -153,8 +208,15 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
             lbl_op_l_or_r:{
                 sop.type = (expecting_op) ? EXPR_ELEM_TYPE_OP_R : EXPR_ELEM_TYPE_OP_L;
                 prec = prec_table[sop.op];
-                for (; sho_ri != sho_re && prec_table[sho_ri->op] > prec; sho_ri--) {
-                    flush_shy_op(cu, sho_ri, expr_start);
+                if (assoc_table[sop.op] == LEFT_ASSOCIATIVE) {
+                    for (; sho_ri != sho_re && prec_table[sho_ri->op] >= prec; sho_ri--) {
+                        flush_shy_op(cu, sho_ri);
+                    }
+                }
+                else {
+                    for (; sho_ri != sho_re && prec_table[sho_ri->op] > prec; sho_ri--) {
+                        flush_shy_op(cu, sho_ri);
+                    }
                 }
                 push_shy_op(cu, &sop, &sho_ri, &sho_re, shy_ops_start);
                 //expecting op stays the same
@@ -165,6 +227,13 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                     goto lbl_op_lr;
                 }
                 sop.op = OP_DEREFERENCE;
+            }goto lbl_op_unary;
+            case TOKEN_AND:{
+                if (expecting_op) {
+                    sop.op = OP_BITWISE_AND;
+                    goto lbl_op_lr;
+                }
+                sop.op = OP_ADDRESS_OF;
             }goto lbl_op_unary;
             case TOKEN_PLUS: {
                 if (expecting_op) {
@@ -183,8 +252,9 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
             lbl_op_unary: {
                 sop.type = EXPR_ELEM_TYPE_UNARY;
                 prec = prec_table[sop.op];
+                //unary is always right associative
                 for (; sho_ri != sho_re && prec_table[sho_ri->op] > prec; sho_ri--) {
-                    flush_shy_op(cu, sho_ri, expr_start);
+                    flush_shy_op(cu, sho_ri);
                 }
                 push_shy_op(cu, &sop, &sho_ri, &sho_re, shy_ops_start);
                 //expecting_op is already false, otherwise it wouldn't be unary
@@ -193,7 +263,9 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
             case TOKEN_SLASH_EQUALS:
             case TOKEN_STAR_EQUALS:
             case TOKEN_LESS_THAN:
+            case TOKEN_LESS_THAN_EQUALS:
             case TOKEN_GREATER_THAN:
+            case TOKEN_GREATER_THAN_EQUALS:
             case TOKEN_DOUBLE_LESS_THAN:
             case TOKEN_DOUBLE_GREATER_THAN:
             case TOKEN_EQUALS:
@@ -213,27 +285,31 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                 prec = prec_table[sop.op];
                 if (assoc_table[sop.op] == LEFT_ASSOCIATIVE) {
                     for (; sho_ri != sho_re && prec_table[sho_ri->op] >= prec; sho_ri--) {
-                        flush_shy_op(cu, sho_ri, expr_start);
+                        flush_shy_op(cu, sho_ri);
                     }
-                } else {
+                }
+                else {
                     for (; sho_ri != sho_re && prec_table[sho_ri->op] > prec; sho_ri--) {
-                        flush_shy_op(cu, sho_ri, expr_start);
+                        flush_shy_op(cu, sho_ri);
                     }
                 }
                 push_shy_op(cu, &sop, &sho_ri, &sho_re, shy_ops_start);
                 expecting_op = false;
             }break;
             case TOKEN_PAREN_OPEN: {
+                open_paren_count++;
                 sop.type = EXPR_ELEM_TYPE_PAREN;
                 sop.op = OP_TEMP_PAREN_OPEN;
                 push_shy_op(cu, &sop, &sho_ri, &sho_re, shy_ops_start);
                 expecting_op = false;
             }break;
             case TOKEN_PAREN_CLOSE: {
+                if(open_paren_count==0)goto lbl_default;
+                open_paren_count--;
                 for (;sho_ri != sho_re && sho_ri->op != OP_TEMP_PAREN_OPEN;
                       sho_ri--)
                 {
-                    flush_shy_op(cu, sho_ri, expr_start);
+                    flush_shy_op(cu, sho_ri);
                 }
                 //removing the OP_TEMP_PAREN_OPEN
                 dbuffer_pop_back(&cu->shy_ops, sizeof(shy_op));
@@ -270,12 +346,16 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                 }
                 else if(t2->type == TOKEN_BRACKET_OPEN){
                     ureg el_name = t1->str;
+                    ureg el_end = dbuffer_get_size(&cu->ast) - sizeof(expr_elem);
                     get_token(cu, t1);
                     get_token(cu, t2);
                     parse_expr(cu, TOKEN_BRACKET_CLOSE, TOKEN_BRACKET_CLOSE, t1, t2, true);
-                    e = dbuffer_claim_small_space(&cu->ast, sizeof(*e));
-                    e->type = EXPR_ELEM_TYPE_ARRAY_ACCESS;
+                    e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
+                    e->type = EXPR_ELEM_TYPE_ARRAY_NAME;
                     e->val = el_name;
+                    e++;
+                    e->type = EXPR_ELEM_TYPE_ARRAY_ACCESS;
+                    e->val = el_end;
                     second_available = false;
                 }
                 else if(t2->type == TOKEN_EXCLAMATION_MARK){
@@ -308,7 +388,25 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                 expecting_op = true;
             }break;
             case TOKEN_EOF:CIM_ERROR("Unexpected eof");
-            default:CIM_ERROR("Unexpected token");
+            default:{
+lbl_default:
+                if(t1->type == term1 || t1->type == term2){
+                    for(;sho_ri != sho_re; sho_ri--){
+                        flush_shy_op(cu, sho_ri);
+                    }
+                    if(!sub_expr){
+                        expr = (expr_elem*)(cu->ast.start + expr_start);
+                        expr->val = dbuffer_get_size(&cu->ast);
+                    }
+                    else{
+                        expr = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem));
+                        expr->type = ASTNT_EXPRESSION;
+                        expr->val = expr_start;
+                    }
+                    return (t1->type == term1) ? 0 : 1;
+                }
+                CIM_ERROR("Unexpected token");
+            }
         }
         if(!second_available){
             get_token(cu, t1);

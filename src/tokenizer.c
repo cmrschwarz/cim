@@ -235,6 +235,20 @@ redo:;
                 tok->type = TOKEN_AND;
             }
         } return;
+        case '^': {
+            curr = *cu->pos;
+            if(curr == '^') {
+                cu->pos++;
+                tok->type = TOKEN_DOUBLE_CARET;
+            }
+            else if(curr == '='){
+                cu->pos++;
+                tok->type = TOKEN_CARET_EQUALS;
+            }
+            else{
+                tok->type = TOKEN_CARET;
+            }
+        } return;
         case '~': {
             curr = *cu->pos;
             if(curr == '=') {
@@ -298,6 +312,9 @@ redo:;
                     tok->type = TOKEN_DOUBLE_LESS_THAN;
                 }
             }
+            else if(curr == '='){
+                tok->type = TOKEN_LESS_THAN_EQUALS;
+            }
             else{
                 tok->type = TOKEN_LESS_THAN;
             }
@@ -314,6 +331,9 @@ redo:;
                 else{
                     tok->type = TOKEN_DOUBLE_GREATER_THAN;
                 }
+            }
+            else if(curr == '='){
+                tok->type = TOKEN_GREATER_THAN_EQUALS;
             }
             else{
                 tok->type = TOKEN_GREATER_THAN;

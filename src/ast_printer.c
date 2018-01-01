@@ -38,41 +38,41 @@ void print_op(u8 op){
 	switch(op){
         case OP_ADD:putchar('+');return;
         case OP_PREINCREMENT:
-        case OP_POSTINCREMENT: puts("++"); return;
-        case OP_ADD_ASSIGN: puts("+="); return;
+        case OP_POSTINCREMENT: putchar('+');putchar('+'); return;
+        case OP_ADD_ASSIGN: putchar('+');putchar('='); return;
         case OP_SUBTRACT:putchar('-'); return;
         case OP_PREDECREMENT:
-        case OP_POSTDECREMENT: puts("--"); return;
-        case OP_SUBTRACT_ASSIGN:puts("-="); return;
+        case OP_POSTDECREMENT: putchar('-');putchar('-'); return;
+        case OP_SUBTRACT_ASSIGN:putchar('-');putchar('='); return;
         case OP_LOGICAL_NOT: putchar('!');return;
-        case OP_NOT_EQUAL: puts("!="); return;
+        case OP_NOT_EQUAL: putchar('!');putchar('='); return;
         case OP_MULTIPLY:
         case OP_DEREFERENCE: putchar('*'); return;
-        case OP_MULTIPLY_ASSIGN:puts("*="); return;
+        case OP_MULTIPLY_ASSIGN:putchar('*');putchar('='); return;
         case OP_ASSIGN:putchar('='); return;
-        case OP_EQUALS:puts("=="); return;
+        case OP_EQUALS:putchar('=');putchar('='); return;
         case OP_MODULO: putchar('%'); return;
-        case OP_MODULO_ASSIGN: puts("%="); return;
+        case OP_MODULO_ASSIGN: putchar('%');putchar('='); return;
         case OP_DIVIDE: putchar('/'); return;
-        case OP_DIVIDE_ASSIGN: puts("/="); return;
+        case OP_DIVIDE_ASSIGN: putchar('/');putchar('='); return;
         case OP_BITWISE_AND: putchar('&'); return;
-        case OP_LOGICAL_AND: puts("&&"); return;
-        case OP_BITWISE_AND_ASSIGN: puts("&="); return;
+        case OP_LOGICAL_AND: putchar('&');putchar('&'); return;
+        case OP_BITWISE_AND_ASSIGN: putchar('&');putchar('='); return;
         case OP_BITWISE_OR: putchar('|'); return;
-        case OP_LOGICAL_OR: puts("||"); return;
-        case OP_BITWISE_OR_ASSIGN: puts("|="); return;
+        case OP_LOGICAL_OR: putchar('|');putchar('|'); return;
+        case OP_BITWISE_OR_ASSIGN: putchar('|');putchar('='); return;
         case OP_BITWISE_NOT: putchar('~'); return;
-        case OP_BITWISE_NOT_ASSIGN: puts("~="); return;
+        case OP_BITWISE_NOT_ASSIGN: putchar('~');putchar('='); return;
         case OP_LESS_THAN: putchar('<'); return;
-        case OP_LSHIFT: puts("<<"); return;
+        case OP_LSHIFT: putchar('<');putchar('<'); return;
         case OP_GREATER_THAN: putchar('>'); return;
-        case OP_RSHIFT: puts(">>"); return;
+        case OP_RSHIFT: putchar('>');putchar('>'); return;
         case OP_ACCESS_MEMBER: putchar('.'); return;
-        case OP_DEREFERENCE_ACCESS_MEMBER: puts("->"); return;
-        case OP_LSHIFT_ASSIGN: puts("<<=");return;
-        case OP_RSHIFT_ASSIGN: puts(">>=");return;
+        case OP_DEREFERENCE_ACCESS_MEMBER: putchar('-');putchar('>'); return;
+        case OP_LSHIFT_ASSIGN: putchar('<');putchar('<');putchar('=');return;
+        case OP_RSHIFT_ASSIGN: putchar('>');putchar('>');putchar('=');return;
         case OP_BITWISE_XOR: putchar('^');return;
-        case OP_BITWISE_XOR_ASSIGN: puts("^=");return;
+        case OP_BITWISE_XOR_ASSIGN: putchar('^');putchar('=');return;
         default:CIM_ERROR("Unknown token");
 	}
 }
@@ -153,15 +153,11 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
             reverse_print_func_args(cu, e, args_end);
             putchar(')');
             return end;
-    //TODO
-
-            return end;
         }
         case EXPR_ELEM_TYPE_ARRAY_ACCESS:{
             print_rel_str(cu, e->val);
             e--;
             putchar('[');
-            expr_elem* end = (void*)(cu->ast.start  + e->val);
             e = print_expr_elem(cu, e);
             putchar(']');
             return e;

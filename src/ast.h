@@ -64,7 +64,8 @@ typedef enum expr_elem_type_t{
     EXPR_ELEM_TYPE_PAREN,   //closing will never be stored
     EXPR_ELEM_TYPE_FN_CALL,
     EXPR_ELEM_TYPE_FN_NAME,
-    EXPR_ELEM_TYPE_ARRAY_ACCESS, //possibly overloaded operator from struct
+    EXPR_ELEM_TYPE_ARRAY_ACCESS,
+    EXPR_ELEM_TYPE_ARRAY_NAME,
     EXPR_ELEM_TYPE_GENERIC_FN_GENERIC_ARGS,
     EXPR_ELEM_TYPE_GENERIC_FN_ARGS,
     EXPR_ELEM_TYPE_GENERIC_FN_NAME,
@@ -72,8 +73,8 @@ typedef enum expr_elem_type_t{
 }expr_elem_type;
 
 typedef struct expr_elem_t{
-    u8 type;
-    //expr_elem_type type; //for debugging purposes
+    //u8 type;
+    expr_elem_type type; //for debugging purposes
     u8 op;
     ureg val;
 }expr_elem;
