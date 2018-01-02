@@ -8,8 +8,8 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e);
 void reverse_print_func_args(cunit* cu, expr_elem* elem, expr_elem* end){
     if(elem == end)return;
     expr_elem* nxt;
-    if(elem->type == EXPR_ELEM_TYPE_EXPR){
-        nxt = (void*)(cu->ast.start + elem->val);
+    if(elem->regular.type == EXPR_ELEM_TYPE_EXPR){
+        nxt = (void*)(cu->ast.start + elem->regular.val);
     }
     else{
         nxt = elem-1;
@@ -77,34 +77,34 @@ void print_op(u8 op){
 	}
 }
 static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
-    switch(e->type){
+    switch(e->regular.type){
         case EXPR_ELEM_TYPE_NUMBER:
         case EXPR_ELEM_TYPE_VARIABLE:
-            print_rel_str(cu, e->val);
+            print_rel_str(cu, e->regular.val);
             break;
         case EXPR_ELEM_TYPE_LITERAL:
-            print_literal(cu, e->val);
+            print_literal(cu, e->regular.val);
             break;
         case EXPR_ELEM_TYPE_BINARY_LITERAL:
-            print_binary_literal(cu, e->val);
+            print_binary_literal(cu, e->regular.val);
             break;
         case EXPR_ELEM_TYPE_OP_LR:{
             putchar('(');
             expr_elem* r = (void*)(e-1);
             expr_elem* l;
-            if( r->type == EXPR_ELEM_TYPE_NUMBER ||
-                r->type == EXPR_ELEM_TYPE_VARIABLE ||
-                r->type == EXPR_ELEM_TYPE_LITERAL ||
-                r->type == EXPR_ELEM_TYPE_BINARY_LITERAL)
+            if( r->regular.type == EXPR_ELEM_TYPE_NUMBER ||
+                r->regular.type == EXPR_ELEM_TYPE_VARIABLE ||
+                r->regular.type == EXPR_ELEM_TYPE_LITERAL ||
+                r->regular.type == EXPR_ELEM_TYPE_BINARY_LITERAL)
             {
                 l = r-1;
             }
             else{
-                l = (void*)(cu->ast.start + r->val);
+                l = (void*)(cu->ast.start + r->regular.val);
             }
             expr_elem* end_op = print_expr_elem(cu, l);
             putchar(' ');
-            print_op(e->op);
+            print_op(e->regular.op);
             putchar(' ');
             print_expr_elem(cu, r);
             putchar(')');
@@ -117,7 +117,7 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
             putchar('(');
             expr_elem *u = (void *) (e - 1);
             expr_elem* end_op = print_expr_elem(cu, u);
-            print_op(e->op);
+            print_op(e->regular.op);
             putchar(')');
             return end_op;
         }
@@ -125,15 +125,15 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
         case EXPR_ELEM_TYPE_UNARY: {
             putchar('(');
             expr_elem *u = (void *) (e - 1);
-            print_op(e->op);
+            print_op(e->regular.op);
             expr_elem* end_op = print_expr_elem(cu, u);
             putchar(')');
             return end_op;
         }
         case EXPR_ELEM_TYPE_FN_CALL:{
-            expr_elem* end = (void*)(cu->ast.start  + e->val);
+            expr_elem* end = (void*)(cu->ast.start  + e->regular.val);
             e--;
-            print_rel_str(cu, e->val);
+            print_rel_str(cu, e->regular.val);
             e--;
             putchar('(');
             reverse_print_func_args(cu, e, end);
@@ -141,21 +141,20 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
             return end;
         }
         case EXPR_ELEM_TYPE_GENERIC_FN_CALL:{
-            expr_elem* end = (void*)(cu->ast.start  + e->val);
+            expr_elem* end = (void*)(cu->ast.start  + e->regular.val);
             e--;
-            print_rel_str(cu, e->val);
+            print_rel_str(cu, e->data_elem.val1);
+            expr_elem* generic_args_rstart = (void*)(cu->ast.start  + e->data_elem.val2);
             e--;
-            expr_elem* args_end = (void*)(cu->ast.start  + e->val);
-            e--;
-            putchar('!');putchar('[');
-            reverse_print_func_args(cu, args_end, end);
+            putchar('[');
+            reverse_print_func_args(cu, generic_args_rstart, end);
             putchar(']');putchar('(');
-            reverse_print_func_args(cu, e, args_end);
+            reverse_print_func_args(cu, e, generic_args_rstart);
             putchar(')');
             return end;
         }
         case EXPR_ELEM_TYPE_ARRAY_ACCESS:{
-            print_rel_str(cu, e->val);
+            print_rel_str(cu, e->regular.val);
             e--;
             putchar('[');
             e = print_expr_elem(cu, e);
@@ -167,9 +166,9 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
     return e-1;
 }
 static inline expr_elem* print_expr(cunit* cu, expr_elem* expr){
-    expr_elem* e = (void*) cu->ast.start + expr->val - sizeof(expr_elem);
+    expr_elem* e = (void*) cu->ast.start + expr->regular.val - sizeof(expr_elem);
     print_expr_elem(cu, e);
-    return (void*) (cu->ast.start + expr->val);
+    return (void*) (cu->ast.start + expr->regular.val);
 }
 
 void print_indent(ureg indent){
@@ -203,19 +202,19 @@ void print_ast(cunit* cu){
             case ASTNT_NUMBER:{
                 expr_elem* n = (void*)astn;
                 astn+= sizeof(*n);
-                print_rel_str(cu, n->val);
+                print_rel_str(cu, n->regular.val);
                 putchar(';');
                 putchar('\n');
             }break;
             case ASTNT_LITERAL:{
                 expr_elem* e = (void*)astn;
-                print_literal(cu, e->val);
+                print_literal(cu, e->regular.val);
                 putchar(';');
                 putchar('\n');
             }
             case ASTNT_BINARY_LITERAL:{
                 expr_elem* e = (void*)astn;
-                print_binary_literal(cu, e->val);
+                print_binary_literal(cu, e->regular.val);
                 putchar(';');
                 putchar('\n');
             }

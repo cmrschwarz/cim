@@ -66,17 +66,19 @@ typedef enum expr_elem_type_t{
     EXPR_ELEM_TYPE_FN_NAME,
     EXPR_ELEM_TYPE_ARRAY_ACCESS,
     EXPR_ELEM_TYPE_ARRAY_NAME,
-    EXPR_ELEM_TYPE_GENERIC_FN_GENERIC_ARGS,
-    EXPR_ELEM_TYPE_GENERIC_FN_ARGS,
-    EXPR_ELEM_TYPE_GENERIC_FN_NAME,
     EXPR_ELEM_TYPE_GENERIC_FN_CALL,
 }expr_elem_type;
 
-typedef struct expr_elem_t{
-    u8 type;
-    //expr_elem_type type; //for debugging purposes
-    u8 op;
-    ureg val;
+typedef union expr_elem_t{
+    struct {
+        u8 type;
+        u8 op;
+        ureg val;
+    }regular;
+    struct {
+        ureg val1;
+        ureg val2;
+    }data_elem;
 }expr_elem;
 
 
