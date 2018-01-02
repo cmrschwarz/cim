@@ -154,6 +154,8 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
             return end;
         }
         case EXPR_ELEM_TYPE_ARRAY_ACCESS:{
+            expr_elem* end = (void*)(cu->ast.start  + e->regular.val);
+            e--;
             print_rel_str(cu, e->regular.val);
             e--;
             putchar('[');

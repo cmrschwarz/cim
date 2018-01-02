@@ -333,7 +333,6 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                 assert(!expecting_op);
                 if (!second_available) {
                     get_token(cu, t2);
-                    second_available = true;
                 }
                 if (t2->type == TOKEN_PAREN_OPEN) {
                     ureg fn_name = t1->str;
@@ -345,14 +344,13 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                     e++;
                     e->regular.type = EXPR_ELEM_TYPE_FN_CALL;
                     e->regular.val = fn_end;
-                    second_available = false;
                 }
                 else if(t2->type == TOKEN_BRACKET_OPEN){
                     ureg el_name = t1->str;
                     ureg el_end = dbuffer_get_size(&cu->ast) - sizeof(expr_elem);
                     ureg its = parse_arg_list(cu, t1, t2, TOKEN_BRACKET_CLOSE);
-                    get_token(cu, t1);
-                    if(t1->type == TOKEN_PAREN_OPEN){
+                    get_token(cu, t2);
+                    if(t2->type == TOKEN_PAREN_OPEN){
                         ureg generic_args_rstart = dbuffer_get_size(&cu->ast) - sizeof(*e);
                         parse_arg_list(cu, t1, t2, TOKEN_PAREN_CLOSE);
                         e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
@@ -361,7 +359,6 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                         e++;
                         e->regular.type = EXPR_ELEM_TYPE_GENERIC_FN_CALL;
                         e->regular.val = el_end;
-                        second_available = false;
                     }
                     else{
                         e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
@@ -370,13 +367,14 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                         e++;
                         e->regular.type = EXPR_ELEM_TYPE_ARRAY_ACCESS;
                         e->regular.val = el_end;
-                        second_available = true;
+                        second_available=true;
                     }
                 }
                 else {
                     e = dbuffer_claim_small_space(&cu->ast, sizeof(*e));
                     e->regular.type = EXPR_ELEM_TYPE_VARIABLE;
                     e->regular.val = t1->str;
+                    second_available=true;
                 }
                 //true for all: fn call, var, array access and generic fn call
                 expecting_op = true;
