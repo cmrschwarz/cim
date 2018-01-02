@@ -8,7 +8,7 @@ typedef struct cunit_t{
 	char* pos;
 	dbuffer string_store;
 	dbuffer string_ptrs;
-	//eventually, one ast per function?
 	dbuffer ast;
     dbuffer shy_ops;    //shunting yard operators
+
 }cunit;

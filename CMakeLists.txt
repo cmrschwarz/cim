@@ -7,4 +7,4 @@ add_executable( cim
                 src/parser.c
                 src/tokenizer.c
                 src/dbuffer.c
-                src/ast_printer.c)
+                src/ast_printer.c src/scopes.h)
