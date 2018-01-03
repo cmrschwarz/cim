@@ -7,7 +7,7 @@ int main(){
     printf("sizeof(expr_elem): %i\n", sizeof(expr_elem));
 	cunit cu;
 	init(&cu);
-    char* input = "x = heureka[x];";
+    char* input = "x = heureka[x] + y;";
     printf("input:\n%s\n\n", input);
     cu.str = input;
 	cu.pos = input;
