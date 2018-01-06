@@ -173,21 +173,30 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
             t1->type == TOKEN_LITERAL)
         {
             expr_elem* n = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem) * 2);
+            //reverse order for subexprs
             if(!sub_expr){
-                n->id.type = (u8)t1->type; //token type matches expr elem type for these
+                n->id.type = (u8)t1->type; //token type matches ASTNT type for these
                 n++;
                 n->str = t1->str;
             }
             else{
-
+                n->str = t1->str;
+                n++;
+                n->id.type = (u8)t1->type; //token type matches expr elem type for these
             }
-
         }
         else if(t1->type == TOKEN_STRING) {
             expr_elem* v = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem) * 2);
-            v->id.type= ASTNT_VARIABLE;
-            v++;
-            v->str = t1->str;
+            if(!sub_expr){
+                v->id.type= ASTNT_VARIABLE;
+                v++;
+                v->str = t1->str;
+            }
+            else{
+                v->str = t1->str;
+                v++;
+                v->id.type= ASTNT_VARIABLE;
+            }
         }
         else{
             CIM_ERROR("Unexpected Token");
