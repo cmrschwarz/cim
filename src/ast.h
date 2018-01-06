@@ -1,6 +1,7 @@
 #pragma once
 #include "types.h"
 #include "tokenizer.h"
+#include "parser.h"
 #define TO_U8(i)((u8)((i) & 0xFF))
 #define TO_CHAR(i)((char)((i) & 0xFF))
 #define TO_UREG(c)((ureg)(c))
@@ -37,8 +38,8 @@ typedef struct astn_declaration_t{
     u8 astnt;
     bool assigning;
     u16 ptrs;
-    ureg type;
-    ureg name;
+    char* type;
+    char* name;
 }astn_declaration;
 
 typedef struct astn_function_call_t{
@@ -63,23 +64,26 @@ typedef enum expr_elem_type_t{
     EXPR_ELEM_TYPE_UNARY,
     EXPR_ELEM_TYPE_PAREN,   //closing will never be stored
     EXPR_ELEM_TYPE_FN_CALL,
-    EXPR_ELEM_TYPE_FN_NAME,
     EXPR_ELEM_TYPE_ARRAY_ACCESS,
-    EXPR_ELEM_TYPE_ARRAY_NAME,
     EXPR_ELEM_TYPE_GENERIC_FN_CALL,
 }expr_elem_type;
 
-typedef union expr_elem_t{
-    struct {
+typedef union expr_elem_s{
+#if 1
+    struct{
+        expr_elem_type type;
+        enum OP op;
+    }id;
+#else
+    struct{
         u8 type;
         u8 op;
-        ureg val;
-    }regular;
-    struct {
-        ureg val1;
-        ureg val2;
-    }data_elem;
+    }id;
+#endif
+    char* str;
+    ureg ast_pos;
 }expr_elem;
+
 
 
 

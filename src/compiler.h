@@ -1,14 +1,14 @@
 #pragma once
 #include "dbuffer.h"
+#include "sbuffer.h"
 #include <assert.h>
-#define CIM_ERROR(str)do{printf("%s,\n",str); assert(false);}while(0)
+
 typedef struct cunit_t{
 	//later on, this will read the file live, but this is easier for now
 	char* str;
 	char* pos;
-	dbuffer string_store;
+	sbuffer data_store;
 	dbuffer string_ptrs;
 	dbuffer ast;
     dbuffer shy_ops;    //shunting yard operators
-
 }cunit;

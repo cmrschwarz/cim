@@ -3,16 +3,18 @@
 #include "tokenizer.h"
 #include <stdio.h>
 #include <string.h>
+#include "error.h"
+#include "ast.h"
 
 static expr_elem* print_expr_elem(cunit* cu, expr_elem* e);
 void reverse_print_func_args(cunit* cu, expr_elem* elem, expr_elem* end){
     if(elem == end)return;
     expr_elem* nxt;
-    if(elem->regular.type == EXPR_ELEM_TYPE_EXPR){
-        nxt = (void*)(cu->ast.start + elem->regular.val);
+    if(elem->id.type == EXPR_ELEM_TYPE_EXPR){
+        nxt = (void*)(cu->ast.start + (elem-1)->ast_pos);
     }
     else{
-        nxt = elem-1;
+        nxt = elem-2;
     }
     if(nxt != end){
         reverse_print_func_args(cu, nxt, end);
@@ -21,17 +23,17 @@ void reverse_print_func_args(cunit* cu, expr_elem* elem, expr_elem* end){
     }
     print_expr_elem(cu, elem);
 }
-void print_literal(cunit* cu, ureg str){
+void print_literal(cunit* cu, char* str){
     putchar('\"');
-    print_rel_str(cu, str);
+    printf(str);
     putchar('\"');
 }
-void print_number(cunit* cu, ureg str){
-    print_rel_str(cu, str);
+void print_number(cunit* cu, char* str){
+    printf(str);
 }
-void print_binary_literal(cunit* cu, ureg str){
+void print_binary_literal(cunit* cu, char* str){
     putchar('\'');
-    print_rel_str(cu, str);
+    printf(str);
     putchar('\'');
 }
 void print_op(u8 op){
@@ -77,34 +79,34 @@ void print_op(u8 op){
 	}
 }
 static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
-    switch(e->regular.type){
+    switch(e->id.type){
         case EXPR_ELEM_TYPE_NUMBER:
         case EXPR_ELEM_TYPE_VARIABLE:
-            print_rel_str(cu, e->regular.val);
+            printf((e-1)->str);
             break;
         case EXPR_ELEM_TYPE_LITERAL:
-            print_literal(cu, e->regular.val);
+            print_literal(cu, (e-1)->str);
             break;
         case EXPR_ELEM_TYPE_BINARY_LITERAL:
-            print_binary_literal(cu, e->regular.val);
+            print_binary_literal(cu, (e-1)->str);
             break;
         case EXPR_ELEM_TYPE_OP_LR:{
             putchar('(');
-            expr_elem* r = (void*)(e-1);
+            expr_elem* r = (void*)(e-2);
             expr_elem* l;
-            if( r->regular.type == EXPR_ELEM_TYPE_NUMBER ||
-                r->regular.type == EXPR_ELEM_TYPE_VARIABLE ||
-                r->regular.type == EXPR_ELEM_TYPE_LITERAL ||
-                r->regular.type == EXPR_ELEM_TYPE_BINARY_LITERAL)
+            if( r->id.type == EXPR_ELEM_TYPE_NUMBER ||
+                r->id.type == EXPR_ELEM_TYPE_VARIABLE ||
+                r->id.type == EXPR_ELEM_TYPE_LITERAL ||
+                r->id.type == EXPR_ELEM_TYPE_BINARY_LITERAL)
             {
-                l = r-1;
+                l = r-2;
             }
             else{
-                l = (void*)(cu->ast.start + r->regular.val);
+                l = (void*)(cu->ast.start + (r-1)->ast_pos);
             }
             expr_elem* end_op = print_expr_elem(cu, l);
             putchar(' ');
-            print_op(e->regular.op);
+            print_op(e->id.op);
             putchar(' ');
             print_expr_elem(cu, r);
             putchar(')');
@@ -115,25 +117,26 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
         }
         case EXPR_ELEM_TYPE_OP_R:{
             putchar('(');
-            expr_elem *u = (void *) (e - 1);
+            expr_elem *u = e - 2;
             expr_elem* end_op = print_expr_elem(cu, u);
-            print_op(e->regular.op);
+            print_op(e->id.op);
             putchar(')');
             return end_op;
         }
         case EXPR_ELEM_TYPE_OP_L:
         case EXPR_ELEM_TYPE_UNARY: {
             putchar('(');
-            expr_elem *u = (void *) (e - 1);
-            print_op(e->regular.op);
+            expr_elem *u = e - 2;
+            print_op(e->id.op);
             expr_elem* end_op = print_expr_elem(cu, u);
             putchar(')');
             return end_op;
         }
         case EXPR_ELEM_TYPE_FN_CALL:{
-            expr_elem* end = (void*)(cu->ast.start  + e->regular.val);
             e--;
-            print_rel_str(cu, e->regular.val);
+            expr_elem* end = (void*)(cu->ast.start  + e->ast_pos);
+            e--;
+            printf(e->str);
             e--;
             putchar('(');
             reverse_print_func_args(cu, e, end);
@@ -141,10 +144,12 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
             return end;
         }
         case EXPR_ELEM_TYPE_GENERIC_FN_CALL:{
-            expr_elem* end = (void*)(cu->ast.start  + e->regular.val);
             e--;
-            print_rel_str(cu, e->data_elem.val1);
-            expr_elem* generic_args_rstart = (void*)(cu->ast.start  + e->data_elem.val2);
+            expr_elem* end = (void*)(cu->ast.start  + e->ast_pos);
+            e--;
+            printf(e->str);
+            e--;
+            expr_elem* generic_args_rstart = (void*)(cu->ast.start  + e->ast_pos);
             e--;
             putchar('[');
             reverse_print_func_args(cu, generic_args_rstart, end);
@@ -154,9 +159,10 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
             return end;
         }
         case EXPR_ELEM_TYPE_ARRAY_ACCESS:{
-            expr_elem* end = (void*)(cu->ast.start  + e->regular.val);
             e--;
-            print_rel_str(cu, e->regular.val);
+            expr_elem* end = (void*)(cu->ast.start  + e->ast_pos);
+            e--;
+            printf(e->str);
             e--;
             putchar('[');
             e = print_expr_elem(cu, e);
@@ -165,12 +171,12 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
         }
         default:CIM_ERROR("Unknown expression type");
     }
-    return e-1;
+    return e-2;
 }
 static inline expr_elem* print_expr(cunit* cu, expr_elem* expr){
-    expr_elem* e = (void*) cu->ast.start + expr->regular.val - sizeof(expr_elem);
+    expr_elem* e = (void*) cu->ast.start + (expr+1)->ast_pos - sizeof(expr_elem);
     print_expr_elem(cu, e);
-    return (void*) (cu->ast.start + expr->regular.val);
+    return (void*) (cu->ast.start + (expr+1)->ast_pos);
 }
 
 void print_indent(ureg indent){
@@ -186,9 +192,9 @@ void print_ast(cunit* cu){
                 print_indent(indent);
                 astn_declaration* d = (void*)astn;
                 astn+= sizeof(*d);
-                print_rel_str(cu, d->type);
+                printf(d->type);
                 putchar(' ');
-                print_rel_str(cu, d->name);
+                printf(d->name);
                 if(d->assigning == false){
                     putchar(';');
                     putchar('\n');
@@ -203,20 +209,20 @@ void print_ast(cunit* cu){
             case ASTNT_VARIABLE:
             case ASTNT_NUMBER:{
                 expr_elem* n = (void*)astn;
-                astn+= sizeof(*n);
-                print_rel_str(cu, n->regular.val);
+                astn+= sizeof(*n) * 2;
+                printf((n+1)->str);
                 putchar(';');
                 putchar('\n');
             }break;
             case ASTNT_LITERAL:{
                 expr_elem* e = (void*)astn;
-                print_literal(cu, e->regular.val);
+                print_literal(cu, (e+1)->str);
                 putchar(';');
                 putchar('\n');
             }
             case ASTNT_BINARY_LITERAL:{
                 expr_elem* e = (void*)astn;
-                print_binary_literal(cu, e->regular.val);
+                print_binary_literal(cu, (e+1)->str);
                 putchar(';');
                 putchar('\n');
             }

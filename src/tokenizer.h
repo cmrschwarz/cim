@@ -61,12 +61,12 @@ typedef enum tokens_type_e{
 
 typedef struct token_t{
 	token_type type;
-    ureg str;
+    char* str;
 }token;
 
 void get_token(cunit* cu, token* t);
 void print_token(cunit* cu, token* t);
 void print_rel_str(cunit* cu, ureg str);
-ureg store_string(cunit* cu, char* str, char* str_end);
+char* store_string(cunit* cu, char* str, char* str_end);
 void print_token(cunit* cu, token* t);
 void get_token(cunit* cu, token* tok);

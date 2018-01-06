@@ -3,6 +3,7 @@
 #include <assert.h>
 #include <stdio.h>
 #include "dbuffer.h"
+#include "error.h"
 #include "compiler.h"
 void dbuffer_init_with_capacity(dbuffer* db, ureg capacity)
 {
@@ -21,7 +22,7 @@ bool dbuffer_is_emtpy(dbuffer* db)
 {
 	return (db->start == db->head);
 }
-void dbuffer_free(dbuffer* db)
+void dbuffer_fin(dbuffer* db)
 {
     free(db->start);
 }

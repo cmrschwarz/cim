@@ -9,7 +9,7 @@ typedef struct dbuffer {
 
 void dbuffer_init_with_capacity(dbuffer* db, ureg size);
 void dbuffer_init(dbuffer* db);
-void dbuffer_free(dbuffer* db);
+void dbuffer_fin(dbuffer* db);
 
 ureg dbuffer_get_capacity(dbuffer* db);
 ureg dbuffer_get_size(dbuffer* db);

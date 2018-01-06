@@ -4,11 +4,9 @@
 #include <stdio.h>
 #include <string.h>
 #include <assert.h>
+#include "error.h"
 #define ASSERT_NEOF(c) do{if((c) == '\0'){CIM_ERROR("Unexpected EOF");}}while(0)
 
-void print_rel_str(cunit* cu, ureg str){
-   fputs((char*)(cu->string_store.start + str), stdout);
-}
 
 static inline int cmp_string_with_stored(char* str_start, const char* str_end, char* stored){
 	for(;;){
@@ -20,30 +18,29 @@ static inline int cmp_string_with_stored(char* str_start, const char* str_end, c
 		stored++;
 	}
 }
-ureg store_string(cunit* cu, char* str, char* str_end){
+char* store_string(cunit* cu, char* str, char* str_end){
 	//we do this ahead so we don't have to worry about invalidating pointers
 	dbuffer_make_small_space(&cu->string_ptrs, sizeof(ureg));
-	ureg* sptrs_start = (ureg*)cu->string_ptrs.start;
-	ureg* sptrs_end = (ureg*)cu->string_ptrs.head;
-	ureg* pivot;
+	char* sptrs_start = (char*)cu->string_ptrs.start;
+	char* sptrs_end = (char*)cu->string_ptrs.head;
+	char* pivot;
 	int res;
 	for(;;){
 		pivot = sptrs_start + (sptrs_end - sptrs_start) / 2;
 		if(pivot == sptrs_start){
-            if(pivot != (ureg*)cu->string_ptrs.head){
-                if(cmp_string_with_stored(str, str_end, (char*)cu->string_store.start + *pivot) == 0){
-                    return *pivot;
+            if(pivot != (char*)cu->string_ptrs.head){
+                if(cmp_string_with_stored(str, str_end, pivot) == 0){
+                    return pivot;
                 }
             }
             ureg str_size = str_end - str;
-            char* tgt = dbuffer_claim_space(&cu->string_store, str_size + 1); //+1 for \0
+            char* tgt = sbuffer_append(&cu->data_store, str_size + 1); //+1 for \0
             memcpy(tgt, str, str_size);
             *(tgt + str_size) = '\0';
-            ureg pos = (u8*)tgt - cu->string_store.start;
-            dbuffer_insert_at(&cu->string_ptrs, &pos, sptrs_start, sizeof(ureg));
-            return pos;
+            dbuffer_insert_at(&cu->string_ptrs, &tgt, sptrs_start, sizeof(ureg));
+            return tgt;
         }
-        res = cmp_string_with_stored(str, str_end, (char*)cu->string_store.start + *pivot);
+        res = cmp_string_with_stored(str, str_end, pivot);
 		if(res < 0){
 			sptrs_end = pivot;
 		}
@@ -51,7 +48,7 @@ ureg store_string(cunit* cu, char* str, char* str_end){
 			sptrs_start = pivot +1;
 		}
 		else{
-			return *pivot;
+			return pivot;
 		}
 	}
 }
