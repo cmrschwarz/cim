@@ -69,7 +69,7 @@ typedef enum expr_elem_type_t{
 }expr_elem_type;
 
 typedef union expr_elem_s{
-#if 1
+#if 0
     struct{
         expr_elem_type type;
         enum OP op;

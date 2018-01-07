@@ -375,7 +375,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                     ureg its = parse_arg_list(cu, t1, t2, TOKEN_BRACKET_CLOSE);
                     get_token(cu, t2);
                     if(t2->type == TOKEN_PAREN_OPEN){
-                        ureg generic_args_rstart = dbuffer_get_size(&cu->ast) - sizeof(*e) * 2;
+                        ureg generic_args_rstart = dbuffer_get_size(&cu->ast) - sizeof(expr_elem);
                         parse_arg_list(cu, t1, t2, TOKEN_PAREN_CLOSE);
                         e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 4);
                         e->ast_pos = generic_args_rstart;
