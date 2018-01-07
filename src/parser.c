@@ -29,6 +29,7 @@ void cunit_init(cunit* cu){
         prec_table[OP_BITWISE_NOT]=14;
         prec_table[OP_DEREFERENCE]=14;
         prec_table[OP_ADDRESS_OF]=14;
+
         prec_table[OP_MULTIPLY]=13;
         prec_table[OP_DIVIDE]=13;
         prec_table[OP_MODULO]=13;
@@ -132,7 +133,7 @@ static inline void flush_shy_op(cunit* cu, expr_elem* s){
     e->id.type = s->id.type;
     e->id.op = s->id.op;
     //TODO: evaluate the necessity of this for single arg ops
-    e->id.nest_size = (uregh)(e - expr_rit);
+    e->id.nest_size = (ast_rel_ptr)(e - expr_rit);
     //this will hopefully be inlined and brought out of the loop
     cu->shy_ops.head -= sizeof(expr_elem);
 }
@@ -364,11 +365,14 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                     e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
                     e->str = fn_name;
                     e++;
-                    e->id.nest_size = (uregh)((dbuffer_get_size(&cu->ast) - fn_end) / sizeof(expr_elem));
+                    e->id.nest_size = (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - fn_end) / sizeof(expr_elem));
                     e->id.type= EXPR_ELEM_TYPE_FN_CALL;
                 }
                 else if(t2->type == TOKEN_BRACKET_OPEN){
                     char* el_name = t1->str;
+                    //we cant' just use a pointer here because we might have a realloc
+                    //this ammends the - sizeof(expr_elem) because its used in a subtraction
+                    //so it's gonna be canceled out
                     ureg el_end= dbuffer_get_size(&cu->ast);
                     ureg its = parse_arg_list(cu, t1, t2, TOKEN_BRACKET_CLOSE);
                     get_token(cu, t2);
@@ -380,14 +384,14 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                         e++;
                         e->str = el_name;
                         e++;
-                        e->id.nest_size= (uregh)((dbuffer_get_size(&cu->ast) - el_end) / sizeof(expr_elem));
+                        e->id.nest_size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - el_end) / sizeof(expr_elem));
                         e->id.type= EXPR_ELEM_TYPE_GENERIC_FN_CALL;
                     }
                     else{
                         e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
                         e->str= el_name;
                         e++;
-                        e->id.nest_size= (uregh)((dbuffer_get_size(&cu->ast) - el_end) / sizeof(expr_elem));
+                        e->id.nest_size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - el_end) / sizeof(expr_elem));
                         e->id.type= EXPR_ELEM_TYPE_ARRAY_ACCESS;
                         second_available=true;
                     }
@@ -411,11 +415,11 @@ lbl_default:
                     }
                     if(!sub_expr){
                         expr = (expr_elem*)(cu->ast.start + expr_start);
-                        expr->id.nest_size = (uregh)((expr_elem*)cu->ast.head - expr);
+                        expr->id.nest_size = (ast_rel_ptr)((expr_elem*)cu->ast.head - expr);
                     }
                     else{
                         expr = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem));
-                        expr->id.nest_size= (uregh)((dbuffer_get_size(&cu->ast) - expr_start) / sizeof(expr_elem));
+                        expr->id.nest_size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - expr_start) / sizeof(expr_elem));
                         expr->id.type= ASTNT_EXPRESSION;
                     }
                     return (t1->type == term1) ? 0 : 1;

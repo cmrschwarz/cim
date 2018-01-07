@@ -41,7 +41,7 @@ typedef struct se_type_s{
     scope_header* defining_scope;
 }se_type;
 typedef struct bse_type_s{
-    struct bse_type_s* next;
+    struct bse_type_s* prev;
     se_type val;
 }bse_type;
 
@@ -84,7 +84,7 @@ typedef struct se_variable_s{
     se_type* type;
 }se_variable;
 typedef struct bse_variable_s{
-    struct bse_variable_s* next;
+    struct bse_variable_s* prev;
     se_variable val;
 }bse_variable;
 
@@ -98,7 +98,7 @@ typedef struct se_function_s{
     //followed by arg_count se_type* 's
 }se_function;
 typedef struct bse_function_s{
-    struct bse_function_s* next;
+    struct bse_function_s* prev;
     se_function val;
 }bse_function;
 
@@ -117,7 +117,7 @@ typedef struct block_scope_s{
     scope_header* child_scopes;
 }block_scope;
 
-int block_scope_declare_type(block_scope* s, se_type* t);
+int block_scope_declare_struct(block_scope* s, bse_type* t);
 se_type* block_scope_lookup_type(block_scope* s, char* name);
 
 

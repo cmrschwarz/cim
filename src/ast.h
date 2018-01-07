@@ -68,19 +68,20 @@ typedef enum expr_elem_type_t{
     EXPR_ELEM_TYPE_GENERIC_FN_CALL,
 }expr_elem_type;
 
+typedef uregh ast_rel_ptr;
 typedef union expr_elem_s{
 #if 0
     struct{
         expr_elem_type type;
         enum OP op;
-        uregh nest_size;
+        ast_rel_ptr nest_size;
     }id;
 #else
     struct{
         u8 type;
         u8 op;
         //number of expr elements until end of op args
-        uregh nest_size; //DECIDE: maybe use u32 instead here
+        ast_rel_ptr nest_size; //DECIDE: maybe use u32 instead here
     }id;
 #endif
     char* str;
