@@ -125,15 +125,14 @@ static inline void flush_shy_op(cunit* cu, expr_elem* s){
             expr_rit-=2;
         }
         else{
-            expr_rit--;
-            expr_rit = (void*)cu->ast.start + expr_rit->ast_pos;
+            expr_rit = expr_rit -expr_rit->id.nest_size;
         }
     }
-    expr_elem* e = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem)*2);
+    expr_elem* e = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem));
+    e->id.type = s->id.type;
+    e->id.op = s->id.op;
     //TODO: evaluate the necessity of this for single arg ops
-    e->ast_pos= (u8*)expr_rit - cu->ast.start;
-    e++;
-    *e = *s;
+    e->id.nest_size = (uregh)(e - expr_rit);
     //this will hopefully be inlined and brought out of the loop
     cu->shy_ops.head -= sizeof(expr_elem);
 }
@@ -207,7 +206,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
     expr_elem* expr;
     if(!sub_expr){
         //second one is for expression size
-        expr = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem) * 2);
+        expr = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem));
         expr->id.type= EXPR_ELEM_TYPE_EXPR;
         expr_start = (u8*)expr - cu->ast.start;
     }
@@ -360,38 +359,35 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                 }
                 if (t2->type == TOKEN_PAREN_OPEN) {
                     char* fn_name = t1->str;
-                    ureg fn_end = dbuffer_get_size(&cu->ast) - sizeof(expr_elem);
+                    ureg fn_end= dbuffer_get_size(&cu->ast);
                     parse_arg_list(cu, t1, t2, TOKEN_PAREN_CLOSE);
-                    e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 3);
+                    e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
                     e->str = fn_name;
                     e++;
-                    e->ast_pos= fn_end;
-                    e++;
+                    e->id.nest_size = (uregh)((dbuffer_get_size(&cu->ast) - fn_end) / sizeof(expr_elem));
                     e->id.type= EXPR_ELEM_TYPE_FN_CALL;
                 }
                 else if(t2->type == TOKEN_BRACKET_OPEN){
                     char* el_name = t1->str;
-                    ureg el_end = dbuffer_get_size(&cu->ast) - sizeof(expr_elem);
+                    ureg el_end= dbuffer_get_size(&cu->ast);
                     ureg its = parse_arg_list(cu, t1, t2, TOKEN_BRACKET_CLOSE);
                     get_token(cu, t2);
                     if(t2->type == TOKEN_PAREN_OPEN){
                         ureg generic_args_rstart = dbuffer_get_size(&cu->ast) - sizeof(expr_elem);
                         parse_arg_list(cu, t1, t2, TOKEN_PAREN_CLOSE);
-                        e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 4);
+                        e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 3);
                         e->ast_pos = generic_args_rstart;
                         e++;
                         e->str = el_name;
                         e++;
-                        e->ast_pos= el_end;
-                        e++;
+                        e->id.nest_size= (uregh)((dbuffer_get_size(&cu->ast) - el_end) / sizeof(expr_elem));
                         e->id.type= EXPR_ELEM_TYPE_GENERIC_FN_CALL;
                     }
                     else{
-                        e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 3);
+                        e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
                         e->str= el_name;
                         e++;
-                        e->ast_pos= el_end;
-                        e++;
+                        e->id.nest_size= (uregh)((dbuffer_get_size(&cu->ast) - el_end) / sizeof(expr_elem));
                         e->id.type= EXPR_ELEM_TYPE_ARRAY_ACCESS;
                         second_available=true;
                     }
@@ -414,14 +410,12 @@ lbl_default:
                         flush_shy_op(cu, sho_ri);
                     }
                     if(!sub_expr){
-                        //plus one to access the expr_end
-                        expr = (expr_elem*)(cu->ast.start + expr_start) + 1;
-                        expr->ast_pos= dbuffer_get_size(&cu->ast);
+                        expr = (expr_elem*)(cu->ast.start + expr_start);
+                        expr->id.nest_size = (uregh)((expr_elem*)cu->ast.head - expr);
                     }
                     else{
-                        expr = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem) * 2);
-                        expr->ast_pos= expr_start;
-                        expr++;
+                        expr = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem));
+                        expr->id.nest_size= (uregh)((dbuffer_get_size(&cu->ast) - expr_start) / sizeof(expr_elem));
                         expr->id.type= ASTNT_EXPRESSION;
                     }
                     return (t1->type == term1) ? 0 : 1;

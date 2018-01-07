@@ -73,11 +73,14 @@ typedef union expr_elem_s{
     struct{
         expr_elem_type type;
         enum OP op;
+        uregh nest_size;
     }id;
 #else
     struct{
         u8 type;
         u8 op;
+        //number of expr elements until end of op args
+        uregh nest_size; //DECIDE: maybe use u32 instead here
     }id;
 #endif
     char* str;

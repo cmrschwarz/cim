@@ -7,13 +7,14 @@ int main(){
     printf("sizeof(expr_elem): %i\n", sizeof(expr_elem));
 	cunit cu;
 	cunit_init(&cu);
-    char* input = "x = heureka[x](1, \"test\") + y;";
+    char* input = "x = heureka[y](1, \"test\") + z;";
     printf("input:\n%s\n\n", input);
     cu.str = input;
 	cu.pos = input;
     parse(&cu, input);
-    printf("sizeof(ast): %i\n", dbuffer_get_size(&cu.ast));
-    printf("//TODO: change expr_elem union so we only need 8 bytes per elem\n");
+    printf("sizeof(ast): %i[%i]\n",
+           dbuffer_get_size(&cu.ast),
+           dbuffer_get_size(&cu.ast) / sizeof(expr_elem));
     printf("\noutput:\n");
     print_ast(&cu);
     cunit_fin(&cu);

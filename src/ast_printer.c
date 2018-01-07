@@ -10,11 +10,15 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e);
 void reverse_print_func_args(cunit* cu, expr_elem* elem, expr_elem* end){
     if(elem == end)return;
     expr_elem* nxt;
-    if(elem->id.type == EXPR_ELEM_TYPE_EXPR){
-        nxt = (void*)(cu->ast.start + (elem-1)->ast_pos);
+    if( elem->id.type== EXPR_ELEM_TYPE_NUMBER ||
+        elem->id.type== EXPR_ELEM_TYPE_VARIABLE ||
+        elem->id.type== EXPR_ELEM_TYPE_LITERAL ||
+        elem->id.type== EXPR_ELEM_TYPE_BINARY_LITERAL)
+    {
+        nxt = elem-2;
     }
     else{
-        nxt = elem-2;
+         elem -= elem->id.nest_size;
     }
     if(nxt != end){
         reverse_print_func_args(cu, nxt, end);
@@ -92,7 +96,7 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
             break;
         case EXPR_ELEM_TYPE_OP_LR:{
             putchar('(');
-            expr_elem* r = (void*)(e-2);
+            expr_elem* r = (void*)(e-1);
             expr_elem* l;
             if( r->id.type == EXPR_ELEM_TYPE_NUMBER ||
                 r->id.type == EXPR_ELEM_TYPE_VARIABLE ||
@@ -101,9 +105,10 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
             {
                 l = r-2;
             }
-            else{
-                l = (void*)(cu->ast.start + (r-1)->ast_pos);
+            else {
+                l= r - r->id.nest_size;
             }
+
             expr_elem* end_op = print_expr_elem(cu, l);
             putchar(' ');
             print_op(e->id.op);
@@ -133,8 +138,7 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
             return end_op;
         }
         case EXPR_ELEM_TYPE_FN_CALL:{
-            e--;
-            expr_elem* end = (void*)(cu->ast.start  + e->ast_pos);
+            expr_elem* end = e - e->id.nest_size;
             e--;
             printf(e->str);
             e--;
@@ -144,8 +148,7 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
             return end;
         }
         case EXPR_ELEM_TYPE_GENERIC_FN_CALL:{
-            e--;
-            expr_elem* end = (void*)(cu->ast.start  + e->ast_pos);
+            expr_elem* end = e - e->id.nest_size;
             e--;
             printf(e->str);
             e--;
@@ -159,8 +162,7 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
             return end;
         }
         case EXPR_ELEM_TYPE_ARRAY_ACCESS:{
-            e--;
-            expr_elem* end = (void*)(cu->ast.start  + e->ast_pos);
+            expr_elem* end = e - e->id.nest_size;
             e--;
             printf(e->str);
             e--;
@@ -174,9 +176,9 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
     return e-2;
 }
 static inline expr_elem* print_expr(cunit* cu, expr_elem* expr){
-    expr_elem* e = (void*) cu->ast.start + (expr+1)->ast_pos - sizeof(expr_elem);
+    expr_elem* e = expr + expr->id.nest_size - 1;
     print_expr_elem(cu, e);
-    return (void*) (cu->ast.start + (expr+1)->ast_pos);
+    return e+1;
 }
 
 void print_indent(ureg indent){
