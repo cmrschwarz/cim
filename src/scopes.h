@@ -34,16 +34,11 @@ typedef struct scope_header_s{
     scope_type scope_type;
     struct scope_s* parent_scope;
 }scope_header;
-
 typedef struct se_type_s{
     char* name;
     type_type type;
     scope_header* defining_scope;
 }se_type;
-typedef struct bse_type_s{
-    struct bse_type_s* prev;
-    se_type val;
-}bse_type;
 
 typedef struct struct_member_s{
     char* name;
@@ -83,10 +78,6 @@ typedef struct se_variable_s{
     ureg name;
     se_type* type;
 }se_variable;
-typedef struct bse_variable_s{
-    struct bse_variable_s* prev;
-    se_variable val;
-}bse_variable;
 
 typedef struct function_parameter_s{
     se_type* type;
@@ -97,27 +88,48 @@ typedef struct se_function_s{
     function_parameter* parameter_end;
     //followed by arg_count se_type* 's
 }se_function;
+typedef struct nsp_scope_s{
+    scope_header header;
+    //these just store pointers to the types that are allocated
+    //in the cunit.data_store. Therefore a reallocating dbuffer is fine
+    //and benefitial for the binary search
+    dbuffer types;
+    dbuffer variables;
+    dbuffer functions;
+    dbuffer child_scopes;
+}nsp_scope;
+
+typedef struct bse_type_s{
+    struct bse_type_s* prev;
+    se_type val;
+}bse_type;
 typedef struct bse_function_s{
     struct bse_function_s* prev;
     se_function val;
 }bse_function;
-
-typedef struct nsp_scope_s{
-    scope_header header;
-    dbuffer types;
-    dbuffer variables;
-    dbuffer functions;
-    dbuffer scopes;
-}nsp_scope;
+typedef struct bse_variable_s{
+    struct bse_variable_s* prev;
+    se_variable val;
+}bse_variable;
+typedef struct bse_scope_s{
+    struct bse_scope_s* prev;
+    scope_header* val;
+}bse_scope;
 typedef struct block_scope_s{
     scope_header header;
     bse_type* types;
     bse_variable* variables;
     bse_function* functions;
-    scope_header* child_scopes;
+    bse_scope* child_scopes;
+    //generic functions
+    //generic types
+    //generic function instatations
+    //generic struct instantations
+
 }block_scope;
 
-int block_scope_declare_struct(block_scope* s, bse_type* t);
+//careful: this doesn't check for duplication
+int block_scope_insert_type(block_scope* s, bse_type* t);
 se_type* block_scope_lookup_type(block_scope* s, char* name);
 
 

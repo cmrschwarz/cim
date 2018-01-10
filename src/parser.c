@@ -6,6 +6,7 @@
 #include <assert.h>
 #include "error.h"
 #include "sbuffer.h"
+#include "keywords.h"
 
 #define OP_RANGE (1 << (sizeof(u8)*8))
 static u8 prec_table [OP_RANGE];
@@ -98,6 +99,28 @@ void cunit_init(cunit* cu){
 	dbuffer_init(&cu->string_ptrs);
 	dbuffer_init(&cu->ast);
     dbuffer_init(&cu->shy_ops);
+    clear_lookahead(cu);
+
+    cu->keywords[KEYWORD_IF] = store_zero_terminated_string(cu, "if");
+    cu->keywords[KEYWORD_ELSE] = store_zero_terminated_string(cu, "else");
+    cu->keywords[KEYWORD_RETURN] = store_zero_terminated_string(cu, "return");
+    cu->keywords[KEYWORD_SWITCH] = store_zero_terminated_string(cu, "switch");
+    cu->keywords[KEYWORD_CASE] = store_zero_terminated_string(cu, "case");
+    cu->keywords[KEYWORD_WHILE] = store_zero_terminated_string(cu, "while");
+    cu->keywords[KEYWORD_FOR] = store_zero_terminated_string(cu, "for");
+    cu->keywords[KEYWORD_STRUCT] = store_zero_terminated_string(cu, "struct");
+    cu->keywords[KEYWORD_ENUM] = store_zero_terminated_string(cu, "enum");
+    cu->keywords[KEYWORD_UNION] = store_zero_terminated_string(cu, "union");
+
+    cu->keywords[KEYWORD_BREAK] = store_zero_terminated_string(cu, "break");
+    cu->keywords[KEYWORD_CONTINUE] = store_zero_terminated_string(cu, "continue");
+    cu->keywords[KEYWORD_INLINE] = store_zero_terminated_string(cu, "inline");
+    cu->keywords[KEYWORD_CONST] = store_zero_terminated_string(cu, "const");
+    cu->keywords[KEYWORD_CAST] = store_zero_terminated_string(cu, "cast");
+    cu->keywords[KEYWORD_STATIC] = store_zero_terminated_string(cu, "static");
+    cu->keywords[KEYWORD_TYPEDEF] = store_zero_terminated_string(cu, "typedef");
+    cu->keywords[KEYWORD_LABEL] = store_zero_terminated_string(cu, "label");
+    cu->keywords[KEYWORD_GOTO] = store_zero_terminated_string(cu, "goto");
 }
 void cunit_fin(cunit* cu){
    	sbuffer_fin(&cu->data_store);
@@ -151,49 +174,52 @@ static inline void push_shy_op(cunit* cu, expr_elem* sop, expr_elem** sho_ri, ex
         *sho_ri = (void*)(cu->shy_ops.head - sizeof(expr_elem));
     }
 }
-static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, token *t2, bool sub_expr);
-static inline ureg parse_arg_list(cunit* cu, token* t1, token* t2, token_type end_tok){
-    get_token(cu, t1);
-    if(t1->type == end_tok)return 0;
-    get_token(cu, t2);
+static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_expr);
+static inline ureg parse_arg_list(cunit* cu, token_type end_tok){
+    token t;
+    lookahead_token(cu, &t, 1);
+    if(t.type == end_tok)return 0;
     ureg its = 1;
-    while (parse_expr(cu, TOKEN_COMMA, end_tok, t1, t2, true) == 0){
+    while (parse_expr(cu, TOKEN_COMMA, end_tok, true) == 0){
         its++;
-        get_token(cu, t1);
-        get_token(cu, t2);
     }
     return its;
 }
-static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, token *t2, bool sub_expr){
+static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_expr){
+    token t1;
+    token t2;
+    consume_token(cu, &t1);
+    lookahead_token(cu, &t2, 1);
     //printf("parsing expr (%llu)\n", POS(cu->ast.head));
-    if(t2->type == term1 || t2->type == term2){
+    if(t2.type == term1 || t2.type == term2){
+        void_lookahead_token(cu);
         //short expression optimization
-        if( t1->type == TOKEN_NUMBER ||
-            t1->type == TOKEN_BINARY_LITERAL ||
-            t1->type == TOKEN_LITERAL)
+        if( t1.type == TOKEN_NUMBER ||
+            t1.type == TOKEN_BINARY_LITERAL ||
+            t1.type == TOKEN_LITERAL)
         {
             expr_elem* n = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem) * 2);
             //reverse order for subexprs
             if(!sub_expr){
-                n->id.type = (u8)t1->type; //token type matches ASTNT type for these
+                n->id.type = (u8)t1.type; //token type matches ASTNT type for these
                 n++;
-                n->str = t1->str;
+                n->str = t1.str;
             }
             else{
-                n->str = t1->str;
+                n->str = t1.str;
                 n++;
-                n->id.type = (u8)t1->type; //token type matches expr elem type for these
+                n->id.type = (u8)t1.type; //token type matches expr elem type for these
             }
         }
-        else if(t1->type == TOKEN_STRING) {
+        else if(t1.type == TOKEN_STRING) {
             expr_elem* v = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem) * 2);
             if(!sub_expr){
                 v->id.type= ASTNT_VARIABLE;
                 v++;
-                v->str = t1->str;
+                v->str = t1.str;
             }
             else{
-                v->str = t1->str;
+                v->str = t1.str;
                 v++;
                 v->id.type= ASTNT_VARIABLE;
             }
@@ -201,7 +227,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
         else{
             CIM_ERROR("Unexpected Token");
         }
-        return (t2->type == term1) ? 0 : 1;
+        return (t2.type == term1) ? 0 : 1;
     }
     ureg expr_start;
     expr_elem* expr;
@@ -216,7 +242,6 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
     }
     expr_elem* e;
     expr_elem sop;
-    bool second_available = true;
     ureg shy_ops_start = cu->shy_ops.head - cu->shy_ops.start;
     bool expecting_op = false;
     u8 prec;
@@ -224,7 +249,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
     expr_elem* sho_ri = (void*)(cu->shy_ops.head - sizeof(expr_elem));
     ureg open_paren_count = 0;
     while(true){
-        switch(t1->type){
+        switch(t1.type){
             case TOKEN_DOUBLE_PLUS: {
                 sop.id.op = (expecting_op) ? OP_POSTINCREMENT : OP_PREINCREMENT;
             }goto lbl_op_l_or_r;
@@ -304,7 +329,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
             case TOKEN_DOUBLE_GREATER_THAN_EQUALS:
             case TOKEN_DOUBLE_LESS_THAN_EQUALS:{
                 //for these, the toke  type is set to be equal to the op type
-                sop.id.op = (u8)(t1->type);
+                sop.id.op = (u8)(t1.type);
             }//fall through to op_lr
             lbl_op_lr: {
                 sop.id.type = EXPR_ELEM_TYPE_OP_LR;
@@ -348,37 +373,37 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
             {
                 assert(!expecting_op);
                 e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
-                e->str = t1->str;
+                e->str = t1.str;
                 e++;
-                e->id.type= (u8)t1->type;
+                e->id.type= (u8)t1.type;
                 expecting_op = true;
             }break;
             case TOKEN_STRING: {
                 assert(!expecting_op);
-                if (!second_available) {
-                    get_token(cu, t2);
-                }
-                if (t2->type == TOKEN_PAREN_OPEN) {
-                    char* fn_name = t1->str;
+                lookahead_token(cu, &t2, 1);
+                if (t2.type == TOKEN_PAREN_OPEN) {
+                    char* fn_name = t1.str;
                     ureg fn_end= dbuffer_get_size(&cu->ast);
-                    parse_arg_list(cu, t1, t2, TOKEN_PAREN_CLOSE);
+                    parse_arg_list(cu, TOKEN_PAREN_CLOSE);
                     e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
                     e->str = fn_name;
                     e++;
                     e->id.nest_size = (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - fn_end) / sizeof(expr_elem));
                     e->id.type= EXPR_ELEM_TYPE_FN_CALL;
                 }
-                else if(t2->type == TOKEN_BRACKET_OPEN){
-                    char* el_name = t1->str;
+                else if(t2.type == TOKEN_BRACKET_OPEN){
+                    void_lookahead_token(cu);
+                    char* el_name = t1.str;
                     //we cant' just use a pointer here because we might have a realloc
                     //this ammends the - sizeof(expr_elem) because its used in a subtraction
                     //so it's gonna be canceled out
                     ureg el_end= dbuffer_get_size(&cu->ast);
-                    ureg its = parse_arg_list(cu, t1, t2, TOKEN_BRACKET_CLOSE);
-                    get_token(cu, t2);
-                    if(t2->type == TOKEN_PAREN_OPEN){
+                    ureg its = parse_arg_list(cu, TOKEN_BRACKET_CLOSE);
+                    lookahead_token(cu, &t2, 1);
+                    if(t2.type == TOKEN_PAREN_OPEN){
+                        void_lookahead_token(cu);
                         ureg generic_args_rstart = dbuffer_get_size(&cu->ast) - sizeof(expr_elem);
-                        parse_arg_list(cu, t1, t2, TOKEN_PAREN_CLOSE);
+                        parse_arg_list(cu, TOKEN_PAREN_CLOSE);
                         e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 3);
                         e->ast_pos = generic_args_rstart;
                         e++;
@@ -393,15 +418,13 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
                         e++;
                         e->id.nest_size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - el_end) / sizeof(expr_elem));
                         e->id.type= EXPR_ELEM_TYPE_ARRAY_ACCESS;
-                        second_available=true;
                     }
                 }
                 else {
                     e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
-                    e->str= t1->str;
+                    e->str= t1.str;
                     e++;
                     e->id.type= EXPR_ELEM_TYPE_VARIABLE;
-                    second_available=true;
                 }
                 //true for all: fn call, var, array access and generic fn call
                 expecting_op = true;
@@ -409,7 +432,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, token *t1, 
             case TOKEN_EOF:CIM_ERROR("Unexpected eof");
             default:{
 lbl_default:
-                if(t1->type == term1 || t1->type == term2){
+                if(t1.type == term1 || t1.type == term2){
                     for(;sho_ri != sho_re; sho_ri--){
                         flush_shy_op(cu, sho_ri);
                     }
@@ -422,67 +445,78 @@ lbl_default:
                         expr->id.nest_size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - expr_start) / sizeof(expr_elem));
                         expr->id.type= ASTNT_EXPRESSION;
                     }
-                    return (t1->type == term1) ? 0 : 1;
+                    return (t1.type == term1) ? 0 : 1;
                 }
                 CIM_ERROR("Unexpected token");
             }
         }
-        if(!second_available){
-            get_token(cu, t1);
-        }
-        else {
-            second_available = false;
-            *t1 = *t2;
-        }
+        consume_token(cu, &t1);
     }
 }
-static int parse_normal_declaration(cunit* cu, token* t1, token* t2){
+static int parse_2s_declaration(cunit* cu){
+    token t1;
+    token t2;
+    consume_token(cu, &t1);
+    consume_token(cu, &t2);
+    CIM_ASSERT(get_lookup_count(cu) == 0);
     astn_declaration* d =
      dbuffer_claim_small_space(&cu->ast, sizeof(astn_declaration));
     d->astnt = ASTNT_DECLARATION;
-    d->type = t1->str;
-    d->name = t2->str;
-    get_token(cu, t1);
-    if(t1->type == TOKEN_SEMICOLON){
+    d->type = t1.str;
+    d->name = t2.str;
+    if(t1.type == TOKEN_SEMICOLON){
         d->assigning = false;
     }
-    else if(t1->type == TOKEN_EQUALS){
+    else if(t1.type == TOKEN_EQUALS){
         d->assigning = true;
-        get_token(cu, t1);
-        get_token(cu, t2);
-        return parse_expr(cu, TOKEN_SEMICOLON,TOKEN_SEMICOLON, t1, t2, false);
+        consume_token(cu, &t1);
+        consume_token(cu, &t2);
+        return parse_expr(cu, TOKEN_SEMICOLON,TOKEN_SEMICOLON, false);
     }
     else{
        CIM_ERROR("Unexpected token");
     }
     return 0;
 }
-static int parse_next(cunit* cu){
+static int parse_string_star(cunit* cu){
+    token t3;
+    lookahead_token(cu, &t3, 3);
+    CIM_ASSERT(get_lookup_count(cu) == 2);
+}
+static void parse_file_scope(cunit* cu){
     token t1;
     token t2;
-    get_token(cu, &t1);
-    switch (t1.type){
-        case TOKEN_STRING:
-            get_token(cu, &t2);
-            if (t2.type == TOKEN_STRING)
-                return parse_normal_declaration(cu, &t1, &t2);
-            else return parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, &t1, &t2, false);
-        case TOKEN_NUMBER:
-            get_token(cu, &t2);
-            return parse_expr(cu, TOKEN_SEMICOLON,TOKEN_SEMICOLON, &t1, &t2, false);
-        case TOKEN_HASH:
-        case TOKEN_DOUBLE_HASH:
-            parse_meta(cu, &t1);
-            break;
-        case TOKEN_EOF:
-            return -1;
-        default:
-            printf("parse_next: unexpected token\n");
-            return -1;
+    while (true){
+        lookahead_token(cu, &t1, 1);
+skip_new_token:
+        switch(t1.type){
+            case TOKEN_STRING:{
+                lookahead_token(cu, &t2, 2);
+                if (t2.type == TOKEN_STRING){
+                    parse_2s_declaration(cu);
+                }
+                else if(t2.type == TOKEN_STAR){
+                    parse_string_star(cu);
+                }
+                else{
+                    parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
+                }
+            }break;
+            case TOKEN_HASH:
+            case TOKEN_DOUBLE_HASH:{
+                parse_meta(cu, &t1);
+            }break;
+            case TOKEN_EOF:{
+                return;
+            }
+            default:{
+                CIM_ERROR("Unexpected Token");
+            }
+        }
     }
-    return 0;
+
 }
 void parse(cunit* cu, char* str){
     cu->str = str;
-    while(parse_next(cu)!=-1); 
+    parse_file_scope(cu);
 }

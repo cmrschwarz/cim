@@ -18,6 +18,12 @@ static inline int cmp_string_with_stored(char* str_start, const char* str_end, c
 		stored++;
 	}
 }
+char* store_zero_terminated_string(cunit* cu, char* str){
+    // this could be slightly optimized if we basically pasted store_string
+    // and avoided the strlen that way, but it's really not worth it right now
+    char* str_end = str + strlen(str);
+    store_string(cu, str, str_end);
+}
 char* store_string(cunit* cu, char* str, char* str_end){
 	//we do this ahead so we don't have to worry about invalidating pointers
 	dbuffer_make_small_space(&cu->string_ptrs, sizeof(ureg));
@@ -53,7 +59,7 @@ char* store_string(cunit* cu, char* str, char* str_end){
 	}
 }
 
-void get_token(cunit* cu, token* tok){
+void consume_new_token(cunit* cu, token* tok){
 redo:;
 	char curr = *(cu->pos);
     while(curr == ' ' || curr == '\n'){

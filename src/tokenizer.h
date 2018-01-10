@@ -1,72 +1,48 @@
 #pragma once
 #include "compiler.h"
+#include "token.h"
+#include "memory.h"
 
-typedef enum tokens_type_e{
-    TOKEN_MINUS_EQUALS,
-    TOKEN_PLUS_EQUALS,
-    TOKEN_STAR_EQUALS,
-    TOKEN_EQUALS,
-    TOKEN_DOUBLE_EQUALS,
-    TOKEN_EXCLAMATION_MARK_EQUALS,
-    TOKEN_PERCENT,
-    TOKEN_PERCENT_EQUALS,
-    TOKEN_SLASH,
-    TOKEN_SLASH_EQUALS,
-    TOKEN_LESS_THAN,
-    TOKEN_LESS_THAN_EQUALS,
-    TOKEN_DOUBLE_LESS_THAN,
-    TOKEN_DOUBLE_LESS_THAN_EQUALS,
-    TOKEN_GREATER_THAN,
-    TOKEN_GREATER_THAN_EQUALS,
-    TOKEN_DOUBLE_GREATER_THAN,
-    TOKEN_DOUBLE_GREATER_THAN_EQUALS,
+void consume_new_token(cunit* cu, token* t);
+static inline void void_lookahead_token(cunit* cu){
+    cu->lookahead_head--;
+    if(cu->lookahead_head != cu->lookahead_store){
+         memcpy(cu->lookahead_store, cu->lookahead_store + 1,
+           (cu->lookahead_head - cu->lookahead_store) * sizeof(token));
+    }
+}
+static inline void consume_lookahead_token(cunit* cu, token* t){
+    *t =  cu->lookahead_store[0];
+    cu->lookahead_head--;
+    if(cu->lookahead_head != cu->lookahead_store){
+         memcpy(cu->lookahead_store, cu->lookahead_store + 1,
+           (cu->lookahead_head - cu->lookahead_store) * sizeof(token));
+    }
+}
+static inline void lookahead_token(cunit* cu, token* t, int a){
+    a--;
+    while(cu->lookahead_head <= &cu->lookahead_store[a]){
+        consume_new_token(cu, cu->lookahead_head);
+        cu->lookahead_head++;
+    }
+    *t = cu->lookahead_store[a];
+}
+static inline void consume_token(cunit* cu, token* t){
+    if(cu->lookahead_head == cu->lookahead_store){
+        consume_new_token(cu, t);
+    }
+    else{
+       consume_lookahead_token(cu, t);
+    }
+}
+static inline void clear_lookahead(cunit* cu){
+    cu->lookahead_head = cu->lookahead_store;
+}
+static inline int get_lookup_count(cunit* cu){
+    return (int)(cu->lookahead_head - cu->lookahead_store);
+}
 
-    TOKEN_NUMBER,
-    TOKEN_LITERAL,
-    TOKEN_BINARY_LITERAL,
-    TOKEN_STRING,
-    TOKEN_EOF,
-
-    TOKEN_PLUS,
-    TOKEN_DOUBLE_PLUS,
-    TOKEN_MINUS,
-    TOKEN_DOUBLE_MINUS,
-    TOKEN_EXCLAMATION_MARK,
-    TOKEN_STAR,
-    TOKEN_PAREN_OPEN,
-    TOKEN_PAREN_CLOSE,
-    TOKEN_BRACKET_OPEN,
-    TOKEN_BRACKET_CLOSE,
-    TOKEN_BRACE_OPEN,
-    TOKEN_BRACE_CLOSE,
-	TOKEN_AND,
-	TOKEN_DOUBLE_AND,
-	TOKEN_AND_EQUALS,
-	TOKEN_PIPE,
-	TOKEN_DOUBLE_PIPE,
-	TOKEN_PIPE_EQUALS,
-    TOKEN_CARET,
-    TOKEN_DOUBLE_CARET,
-    TOKEN_CARET_EQUALS,
-	TOKEN_TILDE,
-	TOKEN_TILDE_EQUALS,
-	TOKEN_DOLLAR,
-	TOKEN_COMMA,
-	TOKEN_SEMICOLON,
-	TOKEN_HASH,
-	TOKEN_DOUBLE_HASH,
-    TOKEN_DOT,
-    TOKEN_ARROW,
-}token_type;
-
-typedef struct token_t{
-	token_type type;
-    char* str;
-}token;
-
-void get_token(cunit* cu, token* t);
-void print_token(cunit* cu, token* t);
-void print_rel_str(cunit* cu, ureg str);
 char* store_string(cunit* cu, char* str, char* str_end);
-void print_token(cunit* cu, token* t);
-void get_token(cunit* cu, token* tok);
+char* store_zero_terminated_string(cunit* cu, char* str);
+
+
