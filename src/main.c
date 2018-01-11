@@ -10,7 +10,7 @@ int main(){
     char* input = "int x = 3; x =****heureka[y](1, \"test\") + z;";
     printf("input:\n%s\n\n", input);
 
-    for(int i=0;i<2;i++){
+    for(int i=0;i<20000000;i++){
         parse(&cu, input);
     }
 
@@ -18,7 +18,7 @@ int main(){
            dbuffer_get_size(&cu.ast),
            dbuffer_get_size(&cu.ast) / sizeof(expr_elem));
     printf("\noutput:\n");
-    print_ast(&cu);
+    //print_ast(&cu);
     cunit_fin(&cu);
 	return 0;
 }
