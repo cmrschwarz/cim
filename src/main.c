@@ -10,8 +10,9 @@ int main(){
     char* input = "int x = 3; x =****heureka[y](1, \"test\") + z;";
     printf("input:\n%s\n\n", input);
 
-
-    parse(&cu, input);
+    for(int i=0;i<2;i++){
+        parse(&cu, input);
+    }
 
     printf("sizeof(ast): %llu[%llu]\n",
            dbuffer_get_size(&cu.ast),

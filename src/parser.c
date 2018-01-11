@@ -199,34 +199,33 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_ex
     if(t2.type == term1 || t2.type == term2){
         void_lookahead_token(cu);
         //short expression optimization
+        expr_elem* e = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem) * 2);
         if( t1.type == TOKEN_NUMBER ||
             t1.type == TOKEN_BINARY_LITERAL ||
             t1.type == TOKEN_LITERAL)
         {
-            expr_elem* n = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem) * 2);
             //reverse order for subexprs
             if(!sub_expr){
-                n->id.type = (u8)t1.type; //token type matches ASTNT type for these
-                n++;
-                n->str = t1.str;
+                e->id.type = (expr_elem_type)t1.type; //token type matches ASTNT type for these
+                e++;
+                e->str = t1.str;
             }
             else{
-                n->str = t1.str;
-                n++;
-                n->id.type = (u8)t1.type; //token type matches expr elem type for these
+                e->str = t1.str;
+                e++;
+                e->id.type = (expr_elem_type)t1.type; //token type matches expr elem type for these
             }
         }
         else if(t1.type == TOKEN_STRING) {
-            expr_elem* v = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem) * 2);
             if(!sub_expr){
-                v->id.type= ASTNT_VARIABLE;
-                v++;
-                v->str = t1.str;
+                e->id.type= EXPR_ELEM_TYPE_VARIABLE;
+                e++;
+                e->str = t1.str;
             }
             else{
-                v->str = t1.str;
-                v++;
-                v->id.type= ASTNT_VARIABLE;
+                e->str = t1.str;
+                e++;
+                e->id.type = EXPR_ELEM_TYPE_VARIABLE;
             }
         }
         else{

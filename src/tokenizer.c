@@ -26,27 +26,27 @@ char* store_zero_terminated_string(cunit* cu, char* str){
 }
 char* store_string(cunit* cu, char* str, char* str_end){
 	//we do this ahead so we don't have to worry about invalidating pointers
-	dbuffer_make_small_space(&cu->string_ptrs, sizeof(ureg));
-	char* sptrs_start = (char*)cu->string_ptrs.start;
-	char* sptrs_end = (char*)cu->string_ptrs.head;
-	char* pivot;
+	dbuffer_make_small_space(&cu->string_ptrs, sizeof(char*));
+	char** sptrs_start = (char**)cu->string_ptrs.start;
+	char** sptrs_end = (char**)cu->string_ptrs.head;
+	char** pivot;
 	int res;
 	for(;;){
 		pivot = sptrs_start + (sptrs_end - sptrs_start) / 2;
 		if(pivot == sptrs_start){
-            if(pivot != (char*)cu->string_ptrs.head){
-                if(cmp_string_with_stored(str, str_end, pivot) == 0){
-                    return pivot;
+            if(pivot != (char**)cu->string_ptrs.head){
+                if(cmp_string_with_stored(str, str_end, *pivot) == 0){
+                    return *pivot;
                 }
             }
             ureg str_size = str_end - str;
             char* tgt = sbuffer_append(&cu->data_store, str_size + 1); //+1 for \0
             memcpy(tgt, str, str_size);
             *(tgt + str_size) = '\0';
-            dbuffer_insert_at(&cu->string_ptrs, &tgt, sptrs_start, sizeof(ureg));
+            dbuffer_insert_at(&cu->string_ptrs, &tgt, pivot, sizeof(char*));
             return tgt;
         }
-        res = cmp_string_with_stored(str, str_end, pivot);
+        res = cmp_string_with_stored(str, str_end, *pivot);
 		if(res < 0){
 			sptrs_end = pivot;
 		}
@@ -54,7 +54,7 @@ char* store_string(cunit* cu, char* str, char* str_end){
 			sptrs_start = pivot +1;
 		}
 		else{
-			return pivot;
+			return *pivot;
 		}
 	}
 }

@@ -70,7 +70,7 @@ typedef enum expr_elem_type_t{
 
 typedef uregh ast_rel_ptr;
 typedef union expr_elem_s{
-#if 0
+#if 1
     struct{
         expr_elem_type type;
         enum OP op;
