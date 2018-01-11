@@ -122,7 +122,7 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
         }
         case EXPR_ELEM_TYPE_OP_R:{
             putchar('(');
-            expr_elem *u = e - 2;
+            expr_elem *u = e - 1;
             expr_elem* end_op = print_expr_elem(cu, u);
             print_op(e->id.op);
             putchar(')');
@@ -131,7 +131,7 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
         case EXPR_ELEM_TYPE_OP_L:
         case EXPR_ELEM_TYPE_UNARY: {
             putchar('(');
-            expr_elem *u = e - 2;
+            expr_elem *u = e - 1;
             print_op(e->id.op);
             expr_elem* end_op = print_expr_elem(cu, u);
             putchar(')');

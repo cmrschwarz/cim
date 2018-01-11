@@ -152,11 +152,12 @@ static inline void flush_shy_op(cunit* cu, expr_elem* s){
             expr_rit = expr_rit -expr_rit->id.nest_size;
         }
     }
+    //needs to be precomputed because the realloc might invalidate the expr_rit ptr
+    ast_rel_ptr nest_size = (ast_rel_ptr)((expr_elem*)cu->ast.head - expr_rit);
     expr_elem* e = dbuffer_claim_small_space(&cu->ast, sizeof(expr_elem));
-    e->id.type = s->id.type;
-    e->id.op = s->id.op;
+    e->id = s->id;
     //TODO: evaluate the necessity of this for single arg ops
-    e->id.nest_size = (ast_rel_ptr)(e - expr_rit);
+    e->id.nest_size = nest_size;
     //this will hopefully be inlined and brought out of the loop
     cu->shy_ops.head -= sizeof(expr_elem);
 }
@@ -176,9 +177,13 @@ static inline void push_shy_op(cunit* cu, expr_elem* sop, expr_elem** sho_ri, ex
 }
 static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_expr);
 static inline ureg parse_arg_list(cunit* cu, token_type end_tok){
+    CIM_ASSERT(get_lookup_count(cu)  == 0)
     token t;
     lookahead_token(cu, &t, 1);
-    if(t.type == end_tok)return 0;
+    if(t.type == end_tok){
+        clear_lookahead(cu);
+        return 0;
+    }
     ureg its = 1;
     while (parse_expr(cu, TOKEN_COMMA, end_tok, true) == 0){
         its++;
@@ -382,6 +387,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_ex
                 assert(!expecting_op);
                 lookahead_token(cu, &t2, 1);
                 if (t2.type == TOKEN_PAREN_OPEN) {
+                    void_lookahead_token(cu);
                     char* fn_name = t1.str;
                     ureg fn_end= dbuffer_get_size(&cu->ast);
                     parse_arg_list(cu, TOKEN_PAREN_CLOSE);
@@ -454,34 +460,30 @@ lbl_default:
     }
 }
 static int parse_2s_declaration(cunit* cu){
+    CIM_ASSERT(get_lookup_count(cu) == 2);
     token t1;
     token t2;
-    consume_token(cu, &t1);
-    consume_token(cu, &t2);
-    CIM_ASSERT(get_lookup_count(cu) == 0);
+    get_lookahead_token(cu, &t1, 1);
+    get_lookahead_token(cu, &t2, 2);
+    clear_lookahead(cu);
     astn_declaration* d =
      dbuffer_claim_small_space(&cu->ast, sizeof(astn_declaration));
     d->astnt = ASTNT_DECLARATION;
     d->type = t1.str;
     d->name = t2.str;
+    lookahead_token(cu, &t1, 1);
     if(t1.type == TOKEN_SEMICOLON){
         d->assigning = false;
     }
     else if(t1.type == TOKEN_EQUALS){
+        clear_lookahead(cu);
         d->assigning = true;
-        consume_token(cu, &t1);
-        consume_token(cu, &t2);
         return parse_expr(cu, TOKEN_SEMICOLON,TOKEN_SEMICOLON, false);
     }
     else{
        CIM_ERROR("Unexpected token");
     }
     return 0;
-}
-static int parse_string_star(cunit* cu){
-    token t3;
-    lookahead_token(cu, &t3, 3);
-    CIM_ASSERT(get_lookup_count(cu) == 2);
 }
 static void parse_file_scope(cunit* cu){
     token t1;
@@ -495,10 +497,11 @@ skip_new_token:
                 if (t2.type == TOKEN_STRING){
                     parse_2s_declaration(cu);
                 }
-                else if(t2.type == TOKEN_STAR){
-                    parse_string_star(cu);
-                }
                 else{
+                    //this might be a pointer variable declaration like int* x;
+                    //this is not lr1 parsable though. We assume expression because
+                    //that requires more space. That way we can convert
+                    //after symbol resolution and fill any blank space with noops
                     parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
                 }
             }break;
@@ -507,6 +510,7 @@ skip_new_token:
                 parse_meta(cu, &t1);
             }break;
             case TOKEN_EOF:{
+                clear_lookahead(cu);
                 return;
             }
             default:{
@@ -518,5 +522,6 @@ skip_new_token:
 }
 void parse(cunit* cu, char* str){
     cu->str = str;
+    cu->pos = str;
     parse_file_scope(cu);
 }

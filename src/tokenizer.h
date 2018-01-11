@@ -7,17 +7,13 @@ void consume_new_token(cunit* cu, token* t);
 static inline void void_lookahead_token(cunit* cu){
     cu->lookahead_head--;
     if(cu->lookahead_head != cu->lookahead_store){
-         memcpy(cu->lookahead_store, cu->lookahead_store + 1,
-           (cu->lookahead_head - cu->lookahead_store) * sizeof(token));
+        token* s = cu->lookahead_store;
+        do{*s = *(s+1);s++;}while(s != cu->lookahead_head);
     }
 }
 static inline void consume_lookahead_token(cunit* cu, token* t){
     *t =  cu->lookahead_store[0];
-    cu->lookahead_head--;
-    if(cu->lookahead_head != cu->lookahead_store){
-         memcpy(cu->lookahead_store, cu->lookahead_store + 1,
-           (cu->lookahead_head - cu->lookahead_store) * sizeof(token));
-    }
+    void_lookahead_token(cu);
 }
 static inline void lookahead_token(cunit* cu, token* t, int a){
     a--;
@@ -26,6 +22,9 @@ static inline void lookahead_token(cunit* cu, token* t, int a){
         cu->lookahead_head++;
     }
     *t = cu->lookahead_store[a];
+}
+static inline void get_lookahead_token(cunit* cu, token* t, int a){
+    *t = cu->lookahead_store[a - 1];
 }
 static inline void consume_token(cunit* cu, token* t){
     if(cu->lookahead_head == cu->lookahead_store){
