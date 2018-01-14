@@ -101,36 +101,37 @@ void cunit_init(cunit* cu){
     dbuffer_init(&cu->shy_ops);
     clear_lookahead(cu);
 
-    cu->keywords[KEYWORD_IF] = store_zero_terminated_string(cu, "if");
-    cu->keywords[KEYWORD_ELSE] = store_zero_terminated_string(cu, "else");
-    cu->keywords[KEYWORD_RETURN] = store_zero_terminated_string(cu, "return");
-    cu->keywords[KEYWORD_SWITCH] = store_zero_terminated_string(cu, "switch");
-    cu->keywords[KEYWORD_CASE] = store_zero_terminated_string(cu, "case");
-    cu->keywords[KEYWORD_WHILE] = store_zero_terminated_string(cu, "while");
-    cu->keywords[KEYWORD_FOR] = store_zero_terminated_string(cu, "for");
-    cu->keywords[KEYWORD_STRUCT] = store_zero_terminated_string(cu, "struct");
-    cu->keywords[KEYWORD_ENUM] = store_zero_terminated_string(cu, "enum");
-    cu->keywords[KEYWORD_UNION] = store_zero_terminated_string(cu, "union");
 
-    cu->keywords[KEYWORD_BREAK] = store_zero_terminated_string(cu, "break");
-    cu->keywords[KEYWORD_CONTINUE] = store_zero_terminated_string(cu, "continue");
-    cu->keywords[KEYWORD_INLINE] = store_zero_terminated_string(cu, "inline");
-    cu->keywords[KEYWORD_CONST] = store_zero_terminated_string(cu, "const");
-    cu->keywords[KEYWORD_CAST] = store_zero_terminated_string(cu, "cast");
-    cu->keywords[KEYWORD_STATIC] = store_zero_terminated_string(cu, "static");
-    cu->keywords[KEYWORD_TYPEDEF] = store_zero_terminated_string(cu, "typedef");
-    cu->keywords[KEYWORD_LABEL] = store_zero_terminated_string(cu, "label");
-    cu->keywords[KEYWORD_GOTO] = store_zero_terminated_string(cu, "goto");
+
+    add_keyword(cu, KEYWORD_IF);
+    add_keyword(cu, KEYWORD_ELSE);
+    add_keyword(cu, KEYWORD_BREAK);
+    add_keyword(cu, KEYWORD_RETURN);
+
+    add_keyword(cu, KEYWORD_SWITCH);
+    add_keyword(cu, KEYWORD_CASE);
+
+    add_keyword(cu, KEYWORD_WHILE);
+    add_keyword(cu, KEYWORD_FOR);
+    add_keyword(cu, KEYWORD_STRUCT);
+    add_keyword(cu, KEYWORD_ENUM);
+    add_keyword(cu, KEYWORD_UNION);
+
+    add_keyword(cu, KEYWORD_CONTINUE);
+    add_keyword(cu, KEYWORD_INLINE);
+    add_keyword(cu, KEYWORD_CONST);
+    add_keyword(cu, KEYWORD_CAST);
+    add_keyword(cu, KEYWORD_STATIC);
+    add_keyword(cu, KEYWORD_TYPEDEF);
+    add_keyword(cu, KEYWORD_LABEL);
+    add_keyword(cu, KEYWORD_GOTO);
+    display_string_store(cu);
 }
 void cunit_fin(cunit* cu){
    	sbuffer_fin(&cu->data_store);
 	dbuffer_fin(&cu->string_ptrs);
 	dbuffer_fin(&cu->ast);
     dbuffer_fin(&cu->shy_ops);
-}
-
-static void parse_meta(cunit* cu, token* t1){
-    
 }
 static inline void flush_shy_op(cunit* cu, expr_elem* s){
     expr_elem* expr_rit =  (void*)(cu->ast.head - sizeof(expr_elem));
@@ -179,7 +180,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_ex
 static inline ureg parse_arg_list(cunit* cu, token_type end_tok){
     CIM_ASSERT(get_lookup_count(cu)  == 0)
     token t;
-    lookahead_token(cu, &t, 1);
+    peek_token(cu, &t);
     if(t.type == end_tok){
         clear_lookahead(cu);
         return 0;
@@ -194,7 +195,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_ex
     token t1;
     token t2;
     consume_token(cu, &t1);
-    lookahead_token(cu, &t2, 1);
+    peek_token(cu, &t2);
     //printf("parsing expr (%llu)\n", POS(cu->ast.head));
     if(t2.type == term1 || t2.type == term2){
         void_lookahead_token(cu);
@@ -384,7 +385,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_ex
             }break;
             case TOKEN_STRING: {
                 assert(!expecting_op);
-                lookahead_token(cu, &t2, 1);
+                peek_token(cu, &t2);
                 if (t2.type == TOKEN_PAREN_OPEN) {
                     void_lookahead_token(cu);
                     char* fn_name = t1.str;
@@ -404,7 +405,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_ex
                     //so it's gonna be canceled out
                     ureg el_end= dbuffer_get_size(&cu->ast);
                     ureg its = parse_arg_list(cu, TOKEN_BRACKET_CLOSE);
-                    lookahead_token(cu, &t2, 1);
+                    peek_token(cu, &t2);
                     if(t2.type == TOKEN_PAREN_OPEN){
                         void_lookahead_token(cu);
                         ureg generic_args_rstart = dbuffer_get_size(&cu->ast) - sizeof(expr_elem);
@@ -458,19 +459,147 @@ lbl_default:
         consume_token(cu, &t1);
     }
 }
-static int parse_2s_declaration(cunit* cu){
-    CIM_ASSERT(get_lookup_count(cu) == 2);
+static u8 parse_ptrs(cunit* cu){
+    token t1;
+    u8 ptrs = 0;
+    while(true){
+        peek_token(cu, &t1);
+        if(t1.type == TOKEN_STAR){
+            void_lookahead_token(cu);
+            ptrs++;
+        }
+        else{
+            return ptrs;
+        }
+    }
+}
+//consider passing one token as param to significantly reduce peeking
+static void parse_type(cunit* cu, bool nested){
+    ureg ast_pos = dbuffer_get_size(&cu->ast);
+    astn_type* t;
+    astn_type_node* tn;
+    if(!nested){
+        dbuffer_claim_small_space(&cu->ast, sizeof(astn_type) + sizeof(astn_type_node));
+    }
     token t1;
     token t2;
-    get_lookahead_token(cu, &t1, 1);
-    get_lookahead_token(cu, &t2, 2);
-    clear_lookahead(cu);
-    astn_declaration* d =
-     dbuffer_claim_small_space(&cu->ast, sizeof(astn_declaration));
+    consume_token(cu, &t1);
+    if(t1.type == TOKEN_PAREN_OPEN){
+        // function pointer
+        parse_type(cu, true);  //parse ret type
+        peek_token(cu, &t1);
+        while(t1.type != TOKEN_PAREN_CLOSE){
+            parse_type(cu, true);  //parse parameter
+            peek_token(cu, &t1);
+        }
+        void_lookahead_token(cu); //get rid of the closing paren
+        consume_token(cu, &t1);
+        if(!nested){
+            t = (void*)(&cu->ast.start + ast_pos);
+            tn = (void*)(t+1);
+            t->end = (ast_rel_ptr)(dbuffer_get_size(&cu->ast) - ast_pos);
+        }
+        else{
+             tn = dbuffer_claim_small_space(
+                    &cu->ast, sizeof(astn_type) + sizeof(astn_type_node));
+             t = (void*)(tn + 1);
+             t->end = (ast_rel_ptr)(dbuffer_get_size(&cu->ast) - sizeof(astn_type) - ast_pos);
+        }
+        t->type = AST_TYPE_TYPE_FN_PTR;
+        t->ptrs = parse_ptrs(cu);
+        consume_token(cu, &t1);
+        tn->str = t1.str;
+        return;
+    }
+    peek_token(cu, &t2);
+    bool scoped= false;
+    if(t2.type == TOKEN_COLON){
+        scoped = true;
+        astn_type_node* tn = dbuffer_claim_small_space(&cu->ast, sizeof(astn_type_node));
+        tn->str = t1.str;
+        void_lookahead_token(cu);
+        consume_token(cu, &t1);
+        while(t1.type == TOKEN_COLON){
+            consume_token(cu, &t1);
+            tn = dbuffer_claim_small_space(&cu->ast, sizeof(astn_type_node));
+            tn->str = t1.str;
+            consume_token(cu, &t1);
+        }
+        t = (void*)(cu->ast.start + ast_pos);
+        peek_token(cu, &t2);
+    }
+    if(t2.type == TOKEN_BRACKET_OPEN){
+        // generic struct, potentially pointer
+        consume_token(cu, &t2);
+        while(t2.type != TOKEN_BRACKET_CLOSE){
+            parse_type(cu, true);  //parse parameter
+            peek_token(cu, &t2);
+        }
+        if(!nested){
+            t = (void*)(&cu->ast.start + ast_pos);
+            tn = (void*)(t+1);
+            t->end = (ast_rel_ptr)(dbuffer_get_size(&cu->ast) - ast_pos);
+        }
+        else{
+             tn = dbuffer_claim_small_space(
+                    &cu->ast, sizeof(astn_type) + sizeof(astn_type_node));
+             t = (void*)(tn + 1);
+             t->end = (ast_rel_ptr)(dbuffer_get_size(&cu->ast) - sizeof(astn_type) - ast_pos);
+        }
+        t->type = (scoped) ? AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT :
+                             AST_TYPE_TYPE_GENERIC_STRUCT;
+        t->ptrs = parse_ptrs(cu);
+        tn->str = t1.str;
+    }
+    if(!nested){
+        t = (void*)(&cu->ast.start + ast_pos);
+        tn = (void*)(t+1);
+        t->end = (ast_rel_ptr)(dbuffer_get_size(&cu->ast) - ast_pos);
+    }
+    else{
+         tn = dbuffer_claim_small_space(
+                &cu->ast, sizeof(astn_type) + sizeof(astn_type_node));
+         t = (void*)(tn + 1);
+         t->end = (ast_rel_ptr)(dbuffer_get_size(&cu->ast) - sizeof(astn_type) - ast_pos);
+    }
+    tn->str = t1.str;
+    // simple type
+    t->type = (scoped) ? AST_TYPE_TYPE_SIMPLE : AST_TYPE_TYPE_SCOPED;
+    t->ptrs = parse_ptrs(cu);
+}
+static int parse_meta(cunit* cu, token* t1){
+
+}
+static int parse_struct(cunit* cu, int mods){
+
+}
+static int parse_typedef(cunit* cu, int mods){
+    ureg ast_pos = dbuffer_get_size(&cu->ast);
+    astn_typedef* td = dbuffer_claim_small_space(&cu->ast, sizeof(astn_typedef));
+    //it is safe to void 1 lookahead, as KEYWORD_TYPEDEF must aways be looked ahead
+    void_lookahead_token(cu);
+    token t;
+    consume_token(cu, &t);
+    td->def.str = t.str;
+    parse_type(cu, false);
+    td = (void*)(cu->ast.start + ast_pos);
+    td->type_end = (ast_rel_ptr)(dbuffer_get_size(&cu->ast) - ast_pos);
+    consume_token(cu, &t);
+    CIM_ASSERT(t.type == TOKEN_SEMICOLON);
+}
+static int parse_function(cunit* cu, int mods){
+
+}
+static int parse_var_declaration(cunit* cu, int mods){
+    token t1;
+    token t2;
+    consume_token(cu, &t1);
+    consume_token(cu, &t2);
+    astn_declaration* d = dbuffer_claim_small_space(&cu->ast, sizeof(astn_declaration));
     d->astnt = ASTNT_DECLARATION;
     d->type = t1.str;
     d->name = t2.str;
-    lookahead_token(cu, &t1, 1);
+    consume_token(cu, &t1);
     if(t1.type == TOKEN_SEMICOLON){
         d->assigning = false;
     }
@@ -484,40 +613,57 @@ static int parse_2s_declaration(cunit* cu){
     }
     return 0;
 }
-static void parse_file_scope(cunit* cu){
+static inline int parse_modifiers(cunit* cu, token* t){
+    int mods = 0;
+    while(true){
+        if(t->str == KEYWORD_CONST)mods |= MOD_CONST;
+        else if(t->str == KEYWORD_PUBLIC)mods|=MOD_PUBLIC;
+        else break;
+        //TODO: add missing mods
+        consume_token(cu, t);
+    }
+    return mods;
+}
+static inline int parse_elem(cunit* cu){
     token t1;
-    token t2;
-    while (true){
-        lookahead_token(cu, &t1, 1);
-skip_new_token:
-        switch(t1.type){
-            case TOKEN_STRING:{
-                lookahead_token(cu, &t2, 2);
-                if (t2.type == TOKEN_STRING){
-                    parse_2s_declaration(cu);
-                }
-                else{
-                    //this might be a pointer variable declaration like int* x;
-                    //this is not lr1 parsable though. We assume expression because
-                    //that requires more space. That way we can convert
-                    //after symbol resolution and fill any blank space with noops
-                    parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
-                }
-            }break;
-            case TOKEN_HASH:
-            case TOKEN_DOUBLE_HASH:{
-                parse_meta(cu, &t1);
-            }break;
-            case TOKEN_EOF:{
-                clear_lookahead(cu);
-                return;
+    peek_token(cu, &t1);
+    switch(t1.type) {
+        case TOKEN_STRING: {
+            token t2;
+            token t3;
+            peek_2nd_token(cu, &t2);
+            if (t2.type == TOKEN_STRING) {
+                int mods = parse_modifiers(cu, &t1);
+                //t2 is invalidated, t1 is pointing to first non modifier token
+                if(t1.str == KEYWORD_STRUCT)return parse_struct(cu, mods);
+                if(t1.str == KEYWORD_TYPEDEF)return parse_typedef(cu, mods);
+                peek_3rd_token(cu, &t3);
+                if(t3.type == TOKEN_PAREN_OPEN)return parse_function(cu, mods);
+                return parse_var_declaration(cu, mods);
             }
-            default:{
-                CIM_ERROR("Unexpected Token");
+            else {
+                //this might be a pointer variable declaration like int* x;
+                //this is not lr1 parsable though. We assume expression because
+                //that requires more space. That way we can convert
+                //after symbol resolution and fill any blank space with noops
+                return parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
             }
         }
+        case TOKEN_HASH:
+        case TOKEN_DOUBLE_HASH: {
+            return parse_meta(cu, &t1);
+        }
+        case TOKEN_EOF: {
+            clear_lookahead(cu);
+            return 1;
+        }
+        default: {
+            CIM_ERROR("Unexpected Token");
+        }
     }
-
+}
+static void parse_file_scope(cunit* cu){
+    while (parse_elem(cu) == 0);
 }
 void parse(cunit* cu, char* str){
     cu->str = str;

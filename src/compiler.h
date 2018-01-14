@@ -2,12 +2,10 @@
 #include "dbuffer.h"
 #include "sbuffer.h"
 #include <assert.h>
-#include "keywords.h"
 #include "token.h"
 
 typedef struct cunit_t{
 	//later on, this will read the file live, but this is easier for now
-	char* keywords[KEYWORDS_ENUM_MAX];
     char* str;
 	char* pos;
 	sbuffer data_store;

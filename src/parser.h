@@ -48,7 +48,12 @@ enum OP{
     OP_ACCESS_MEMBER,
     OP_DEREFERENCE_ACCESS_MEMBER,
 };
-
+enum modifier_e{
+    MOD_PUBLIC,
+    MOD_PRIVATE,
+    MOD_CONST,
+    MOD_INLINE,
+}modifier;
 
 void cunit_init(cunit* cu);
 void cunit_fin(cunit* cu);

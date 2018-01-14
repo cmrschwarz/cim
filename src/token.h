@@ -54,6 +54,7 @@ typedef enum tokens_type_e{
 	TOKEN_HASH,
 	TOKEN_DOUBLE_HASH,
     TOKEN_DOT,
+	TOKEN_COLON,
     TOKEN_ARROW,
 }token_type;
 

@@ -7,8 +7,14 @@
 #include "error.h"
 #define ASSERT_NEOF(c) do{if((c) == '\0'){CIM_ERROR("Unexpected EOF");}}while(0)
 
-
-static inline int cmp_string_with_stored(char* str_start, const char* str_end, char* stored){
+void display_string_store(cunit* cu){
+    char** t = (void*)cu->string_ptrs.start;
+    while(t != (void*)cu->string_ptrs.head){
+        printf("%s\n",*t);
+        t++;
+    }
+}
+static inline int cmp_unended_string_with_stored(char* str_start, const char* str_end, char* stored){
 	for(;;){
         if(str_start == str_end) return 0;
 		if(*str_start != *stored){
@@ -18,11 +24,35 @@ static inline int cmp_string_with_stored(char* str_start, const char* str_end, c
 		stored++;
 	}
 }
-char* store_zero_terminated_string(cunit* cu, char* str){
-    // this could be slightly optimized if we basically pasted store_string
-    // and avoided the strlen that way, but it's really not worth it right now
-    char* str_end = str + strlen(str);
-    store_string(cu, str, str_end);
+void add_keyword(cunit* cu, const char* str){
+    char** sptrs_start = (char**)cu->string_ptrs.start;
+	char** sptrs_end = (char**)cu->string_ptrs.head;
+	char** pivot;
+    int res;
+    for(;;) {
+        if(sptrs_end == sptrs_start) {
+            if (sptrs_start == (char**)cu->string_ptrs.head){
+                *(const char**)dbuffer_claim_small_space(&cu->string_ptrs,
+                                                   sizeof(char**)) = str;
+            }
+            else{
+                if(strcmp(str, *sptrs_end) == 0) CIM_ERROR("keyword already present");
+                 dbuffer_insert_at(&cu->string_ptrs, &str, sptrs_end, sizeof(char*));
+            }
+            return;
+        }
+        pivot = sptrs_start + (sptrs_end - sptrs_start) / 2;
+        res = strcmp(str, *pivot);
+        if(res < 0){
+			sptrs_end = pivot;
+		}
+		else if(res > 0){
+			sptrs_start = pivot +1;
+		}
+		else{
+			CIM_ERROR("keyword already present");
+		}
+    }
 }
 char* store_string(cunit* cu, char* str, char* str_end){
 	//we do this ahead so we don't have to worry about invalidating pointers
@@ -32,21 +62,21 @@ char* store_string(cunit* cu, char* str, char* str_end){
 	char** pivot;
 	int res;
 	for(;;){
-		pivot = sptrs_start + (sptrs_end - sptrs_start) / 2;
-		if(pivot == sptrs_start){
-            if(pivot != (char**)cu->string_ptrs.head){
-                if(cmp_string_with_stored(str, str_end, *pivot) == 0){
-                    return *pivot;
-                }
+		if(sptrs_end == sptrs_start){
+            if(sptrs_start != (char**)cu->string_ptrs.head &&
+               cmp_unended_string_with_stored(str, str_end, *sptrs_end) == 0)
+            {
+                return *sptrs_end;
             }
             ureg str_size = str_end - str;
             char* tgt = sbuffer_append(&cu->data_store, str_size + 1); //+1 for \0
             memcpy(tgt, str, str_size);
             *(tgt + str_size) = '\0';
-            dbuffer_insert_at(&cu->string_ptrs, &tgt, pivot, sizeof(char*));
+            dbuffer_insert_at(&cu->string_ptrs, &tgt, sptrs_end, sizeof(char*));
             return tgt;
         }
-        res = cmp_string_with_stored(str, str_end, *pivot);
+        pivot = sptrs_start + (sptrs_end - sptrs_start) / 2;
+        res = cmp_unended_string_with_stored(str, str_end, *pivot);
 		if(res < 0){
 			sptrs_end = pivot;
 		}

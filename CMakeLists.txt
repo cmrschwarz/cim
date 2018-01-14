@@ -9,4 +9,5 @@ add_executable( cim
                 src/dbuffer.c
                 src/ast_printer.c
                 src/sbuffer.c
-                src/scopes.c)
+                src/scopes.c
+                src/keywords.c)
