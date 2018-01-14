@@ -188,6 +188,7 @@ redo:;
         case ',': tok->type = TOKEN_COMMA;return;
 		case ';': tok->type = TOKEN_SEMICOLON; return;
         case '.': tok->type = TOKEN_DOT; return;
+        case ':': tok->type = TOKEN_COLON; return;
         case '*': {
             curr = *cu->pos;
             if(curr == '=') {

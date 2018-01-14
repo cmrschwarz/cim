@@ -184,6 +184,47 @@ static inline expr_elem* print_expr(cunit* cu, expr_elem* expr){
 void print_indent(ureg indent){
     for(ureg i=0;i<indent; i++)fputs("    ", stdout);
 }
+void print_ptrs(u8 ptrs){
+    for(u8 i = 0;i!=ptrs;i++){
+        putchar('*');
+    }
+}
+ast_type_node* print_type(cunit* cu, ast_type_node* t, bool nested);
+void reverse_print_type_list(cunit* cu, ast_type_node* start, ast_type_node* end){
+    ast_type_node* next = start - start->type.end;
+    if(next != end){
+        reverse_print_type_list(cu, next, end);
+        putchar(',');putchar(' ');
+    }
+    print_type(cu, start, true);
+}
+ast_type_node* print_type(cunit* cu, ast_type_node* t, bool nested){
+    ast_type_node* curr = nested ? t - 1 : t + t->type.end - 1;
+    if(t->type.type == AST_TYPE_TYPE_SIMPLE){
+        fputs(curr->str, stdout);
+        print_ptrs(t->type.ptrs);
+        return nested ? t + 1 : t + 2;
+    }
+    ast_type_node* last = nested ? t - t->type.end + 1: t + 1;
+    ast_type_node* end = nested ? t - t->type.end: t;
+    switch (t->type.type){
+        case AST_TYPE_TYPE_SCOPED:{
+            for(ast_type_node* i = last+1 ; i<= curr; i++){
+                fputs(i->str, stdout);
+                putchar(':');
+            }
+            fputs(last->str, stdout);
+        }break;
+        case AST_TYPE_TYPE_GENERIC_STRUCT:{
+            fputs(last->str, stdout);
+            putchar('[');
+            reverse_print_type_list(cu, curr, last);
+            putchar(']');
+        }
+    }
+    print_ptrs(t->type.ptrs);
+    return nested ? t + 1 : t + t->type.end;
+}
 void print_ast(cunit* cu){
     u8* astn = (void*)cu->ast.start;
     u8* end = (void*)cu->ast.head;
@@ -221,13 +262,21 @@ void print_ast(cunit* cu){
                 print_literal(cu, (e+1)->str);
                 putchar(';');
                 putchar('\n');
-            }
+            }break;
             case ASTNT_BINARY_LITERAL:{
                 expr_elem* e = (void*)astn;
                 print_binary_literal(cu, (e+1)->str);
                 putchar(';');
                 putchar('\n');
-            }
+            }break;
+            case ASTNT_TYPEDEF:{
+                astn_typedef* t = (void*)astn;
+                printf("typedef %s ", t->def.str);
+                ast_type_node* tn = (void*)(t+1);
+                astn = (void*)print_type(cu, tn, false);
+                putchar(';');
+                putchar('\n');
+            }break;
             default:CIM_ERROR("Unexpected ASTN");
         }
     }

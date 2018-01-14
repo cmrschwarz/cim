@@ -10,7 +10,7 @@
 //astn stands for abstract syntax tree node
 //astnt stands for abstract systax tree node type
 //all nodes are at least aligned to a sizeof(ureg) byte boundary
-
+#define DEBUG_ENUMS 0
 typedef uregh ast_rel_ptr;
 
 typedef struct scope_s{
@@ -51,7 +51,6 @@ typedef struct astn_typedef_s{
         char* str;
         se_type* type;
     }def;
-    ast_rel_ptr type_end;
 }astn_typedef;
 
 typedef struct astn_function_call_t{
@@ -59,31 +58,35 @@ typedef struct astn_function_call_t{
     ureg arg_count;
 }astn_function_call;
 
-enum ast_type_type{
+typedef enum ast_type_type_e{
     //TODO: maybe we need to make a resolved mask in here
     AST_TYPE_TYPE_SIMPLE,
     AST_TYPE_TYPE_SCOPED,
     AST_TYPE_TYPE_FN_PTR,
     AST_TYPE_TYPE_GENERIC_STRUCT,
     AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT,
-};
+}ast_type_type;
 //structure:
 //  normal type: 1 type node
 //  scoped type: 1 type node + x type nodes for scope
-//  function pointer: 1 type node + 1 astn_type for ret val + x astn_type's for params
-//  generic struct: 1 type node + x astn_types for params
+//  function pointer: 1 type node + 1 ast_type_node for ret val + x ast_type_node's for params
+//  generic struct: 1 type node + x ast_type_nodes for params
 //  scoped generic struct: 1 type node + 1 type node for scopes end + x type nodes for scope
-//                         + x astn_types for params
-typedef union astn_type_node_u{
+//                         + x ast_type_nodes for params
+typedef union ast_type_node_u{
+    struct {
+#if DEBUG_ENUMS
+        ast_type_type type;
+#else
+        u8 type;
+#endif
+        u8 ptrs;
+        ast_rel_ptr end;
+    } type;
     se_type* resolved_type;
     char* str;
     ast_rel_ptr scoped_generic_struct_end;
-}astn_type_node;
-typedef struct astn_type_s{
-    u8 type;
-    u8 ptrs;
-    ast_rel_ptr end;
-}astn_type;
+}ast_type_node;
 
 
 //operators are used in expressions. 
@@ -110,7 +113,7 @@ typedef enum expr_elem_type_t{
 
 
 typedef union expr_elem_s{
-#if 0
+#if DEBUG_ENUMS
     struct{
         expr_elem_type type;
         enum OP op;
