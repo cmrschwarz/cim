@@ -199,28 +199,46 @@ void reverse_print_type_list(cunit* cu, ast_type_node* start, ast_type_node* end
     print_type(cu, start, true);
 }
 ast_type_node* print_type(cunit* cu, ast_type_node* t, bool nested){
-    ast_type_node* curr = nested ? t - 1 : t + t->type.end - 1;
+    ast_type_node* tn = nested ? t - 1 : t + 1;
     if(t->type.type == AST_TYPE_TYPE_SIMPLE){
-        fputs(curr->str, stdout);
+        fputs(tn->str, stdout);
         print_ptrs(t->type.ptrs);
         return nested ? t + 1 : t + 2;
     }
-    ast_type_node* last = nested ? t - t->type.end + 1: t + 1;
-    ast_type_node* end = nested ? t - t->type.end: t;
+    ast_type_node* last = nested ? t - t->type.end + 1: t + 2;
+    ast_type_node* rstart = nested ? t - 2 : t + t->type.end - 1;
     switch (t->type.type){
         case AST_TYPE_TYPE_SCOPED:{
-            for(ast_type_node* i = last+1 ; i<= curr; i++){
+            for(ast_type_node* i = last ; i<= rstart; i++){
                 fputs(i->str, stdout);
                 putchar(':');
             }
-            fputs(last->str, stdout);
+            fputs(tn->str, stdout);
         }break;
         case AST_TYPE_TYPE_GENERIC_STRUCT:{
-            fputs(last->str, stdout);
+            fputs(tn->str, stdout);
             putchar('[');
-            reverse_print_type_list(cu, curr, last);
+            reverse_print_type_list(cu, rstart, tn);
             putchar(']');
-        }
+        }break;
+        case AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT:{
+            ast_type_node* scopes_end = last + tn->type.end;
+            for(ast_type_node* i = last; i!= scopes_end; i++){
+                fputs(i->str, stdout);
+                putchar(':');
+            }
+            if(nested){
+                fputs((tn-1)->str, stdout);
+            }
+            else{
+                fputs(rstart->str, stdout);
+            }
+            rstart--;
+            putchar('[');
+            reverse_print_type_list(cu, rstart, scopes_end - 1);
+            putchar(']');
+        }break;
+        default:CIM_ERROR("Unknown AST_TYPE_TYPE");
     }
     print_ptrs(t->type.ptrs);
     return nested ? t + 1 : t + t->type.end;

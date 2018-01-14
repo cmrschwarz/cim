@@ -531,6 +531,7 @@ static void parse_type(cunit* cu, bool nested){
         t = (void*)(cu->ast.start + ast_pos);
     }
     if(t2.type == TOKEN_BRACKET_OPEN){
+        ureg post_scope_ast_pos = dbuffer_get_size(&cu->ast);
          // generic struct, potentially pointer
         void_lookahead_token(cu);
         peek_token(cu, &t2);
@@ -544,21 +545,37 @@ static void parse_type(cunit* cu, bool nested){
         else{
             void_lookahead_token(cu);
         }
+        ast_type_node* scoped_str;
         if(!nested){
             t = (void*)(cu->ast.start + ast_pos);
             tn = (void*)(t+1);
+            if(scoped){
+                scoped_str =
+                    dbuffer_claim_small_space(&cu->ast, sizeof(ast_type_node));
+            }
         }
         else{
-             tn = dbuffer_claim_small_space(
-                    &cu->ast, sizeof(ast_type_node) * 2);
-             t = (void*)(tn + 1);
+            //might not be used, but then it's used by tn
+            scoped_str = dbuffer_claim_small_space(
+                &cu->ast, sizeof(ast_type_node) * (2 + scoped));
+            tn = scoped_str + scoped;
+            t = (void*)(tn + 1);
         }
         t->type.end = (ast_rel_ptr)
                     ((dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_type_node));
         t->type.type = (scoped) ? AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT :
                              AST_TYPE_TYPE_GENERIC_STRUCT;
         t->type.ptrs = parse_ptrs(cu);
-        tn->str = t1.str;
+        if(scoped){
+            scoped_str->str = t1.str;
+            // -2 if not nested because the t and tn nodes are after ast_pos and we only capture
+            //scope size
+            tn->type.end = (ast_rel_ptr)
+                    ((post_scope_ast_pos - ast_pos) / sizeof(ast_type_node) - !nested * 2);
+        }
+        else{
+            tn->str = t1.str;
+        }
         return;
     }
     if(!nested){

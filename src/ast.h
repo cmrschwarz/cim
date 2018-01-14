@@ -10,7 +10,8 @@
 //astn stands for abstract syntax tree node
 //astnt stands for abstract systax tree node type
 //all nodes are at least aligned to a sizeof(ureg) byte boundary
-#define DEBUG_ENUMS 0
+#define DEBUG_ENUMS 1
+
 typedef uregh ast_rel_ptr;
 
 typedef struct scope_s{
@@ -47,6 +48,7 @@ typedef struct astn_declaration_t{
 }astn_declaration;
 typedef struct astn_typedef_s{
     u8 astnt;
+    ast_rel_ptr end; //TODO: get rid of non nested type layout using this
     union {
         char* str;
         se_type* type;
