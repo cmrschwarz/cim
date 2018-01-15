@@ -212,7 +212,7 @@ ast_type_node* print_type(cunit* cu, ast_type_node* t){
         case AST_TYPE_TYPE_GENERIC_STRUCT:{
             fputs(tn->str, stdout);
             putchar('[');
-            reverse_print_type_list(cu, last, tn);
+            reverse_print_type_list(cu, t - 2, last-1);
             putchar(']');
         }break;
         case AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT:{
