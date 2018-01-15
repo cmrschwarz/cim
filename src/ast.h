@@ -77,7 +77,7 @@ typedef struct astn_declaration_t{
 }astn_declaration;
 typedef struct astn_typedef_s{
     u8 astnt;
-    ast_rel_ptr end; //TODO: get rid of non nested type layout using this
+    ast_rel_ptr end;
     ast_type_node tgt_type;
 }astn_typedef;
 
