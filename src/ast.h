@@ -34,32 +34,6 @@ typedef enum astnt_e{
     ASTNT_FUNCTION_DECLARATION,
 }astnt;
 
-
-typedef struct astn_assignment_t{
-    u8 astnt;
-    u16 ptrs;
-}astn_assignment;
-
-typedef struct astn_declaration_t{
-    u8 astnt;
-    bool assigning;
-    char* type;
-    char* name;
-}astn_declaration;
-typedef struct astn_typedef_s{
-    u8 astnt;
-    ast_rel_ptr end; //TODO: get rid of non nested type layout using this
-    union {
-        char* str;
-        se_type* type;
-    }def;
-}astn_typedef;
-
-typedef struct astn_function_call_t{
-    u8 astnt;
-    ureg arg_count;
-}astn_function_call;
-
 typedef enum ast_type_type_e{
     //TODO: maybe we need to make a resolved mask in here
     AST_TYPE_TYPE_SIMPLE,
@@ -89,6 +63,29 @@ typedef union ast_type_node_u{
     char* str;
     ast_rel_ptr scoped_generic_struct_end;
 }ast_type_node;
+
+typedef struct astn_assignment_t{
+    u8 astnt;
+    u16 ptrs;
+}astn_assignment;
+
+typedef struct astn_declaration_t{
+    u8 astnt;
+    bool assigning;
+    char* type;
+    char* name;
+}astn_declaration;
+typedef struct astn_typedef_s{
+    u8 astnt;
+    ast_rel_ptr end; //TODO: get rid of non nested type layout using this
+    ast_type_node tgt_type;
+}astn_typedef;
+
+typedef struct astn_function_call_t{
+    u8 astnt;
+    ureg arg_count;
+}astn_function_call;
+
 
 
 //operators are used in expressions. 

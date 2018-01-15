@@ -189,24 +189,24 @@ void print_ptrs(u8 ptrs){
         putchar('*');
     }
 }
-ast_type_node* print_type(cunit* cu, ast_type_node* t, bool nested);
+ast_type_node* print_type(cunit* cu, ast_type_node* t);
 void reverse_print_type_list(cunit* cu, ast_type_node* start, ast_type_node* end){
     ast_type_node* next = start - start->type.end;
     if(next != end){
         reverse_print_type_list(cu, next, end);
         putchar(',');putchar(' ');
     }
-    print_type(cu, start, true);
+    print_type(cu, start);
 }
-ast_type_node* print_type(cunit* cu, ast_type_node* t, bool nested){
-    ast_type_node* tn = nested ? t - 1 : t + 1;
+ast_type_node* print_type(cunit* cu, ast_type_node* t){
+    ast_type_node* tn =  t - 1;
     if(t->type.type == AST_TYPE_TYPE_SIMPLE){
         fputs(tn->str, stdout);
         print_ptrs(t->type.ptrs);
-        return nested ? t + 1 : t + 2;
+        return t + 1;
     }
-    ast_type_node* last = nested ? t - t->type.end + 1: t + 2;
-    ast_type_node* rstart = nested ? t - 2 : t + t->type.end - 1;
+    ast_type_node* last = t - t->type.end + 1;
+    ast_type_node* rstart = t - 2;
     switch (t->type.type){
         case AST_TYPE_TYPE_SCOPED:{
             for(ast_type_node* i = last ; i<= rstart; i++){
@@ -227,12 +227,7 @@ ast_type_node* print_type(cunit* cu, ast_type_node* t, bool nested){
                 fputs(i->str, stdout);
                 putchar(':');
             }
-            if(nested){
-                fputs((tn-1)->str, stdout);
-            }
-            else{
-                fputs(rstart->str, stdout);
-            }
+            fputs((tn-1)->str, stdout);
             rstart--;
             putchar('[');
             reverse_print_type_list(cu, rstart, scopes_end - 1);
@@ -241,7 +236,7 @@ ast_type_node* print_type(cunit* cu, ast_type_node* t, bool nested){
         default:CIM_ERROR("Unknown AST_TYPE_TYPE");
     }
     print_ptrs(t->type.ptrs);
-    return nested ? t + 1 : t + t->type.end;
+    return t + 1;
 }
 void print_ast(cunit* cu){
     u8* astn = (void*)cu->ast.start;
@@ -289,9 +284,9 @@ void print_ast(cunit* cu){
             }break;
             case ASTNT_TYPEDEF:{
                 astn_typedef* t = (void*)astn;
-                printf("typedef %s ", t->def.str);
-                ast_type_node* tn = (void*)(t+1);
-                astn = (void*)print_type(cu, tn, false);
+                printf("typedef %s ", t->tgt_type.str);
+                ast_type_node* tn = (ast_type_node*)(t+1) + t->end;
+                astn = (void*)print_type(cu, tn);
                 putchar(';');
                 putchar('\n');
             }break;

@@ -7,6 +7,8 @@
 #include "error.h"
 #include "sbuffer.h"
 #include "keywords.h"
+#include <stddef.h>
+#include <stdio.h>
 
 #define OP_RANGE (1 << (sizeof(u8)*8))
 static u8 prec_table [OP_RANGE];
@@ -473,25 +475,22 @@ static u8 parse_ptrs(cunit* cu){
     }
 }
 //consider passing one token as param to significantly reduce peeking
-static void parse_type(cunit* cu, bool nested){
+static void parse_type(cunit* cu){
     ureg ast_pos = dbuffer_get_size(&cu->ast);
     ast_type_node* t;
     ast_type_node* tn;
-    if(!nested){
-        dbuffer_claim_small_space(&cu->ast, sizeof(ast_type_node) * 2);
-    }
     token t1;
     token t2;
     consume_token(cu, &t1);
     if(t1.type == TOKEN_PAREN_OPEN){
         // function pointer
-        parse_type(cu, true);  //parse ret type
+        parse_type(cu);  //parse ret type
         consume_token(cu, &t1);
         CIM_ASSERT(t1.type == TOKEN_PAREN_OPEN);
         peek_token(cu, &t2);
         if(t2.type != TOKEN_PAREN_CLOSE){
             do{
-                parse_type(cu, true);
+                parse_type(cu);
                 consume_token(cu, &t2);
             }while(t2.type == TOKEN_COMMA);
             CIM_ASSERT(t2.type == TOKEN_PAREN_CLOSE);
@@ -500,15 +499,9 @@ static void parse_type(cunit* cu, bool nested){
              void_lookahead_token(cu); //get rid of the closing paren
         }
         consume_token(cu, &t1);
-        if(!nested){
-            t = (void*)(cu->ast.start + ast_pos);
-            tn = (void*)(t+1);
-        }
-        else{
-             tn = dbuffer_claim_small_space(
-                    &cu->ast, sizeof(ast_type_node) * 2);
-             t = (void*)(tn + 1);
-        }
+        tn = dbuffer_claim_small_space(
+            &cu->ast, sizeof(ast_type_node) * 2);
+        t = (void*)(tn + 1);
         t->type.end = (ast_rel_ptr)
                     (dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_type_node);
         t->type.type = AST_TYPE_TYPE_FN_PTR;
@@ -537,7 +530,7 @@ static void parse_type(cunit* cu, bool nested){
         peek_token(cu, &t2);
         if(t2.type != TOKEN_BRACKET_CLOSE){
             do{
-                parse_type(cu, true);
+                parse_type(cu);
                 consume_token(cu, &t2);
             }while(t2.type == TOKEN_COMMA);
             CIM_ASSERT(t2.type == TOKEN_BRACKET_CLOSE);
@@ -546,21 +539,11 @@ static void parse_type(cunit* cu, bool nested){
             void_lookahead_token(cu);
         }
         ast_type_node* scoped_str;
-        if(!nested){
-            t = (void*)(cu->ast.start + ast_pos);
-            tn = (void*)(t+1);
-            if(scoped){
-                scoped_str =
-                    dbuffer_claim_small_space(&cu->ast, sizeof(ast_type_node));
-            }
-        }
-        else{
-            //might not be used, but then it's used by tn
-            scoped_str = dbuffer_claim_small_space(
-                &cu->ast, sizeof(ast_type_node) * (2 + scoped));
-            tn = scoped_str + scoped;
-            t = (void*)(tn + 1);
-        }
+        //might not be used, but then it's used by tn
+        scoped_str = dbuffer_claim_small_space(
+            &cu->ast, sizeof(ast_type_node) * (2 + scoped));
+        tn = scoped_str + scoped;
+        t = (void*)(tn + 1);
         t->type.end = (ast_rel_ptr)
                     ((dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_type_node));
         t->type.type = (scoped) ? AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT :
@@ -571,22 +554,16 @@ static void parse_type(cunit* cu, bool nested){
             // -2 if not nested because the t and tn nodes are after ast_pos and we only capture
             //scope size
             tn->type.end = (ast_rel_ptr)
-                    ((post_scope_ast_pos - ast_pos) / sizeof(ast_type_node) - !nested * 2);
+                    ((post_scope_ast_pos - ast_pos) / sizeof(ast_type_node));
         }
         else{
             tn->str = t1.str;
         }
         return;
     }
-    if(!nested){
-        t = (void*)(cu->ast.start + ast_pos);
-        tn = (void*)(t+1);
-    }
-    else{
-         tn = dbuffer_claim_small_space(
-                &cu->ast, sizeof(ast_type_node) * 2);
-         t = (void*)(tn + 1);
-    }
+    tn = dbuffer_claim_small_space(
+        &cu->ast, sizeof(ast_type_node) * 2);
+    t = (void*)(tn + 1);
     t->type.end = (ast_rel_ptr)
             ((dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_type_node));
     tn->str = t1.str;
@@ -603,12 +580,17 @@ static int parse_struct(cunit* cu, int mods){
 static int parse_typedef(cunit* cu, int mods){
     //it is safe to void 1 lookahead, as KEYWORD_TYPEDEF must aways be looked ahead
     void_lookahead_token(cu);
+    ureg ast_pos = dbuffer_get_size(&cu->ast);
     astn_typedef* td = dbuffer_claim_small_space(&cu->ast, sizeof(astn_typedef));
     td->astnt = ASTNT_TYPEDEF;
     token t;
     consume_token(cu, &t);
-    td->def.str = t.str;
-    parse_type(cu, false);
+    td->tgt_type.str = t.str;
+    parse_type(cu);
+    td = (void*)(cu->ast.start + ast_pos);
+    td->end = (ast_rel_ptr)
+            ((dbuffer_get_size(&cu->ast) - ast_pos - sizeof(astn_typedef))
+             / sizeof(ast_type_node) - 1);
     consume_token(cu, &t);
     CIM_ASSERT(t.type == TOKEN_SEMICOLON);
     return 0;
