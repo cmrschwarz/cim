@@ -1,14 +1,9 @@
 #include "parser.h"
-#include "tokenizer.h"
 #include <stdio.h>
-#include <memory.h>
 #include "ast.h"
 #include <assert.h>
 #include "error.h"
-#include "sbuffer.h"
 #include "keywords.h"
-#include <stddef.h>
-#include <stdio.h>
 
 #define OP_RANGE (1 << (sizeof(u8)*8))
 static u8 prec_table [OP_RANGE];
@@ -405,7 +400,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_ex
                     //this ammends the - sizeof(expr_elem) because its used in a subtraction
                     //so it's gonna be canceled out
                     ureg el_end= dbuffer_get_size(&cu->ast);
-                    ureg its = parse_arg_list(cu, TOKEN_BRACKET_CLOSE);
+                    parse_arg_list(cu, TOKEN_BRACKET_CLOSE);
                     peek_token(cu, &t2);
                     if(t2.type == TOKEN_PAREN_OPEN){
                         void_lookahead_token(cu);
@@ -485,6 +480,8 @@ static void parse_type(cunit* cu){
     if(t1.type == TOKEN_PAREN_OPEN){
         // function pointer
         parse_type(cu);  //parse ret type
+        ast_rel_ptr ret_type_size = (ast_rel_ptr)
+                ((dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_type_node));
         consume_token(cu, &t1);
         CIM_ASSERT(t1.type == TOKEN_PAREN_OPEN);
         peek_token(cu, &t2);
@@ -499,15 +496,16 @@ static void parse_type(cunit* cu){
              void_lookahead_token(cu); //get rid of the closing paren
         }
         consume_token(cu, &t1);
-        tn = dbuffer_claim_small_space(
-            &cu->ast, sizeof(ast_type_node) * 2);
-        t = (void*)(tn + 1);
+        CIM_ASSERT(t1.type == TOKEN_PAREN_CLOSE);
+        tn = dbuffer_claim_small_space(&cu->ast, sizeof(ast_type_node) * 2);
+        tn->type.end = ret_type_size;
+        t = tn+1;
         t->type.end = (ast_rel_ptr)
                     (dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_type_node);
         t->type.type = AST_TYPE_TYPE_FN_PTR;
         t->type.ptrs = parse_ptrs(cu);
-        consume_token(cu, &t1);
-        tn->str = t1.str;
+        CIM_ASSERT(t->type.ptrs > 0);
+        //doesnt have a name, not part of the type
         return;
     }
     peek_token(cu, &t2);
@@ -521,7 +519,6 @@ static void parse_type(cunit* cu){
             consume_token(cu, &t1);
             peek_token(cu, &t2);
         }while(t2.type == TOKEN_COLON);
-        t = (void*)(cu->ast.start + ast_pos);
     }
     if(t2.type == TOKEN_BRACKET_OPEN){
         ureg post_scope_ast_pos = dbuffer_get_size(&cu->ast);

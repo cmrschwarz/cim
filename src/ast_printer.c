@@ -1,10 +1,6 @@
 #include "ast_printer.h"
-#include "parser.h"
-#include "tokenizer.h"
 #include <stdio.h>
-#include <string.h>
 #include "error.h"
-#include "ast.h"
 
 static expr_elem* print_expr_elem(cunit* cu, expr_elem* e);
 void reverse_print_func_args(cunit* cu, expr_elem* elem, expr_elem* end){
@@ -162,7 +158,6 @@ static expr_elem* print_expr_elem(cunit* cu, expr_elem* e){
             return end;
         }
         case EXPR_ELEM_TYPE_ARRAY_ACCESS:{
-            expr_elem* end = e - e->id.nest_size;
             e--;
             printf(e->str);
             e--;
@@ -199,17 +194,16 @@ void reverse_print_type_list(cunit* cu, ast_type_node* start, ast_type_node* end
     print_type(cu, start);
 }
 ast_type_node* print_type(cunit* cu, ast_type_node* t){
-    ast_type_node* tn =  t - 1;
     if(t->type.type == AST_TYPE_TYPE_SIMPLE){
-        fputs(tn->str, stdout);
+        fputs((t-1)->str, stdout);
         print_ptrs(t->type.ptrs);
         return t + 1;
     }
     ast_type_node* last = t - t->type.end + 1;
-    ast_type_node* rstart = t - 2;
+    ast_type_node* tn = t-1;
     switch (t->type.type){
         case AST_TYPE_TYPE_SCOPED:{
-            for(ast_type_node* i = last ; i<= rstart; i++){
+            for(ast_type_node* i = last ; i != tn; i++){
                 fputs(i->str, stdout);
                 putchar(':');
             }
@@ -218,7 +212,7 @@ ast_type_node* print_type(cunit* cu, ast_type_node* t){
         case AST_TYPE_TYPE_GENERIC_STRUCT:{
             fputs(tn->str, stdout);
             putchar('[');
-            reverse_print_type_list(cu, rstart, tn);
+            reverse_print_type_list(cu, last, tn);
             putchar(']');
         }break;
         case AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT:{
@@ -227,11 +221,19 @@ ast_type_node* print_type(cunit* cu, ast_type_node* t){
                 fputs(i->str, stdout);
                 putchar(':');
             }
-            fputs((tn-1)->str, stdout);
-            rstart--;
+            fputs((t-2)->str, stdout);
             putchar('[');
-            reverse_print_type_list(cu, rstart, scopes_end - 1);
+            reverse_print_type_list(cu, t - 3, scopes_end - 1);
             putchar(']');
+        }break;
+        case AST_TYPE_TYPE_FN_PTR:{
+            ast_type_node* ret = last + tn->type.end-1;
+            putchar('(');
+            print_type(cu, ret);
+             putchar(' ');putchar('(');
+            reverse_print_type_list(cu, (t-2), ret);
+            putchar(')');
+            putchar(')');
         }break;
         default:CIM_ERROR("Unknown AST_TYPE_TYPE");
     }

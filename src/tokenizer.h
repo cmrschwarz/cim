@@ -2,6 +2,7 @@
 #include "compiler.h"
 #include "token.h"
 #include "memory.h"
+//TODO: evaluate using token pointers instead
 void display_string_store(cunit* cu);
 void consume_new_token(cunit* cu, token* t);
 static inline void void_lookahead_token(cunit* cu){

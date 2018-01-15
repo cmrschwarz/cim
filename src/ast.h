@@ -38,7 +38,7 @@ typedef enum ast_type_type_e{
     //TODO: maybe we need to make a resolved mask in here
     AST_TYPE_TYPE_SIMPLE,
     AST_TYPE_TYPE_SCOPED,
-    AST_TYPE_TYPE_FN_PTR,
+    AST_TYPE_TYPE_FN_PTR, //if it's referencing a fn_ptr, that looks like simple
     AST_TYPE_TYPE_GENERIC_STRUCT,
     AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT,
 }ast_type_type;
