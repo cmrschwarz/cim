@@ -207,14 +207,15 @@ ast_node* print_type(cunit* cu, ast_node* t){
             putchar(']');
         }break;
         case AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT:{
-            ast_node* scopes_end = last + tn->type.size ;
+            ast_node* gen_args_start = t - 3;
+            ast_node* scopes_end = gen_args_start - tn->type.size;
             for(ast_node* i = last; i!= scopes_end; i++){
                 fputs(i->str, stdout);
                 putchar(':');
             }
             fputs((t-2)->str, stdout);
             putchar('[');
-            reverse_print_type_list(cu, t - 3, scopes_end - 1);
+            reverse_print_type_list(cu, gen_args_start, scopes_end);
             putchar(']');
         }break;
         case AST_TYPE_TYPE_FN_PTR:{

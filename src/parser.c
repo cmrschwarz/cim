@@ -540,8 +540,8 @@ static void parse_type(cunit* cu){
             &cu->ast, sizeof(ast_node) * (2 + scoped));
         tn = scoped_str + scoped;
         t = (void*)(tn + 1);
-        t->type.size  = (ast_rel_ptr)
-                    ((dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_node));
+        ureg final_ast_pos = dbuffer_get_size(&cu->ast);
+        t->type.size = (ast_rel_ptr)((final_ast_pos - ast_pos) / sizeof(ast_node));
         t->type.type = (scoped) ? AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT :
                              AST_TYPE_TYPE_GENERIC_STRUCT;
         t->type.ptrs = parse_ptrs(cu);
@@ -550,7 +550,7 @@ static void parse_type(cunit* cu){
             // -2 if not nested because the t and tn nodes are after ast_pos and we only capture
             //scope size
             tn->type.size  = (ast_rel_ptr)
-                    ((post_scope_ast_pos - ast_pos) / sizeof(ast_node));
+                    ((final_ast_pos - post_scope_ast_pos) / sizeof(ast_node) - 3);
         }
         else{
             tn->str = t1.str;
