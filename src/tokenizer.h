@@ -1,6 +1,6 @@
 #pragma once
 #include "compiler.h"
-#include "token.h"
+#include "tokens.h"
 #include "memory.h"
 //TODO: evaluate using token pointers instead
 void display_string_store(cunit* cu);

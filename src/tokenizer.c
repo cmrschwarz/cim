@@ -16,7 +16,10 @@ void display_string_store(cunit* cu){
 }
 static inline int cmp_unended_string_with_stored(char* str_start, const char* str_end, char* stored){
 	for(;;){
-        if(str_start == str_end) return 0;
+        if(str_start == str_end){
+            if(*stored == '\0')return 0;
+            return -*stored;
+        }
 		if(*str_start != *stored){
 			return  *str_start - *stored;
 		}
