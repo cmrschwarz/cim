@@ -10,7 +10,7 @@
 //astn stands for abstract syntax tree node
 //astnt stands for abstract systax tree node type
 //all nodes are at least aligned to a sizeof(ureg) byte boundary
-#define DEBUG_ENUMS 0
+#define DEBUG_ENUMS 1
 
 typedef uregh ast_rel_ptr;
 
@@ -54,7 +54,7 @@ typedef enum expr_node_type_t{
 }expr_node_type;
 
 #if DEBUG_ENUMS
-    enum ptrs{
+    enum ptrs_e{
         CIM___PTRS_DUMMY_ENUM
     };
 #endif
@@ -68,7 +68,7 @@ typedef union ast_node_u{
             u8 astnt;
             u8 _padding_;
 #       endif
-        ast_rel_ptr nest_size;
+        ast_rel_ptr size;
     }top_level_expr;
     struct {
 #       if DEBUG_ENUMS
@@ -78,28 +78,28 @@ typedef union ast_node_u{
             u8 type;
             u8 _padding_;
 #       endif
-        ast_rel_ptr nest_size;
+        ast_rel_ptr size;
     }expr;
     struct {
 #       if DEBUG_ENUMS
             expr_node_type expr_node_type;
             operation opcode;
 #       else
-            u8 type;
+            u8 expr_node_type;
             u8 opcode;
 #       endif
-        ast_rel_ptr nest_size;
+        ast_rel_ptr size;
     }op;
     struct{
 #       if DEBUG_ENUMS
             type_node_type type;
             //to restore identical memory layout to other structs in the union
-            ptrs ptrs;
+            enum ptrs_e ptrs;
 #       else
             u8 type;
             u8 ptrs;
 #       endif
-        ast_rel_ptr nest_size;
+        ast_rel_ptr size;
     }type;
     char* str;
 }ast_node;
@@ -117,7 +117,7 @@ typedef struct astn_declaration_t{
 }astn_declaration;
 typedef struct astn_typedef_s{
     u8 astnt;
-    ast_rel_ptr nest_size;
+    ast_rel_ptr size;
     ast_node tgt_type;
 }astn_typedef;
 

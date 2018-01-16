@@ -6,17 +6,7 @@
 static ast_node* print_ast_node(cunit* cu, ast_node* e);
 void reverse_print_func_args(cunit* cu, ast_node* elem, ast_node* end){
     if(elem == end)return;
-    ast_node* nxt;
-    if( elem->expr.type== EXPR_NODE_TYPE_NUMBER ||
-        elem->expr.type== EXPR_NODE_TYPE_VARIABLE ||
-        elem->expr.type== EXPR_NODE_TYPE_LITERAL ||
-        elem->expr.type== EXPR_NODE_TYPE_BINARY_LITERAL)
-    {
-        nxt = elem-2;
-    }
-    else{
-         elem -= elem->expr.nest_size;
-    }
+    ast_node* nxt = elem - elem->expr.size;
     if(nxt != end){
         reverse_print_func_args(cu, nxt, end);
         putchar(',');
@@ -103,7 +93,7 @@ static ast_node* print_ast_node(cunit* cu, ast_node* e){
                 l = r-2;
             }
             else {
-                l= r - r->expr.nest_size;
+                l= r - r->expr.size;
             }
 
             ast_node* end_op = print_ast_node(cu, l);
@@ -135,7 +125,7 @@ static ast_node* print_ast_node(cunit* cu, ast_node* e){
             return end_op;
         }
         case EXPR_NODE_TYPE_FN_CALL:{
-            ast_node* end = e - e->expr.nest_size;
+            ast_node* end = e - e->expr.size;
             e--;
             printf(e->str);
             e--;
@@ -145,11 +135,11 @@ static ast_node* print_ast_node(cunit* cu, ast_node* e){
             return end;
         }
         case EXPR_NODE_TYPE_GENERIC_FN_CALL:{
-            ast_node* end = e - e->expr.nest_size;
+            ast_node* end = e - e->expr.size;
             e--;
             printf(e->str);
             e--;
-            ast_node* generic_args_rstart = e - e->expr.nest_size - 1;
+            ast_node* generic_args_rstart = e - e->expr.size - 1;
             e--;
             putchar('[');
             reverse_print_func_args(cu, generic_args_rstart, end);
@@ -172,7 +162,7 @@ static ast_node* print_ast_node(cunit* cu, ast_node* e){
     return e-2;
 }
 static inline ast_node* print_expr(cunit* cu, ast_node* expr){
-    ast_node* e = expr + expr->expr.nest_size - 1;
+    ast_node* e = expr + expr->expr.size - 1;
     print_ast_node(cu, e);
     return e+1;
 }
@@ -187,7 +177,7 @@ void print_ptrs(u8 ptrs){
 }
 ast_node* print_type(cunit* cu, ast_node* t);
 void reverse_print_type_list(cunit* cu, ast_node* start, ast_node* end){
-    ast_node* next = start - start->type.nest_size ;
+    ast_node* next = start - start->type.size ;
     if(next != end){
         reverse_print_type_list(cu, next, end);
         putchar(',');putchar(' ');
@@ -200,7 +190,7 @@ ast_node* print_type(cunit* cu, ast_node* t){
         print_ptrs(t->type.ptrs);
         return t + 1;
     }
-    ast_node* last = t - t->type.nest_size  + 1;
+    ast_node* last = t - t->type.size  + 1;
     ast_node* tn = t-1;
     switch (t->type.type){
         case AST_TYPE_TYPE_SCOPED:{
@@ -217,7 +207,7 @@ ast_node* print_type(cunit* cu, ast_node* t){
             putchar(']');
         }break;
         case AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT:{
-            ast_node* scopes_end = last + tn->type.nest_size ;
+            ast_node* scopes_end = last + tn->type.size ;
             for(ast_node* i = last; i!= scopes_end; i++){
                 fputs(i->str, stdout);
                 putchar(':');
@@ -228,7 +218,7 @@ ast_node* print_type(cunit* cu, ast_node* t){
             putchar(']');
         }break;
         case AST_TYPE_TYPE_FN_PTR:{
-            ast_node* ret = last + tn->type.nest_size -1;
+            ast_node* ret = last + tn->type.size -1;
             putchar('(');
             print_type(cu, ret);
              putchar(' ');putchar('(');
@@ -288,7 +278,7 @@ void print_ast(cunit* cu){
             case ASTNT_TYPEDEF:{
                 astn_typedef* t = (void*)astn;
                 printf("typedef %s ", t->tgt_type.str);
-                ast_node* tn = (ast_node*)(t+1) + t->nest_size;
+                ast_node* tn = (ast_node*)(t+1) + t->size;
                 astn = (void*)print_type(cu, tn);
                 putchar(';');
                 putchar('\n');

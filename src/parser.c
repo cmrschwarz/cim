@@ -138,24 +138,15 @@ static inline void flush_shy_op(cunit* cu, ast_node* s){
         default: its = 1; break;
     }
     for(int i = 0; i != its; i++){
-        if( expr_rit->expr.type== EXPR_NODE_TYPE_NUMBER ||
-            expr_rit->expr.type== EXPR_NODE_TYPE_VARIABLE ||
-            expr_rit->expr.type== EXPR_NODE_TYPE_LITERAL ||
-            expr_rit->expr.type== EXPR_NODE_TYPE_BINARY_LITERAL)
-        {
-            expr_rit-=2;
-        }
-        else{
-            expr_rit = expr_rit -expr_rit->op.nest_size;
-        }
+        expr_rit = expr_rit - expr_rit->expr.size;
     }
     //needs to be precomputed because the realloc might invalidate the expr_rit ptr
-    ast_rel_ptr nest_size = (ast_rel_ptr)((ast_node*)cu->ast.head - expr_rit);
+    ast_rel_ptr size = (ast_rel_ptr)((ast_node*)cu->ast.head - expr_rit);
     ast_node* e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
-    e->op.type = s->op.type;
+    e->op.expr_node_type = s->op.expr_node_type;
     e->op.opcode = s->op.opcode;
     //TODO: evaluate the necessity of this for single arg ops
-    e->op.nest_size = nest_size;
+    e->op.size = size;
     //this will hopefully be inlined and brought out of the loop
     cu->shy_ops.head -= sizeof(ast_node);
 }
@@ -198,6 +189,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_ex
         void_lookahead_token(cu);
         //short expression optimization
         ast_node* e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
+        (e+1)->expr.size = 2;
         if( t1.type == TOKEN_NUMBER ||
             t1.type == TOKEN_BINARY_LITERAL ||
             t1.type == TOKEN_LITERAL)
@@ -240,7 +232,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_ex
         expr_start = (u8*)expr - cu->ast.start;
     }
     else{
-        expr_start = dbuffer_get_size(&cu->ast) - sizeof(ast_node);
+        expr_start = dbuffer_get_size(&cu->ast);
     }
     ast_node* e;
     ast_node sop;
@@ -374,9 +366,10 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_ex
             case TOKEN_BINARY_LITERAL:
             {
                 assert(!expecting_op);
-                e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
+                e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
                 e->str = t1.str;
                 e++;
+                e->expr.size = 2;
                 e->expr.type= (u8)t1.type;
                 expecting_op = true;
             }break;
@@ -386,12 +379,13 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_ex
                 if (t2.type == TOKEN_PAREN_OPEN) {
                     void_lookahead_token(cu);
                     char* fn_name = t1.str;
-                    ureg fn_end= dbuffer_get_size(&cu->ast);
+                    ureg ast_size = dbuffer_get_size(&cu->ast);
                     parse_arg_list(cu, TOKEN_PAREN_CLOSE);
-                    e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
+                    e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
                     e->str = fn_name;
                     e++;
-                    e->expr.nest_size = (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - fn_end) / sizeof(ast_node));
+                    e->expr.size = (ast_rel_ptr)
+                            ((dbuffer_get_size(&cu->ast) - ast_size) / sizeof(ast_node));
                     e->expr.type= EXPR_NODE_TYPE_FN_CALL;
                 }
                 else if(t2.type == TOKEN_BRACKET_OPEN){
@@ -411,18 +405,18 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_ex
                                 ((dbuffer_get_size(&cu->ast) - generic_args_rstart) /
                                 sizeof(ast_node));
                         e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 3);
-                        e->expr.nest_size = arg_list_size;
+                        e->expr.size = arg_list_size;
                         e++;
                         e->str = el_name;
                         e++;
-                        e->expr.nest_size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - el_end) / sizeof(ast_node));
+                        e->expr.size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - el_end) / sizeof(ast_node));
                         e->expr.type= EXPR_NODE_TYPE_GENERIC_FN_CALL;
                     }
                     else{
                         e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
                         e->str= el_name;
                         e++;
-                        e->expr.nest_size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - el_end) / sizeof(ast_node));
+                        e->expr.size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - el_end) / sizeof(ast_node));
                         e->expr.type= EXPR_NODE_TYPE_ARRAY_ACCESS;
                     }
                 }
@@ -430,6 +424,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_ex
                     e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
                     e->str= t1.str;
                     e++;
+                    e->expr.size = 2;
                     e->expr.type= EXPR_NODE_TYPE_VARIABLE;
                 }
                 //true for all: fn call, var, array access and generic fn call
@@ -444,11 +439,11 @@ lbl_default:
                     }
                     if(!sub_expr){
                         expr = (ast_node*)(cu->ast.start + expr_start);
-                        expr->expr.nest_size = (ast_rel_ptr)((ast_node*)cu->ast.head - expr);
+                        expr->expr.size = (ast_rel_ptr)((ast_node*)cu->ast.head - expr);
                     }
                     else{
                         expr = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
-                        expr->top_level_expr.nest_size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - expr_start) / sizeof(ast_node));
+                        expr->top_level_expr.size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - expr_start) / sizeof(ast_node));
                         expr->top_level_expr.astnt = ASTNT_EXPRESSION;
                     }
                     return (t1.type == term1) ? 0 : 1;
@@ -502,9 +497,9 @@ static void parse_type(cunit* cu){
         consume_token(cu, &t1);
         CIM_ASSERT(t1.type == TOKEN_PAREN_CLOSE);
         tn = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
-        tn->type.nest_size = ret_type_size;
+        tn->type.size = ret_type_size;
         t = tn+1;
-        t->type.nest_size = (ast_rel_ptr)
+        t->type.size = (ast_rel_ptr)
                     (dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_node);
         t->type.type = AST_TYPE_TYPE_FN_PTR;
         t->type.ptrs = parse_ptrs(cu);
@@ -545,7 +540,7 @@ static void parse_type(cunit* cu){
             &cu->ast, sizeof(ast_node) * (2 + scoped));
         tn = scoped_str + scoped;
         t = (void*)(tn + 1);
-        t->type.nest_size  = (ast_rel_ptr)
+        t->type.size  = (ast_rel_ptr)
                     ((dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_node));
         t->type.type = (scoped) ? AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT :
                              AST_TYPE_TYPE_GENERIC_STRUCT;
@@ -554,7 +549,7 @@ static void parse_type(cunit* cu){
             scoped_str->str = t1.str;
             // -2 if not nested because the t and tn nodes are after ast_pos and we only capture
             //scope size
-            tn->type.nest_size  = (ast_rel_ptr)
+            tn->type.size  = (ast_rel_ptr)
                     ((post_scope_ast_pos - ast_pos) / sizeof(ast_node));
         }
         else{
@@ -565,7 +560,7 @@ static void parse_type(cunit* cu){
     tn = dbuffer_claim_small_space(
         &cu->ast, sizeof(ast_node) * 2);
     t = (void*)(tn + 1);
-    t->type.nest_size  = (ast_rel_ptr)
+    t->type.size  = (ast_rel_ptr)
             ((dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_node));
     tn->str = t1.str;
     // simple type
@@ -589,7 +584,7 @@ static int parse_typedef(cunit* cu, int mods){
     td->tgt_type.str = t.str;
     parse_type(cu);
     td = (void*)(cu->ast.start + ast_pos);
-    td->nest_size = (ast_rel_ptr)
+    td->size = (ast_rel_ptr)
             ((dbuffer_get_size(&cu->ast) - ast_pos - sizeof(astn_typedef))
              / sizeof(ast_node) - 1);
     consume_token(cu, &t);
