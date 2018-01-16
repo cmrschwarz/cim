@@ -218,11 +218,12 @@ ast_node* print_type(cunit* cu, ast_node* t){
             putchar(']');
         }break;
         case AST_TYPE_TYPE_FN_PTR:{
-            ast_node* ret = last + tn->type.size -1;
+            ast_node* args_start = (t-2);
+            ast_node* ret = args_start - tn->type.size;
             putchar('(');
             print_type(cu, ret);
              putchar(' ');putchar('(');
-            reverse_print_type_list(cu, (t-2), ret);
+            reverse_print_type_list(cu, args_start, ret);
             putchar(')');
             putchar(')');
         }break;

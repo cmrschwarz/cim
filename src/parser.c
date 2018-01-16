@@ -497,12 +497,12 @@ static void parse_type(cunit* cu){
         consume_token(cu, &t1);
         CIM_ASSERT(t1.type == TOKEN_PAREN_CLOSE);
         tn = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
-        tn->type.size = ret_type_size;
         t = tn+1;
         t->type.size = (ast_rel_ptr)
                     (dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_node);
         t->type.type = AST_TYPE_TYPE_FN_PTR;
         t->type.ptrs = parse_ptrs(cu);
+        tn->type.size = t->type.size - ret_type_size - 2;
         CIM_ASSERT(t->type.ptrs > 0);
         //doesnt have a name, not part of the type
         return;

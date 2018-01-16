@@ -10,7 +10,7 @@
 //astn stands for abstract syntax tree node
 //astnt stands for abstract systax tree node type
 //all nodes are at least aligned to a sizeof(ureg) byte boundary
-#define DEBUG_ENUMS 1
+#define DEBUG_ENUMS 0
 
 typedef uregh ast_rel_ptr;
 
