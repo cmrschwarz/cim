@@ -468,6 +468,9 @@ static u8 parse_ptrs(cunit* cu){
         }
     }
 }
+static bool parse_potential_type(cunit* cu){
+
+}
 //consider passing one token as param to significantly reduce peeking
 static void parse_type(cunit* cu){
     ureg ast_pos = dbuffer_get_size(&cu->ast);
@@ -476,37 +479,6 @@ static void parse_type(cunit* cu){
     token t1;
     token t2;
     consume_token(cu, &t1);
-    if(t1.type == TOKEN_PAREN_OPEN){
-        // function pointer
-        parse_type(cu);  //parse ret type
-        ast_rel_ptr ret_type_size = (ast_rel_ptr)
-                ((dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_node));
-        consume_token(cu, &t1);
-        CIM_ASSERT(t1.type == TOKEN_PAREN_OPEN);
-        peek_token(cu, &t2);
-        if(t2.type != TOKEN_PAREN_CLOSE){
-            do{
-                parse_type(cu);
-                consume_token(cu, &t2);
-            }while(t2.type == TOKEN_COMMA);
-            CIM_ASSERT(t2.type == TOKEN_PAREN_CLOSE);
-        }
-        else{
-             void_lookahead_token(cu); //get rid of the closing paren
-        }
-        consume_token(cu, &t1);
-        CIM_ASSERT(t1.type == TOKEN_PAREN_CLOSE);
-        tn = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
-        t = tn+1;
-        t->type.size = (ast_rel_ptr)
-                    (dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_node);
-        t->type.type = AST_TYPE_TYPE_FN_PTR;
-        t->type.ptrs = parse_ptrs(cu);
-        tn->type.size = t->type.size - ret_type_size - 2;
-        CIM_ASSERT(t->type.ptrs > 0);
-        //doesnt have a name, not part of the type
-        return;
-    }
     peek_token(cu, &t2);
     bool scoped= false;
     if(t2.type == TOKEN_COLON){
@@ -518,6 +490,7 @@ static void parse_type(cunit* cu){
             consume_token(cu, &t1);
             peek_token(cu, &t2);
         }while(t2.type == TOKEN_COLON);
+        //t2 is peeked during the loop
     }
     if(t2.type == TOKEN_BRACKET_OPEN){
         ureg post_scope_ast_pos = dbuffer_get_size(&cu->ast);
@@ -555,17 +528,55 @@ static void parse_type(cunit* cu){
         else{
             tn->str = t1.str;
         }
-        return;
+        peek_token(cu, &t2); //t2 peek is restored
     }
-    tn = dbuffer_claim_small_space(
+    else{
+        tn = dbuffer_claim_small_space(
         &cu->ast, sizeof(ast_node) * 2);
-    t = (void*)(tn + 1);
-    t->type.size  = (ast_rel_ptr)
-            ((dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_node));
-    tn->str = t1.str;
-    // simple type
-    t->type.type = scoped ? AST_TYPE_TYPE_SCOPED : AST_TYPE_TYPE_SIMPLE;
-    t->type.ptrs = parse_ptrs(cu);
+        t = (void*)(tn + 1);
+        t->type.size  = (ast_rel_ptr)
+                ((dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_node));
+        tn->str = t1.str;
+        // simple type
+        t->type.type = scoped ? AST_TYPE_TYPE_SCOPED : AST_TYPE_TYPE_SIMPLE;
+        t->type.ptrs = parse_ptrs(cu);
+        //t2 stays peeked
+    }
+    //loop because a function pointer might be the return type of a function pointer
+    while(t2.type == TOKEN_PAREN_OPEN){
+        peek_2nd_token(cu, &t1);
+        if(t1.type != TOKEN_STAR)return;
+        // function pointer
+        ast_rel_ptr ret_type_size = (ast_rel_ptr)
+                ((dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_node));
+        void_lookahead_token(cu);
+        void_lookahead_token(cu);
+        u8 ptrs = parse_ptrs(cu) + (u8)1;
+        consume_token(cu, &t1);
+        CIM_ASSERT(t1.type == TOKEN_PAREN_CLOSE);
+        consume_token(cu, &t1);
+        CIM_ASSERT(t1.type == TOKEN_PAREN_OPEN);
+        peek_token(cu, &t2);
+        if(t2.type != TOKEN_PAREN_CLOSE){
+            do{
+                parse_type(cu);
+                consume_token(cu, &t2);
+            }while(t2.type == TOKEN_COMMA);
+            CIM_ASSERT(t2.type == TOKEN_PAREN_CLOSE);
+        }
+        else{
+             void_lookahead_token(cu); //get rid of the closing paren
+        }
+        tn = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
+        t = tn+1;
+        t->type.size = (ast_rel_ptr)
+                    (dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_node);
+        t->type.type = AST_TYPE_TYPE_FN_PTR;
+        t->type.ptrs = ptrs;
+        tn->type.size = t->type.size - ret_type_size - 2;
+        //doesnt have a name, not part of the type
+        peek_token(cu, &t2);
+    }
 }
 static int parse_meta(cunit* cu, token* t1){
 
@@ -633,6 +644,7 @@ static inline int parse_elem(cunit* cu){
     peek_token(cu, &t1);
     switch(t1.type) {
         case TOKEN_STRING: {
+            //can only ever be a type decl with a leading string
             token t2;
             token t3;
             peek_2nd_token(cu, &t2);
@@ -645,13 +657,7 @@ static inline int parse_elem(cunit* cu){
                 if(t3.type == TOKEN_PAREN_OPEN)return parse_function(cu, mods);
                 return parse_var_declaration(cu, mods);
             }
-            else {
-                //this might be a pointer variable declaration like int* x;
-                //this is not lr1 parsable though. We assume expression because
-                //that requires more space. That way we can convert
-                //after symbol resolution and fill any blank space with noops
-                return parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
-            }
+            return parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
         }
         case TOKEN_HASH:
         case TOKEN_DOUBLE_HASH: {
@@ -662,7 +668,7 @@ static inline int parse_elem(cunit* cu){
             return 1;
         }
         default: {
-            CIM_ERROR("Unexpected Token");
+            return parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
         }
     }
 }

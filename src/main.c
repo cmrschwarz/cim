@@ -21,7 +21,7 @@ int main(){
         "typedef td scope:generic[scope:nested];"
         "typedef td scope:generic[nested_generic[x]];"
         "typedef td scope:generic[scoped:nested_generic[x]];"
-        "typedef td (void (int, float, generic[int]))*;";
+        "typedef td void(*)(char*) (*)(int);";
     printf("input:\n%s\n\n", input);
     for(int i=0;i<1;i++){
         parse(&cu, input);

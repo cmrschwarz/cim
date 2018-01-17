@@ -207,26 +207,30 @@ ast_node* print_type(cunit* cu, ast_node* t){
             putchar(']');
         }break;
         case AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT:{
-            ast_node* gen_args_start = t - 3;
-            ast_node* scopes_end = gen_args_start - tn->type.size;
+            ast_node* gen_args_rstart = t - 3;
+            ast_node* scopes_end = gen_args_rstart - tn->type.size;
             for(ast_node* i = last; i!= scopes_end; i++){
                 fputs(i->str, stdout);
                 putchar(':');
             }
             fputs((t-2)->str, stdout);
             putchar('[');
-            reverse_print_type_list(cu, gen_args_start, scopes_end);
+            reverse_print_type_list(cu, gen_args_rstart, scopes_end);
             putchar(']');
         }break;
         case AST_TYPE_TYPE_FN_PTR:{
             ast_node* args_start = (t-2);
             ast_node* ret = args_start - tn->type.size;
-            putchar('(');
             print_type(cu, ret);
-             putchar(' ');putchar('(');
+            putchar(' ');
+            putchar('(');
+            print_ptrs(t->type.ptrs);
+            putchar(')');
+            putchar('(');
             reverse_print_type_list(cu, args_start, ret);
             putchar(')');
-            putchar(')');
+
+            return t + 1;
         }break;
         default:CIM_ERROR("Unknown AST_TYPE_TYPE");
     }
