@@ -165,79 +165,23 @@ static inline void push_shy_op(cunit* cu, ast_node* sop, ast_node** sho_ri, ast_
     }
 }
 static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_expr);
-static inline ureg parse_arg_list(cunit* cu, token_type end_tok){
-    CIM_ASSERT(get_lookup_count(cu)  == 0)
+static inline ast_rel_ptr parse_arg_list(cunit* cu, token_type end_tok){
+    ureg ast_pos = dbuffer_get_size(&cu->ast);
     token t;
     peek_token(cu, &t);
     if(t.type == end_tok){
-        clear_lookahead(cu);
+        void_lookahead_token(cu);
         return 0;
     }
-    ureg its = 1;
-    while (parse_expr(cu, TOKEN_COMMA, end_tok, true) == 0){
-        its++;
-    }
-    return its;
+    while (parse_expr(cu, TOKEN_COMMA, end_tok, true) == 0);
+    return (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_node));
 }
-static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_expr){
-    token t1;
+static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bool sub_expr,
+                               ureg expr_start, ureg shy_ops_start, token t1, bool expecting_op)
+{
     token t2;
-    consume_token(cu, &t1);
-    peek_token(cu, &t2);
-    //printf("parsing expr (%llu)\n", POS(cu->ast.head));
-    if(t2.type == term1 || t2.type == term2){
-        void_lookahead_token(cu);
-        //short expression optimization
-        ast_node* e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
-        (e+1)->expr.size = 2;
-        if( t1.type == TOKEN_NUMBER ||
-            t1.type == TOKEN_BINARY_LITERAL ||
-            t1.type == TOKEN_LITERAL)
-        {
-            //reverse order for subexprs
-            if(!sub_expr){
-                e->expr.type = (expr_node_type)t1.type; //token type matches ASTNT type for these
-                e++;
-                e->str = t1.str;
-            }
-            else{
-                e->str = t1.str;
-                e++;
-                e->expr.type = (expr_node_type)t1.type; //token type matches expr elem type for these
-            }
-        }
-        else if(t1.type == TOKEN_STRING) {
-            if(!sub_expr){
-                e->expr.type= EXPR_NODE_TYPE_VARIABLE;
-                e++;
-                e->str = t1.str;
-            }
-            else{
-                e->str = t1.str;
-                e++;
-                e->expr.type = EXPR_NODE_TYPE_VARIABLE;
-            }
-        }
-        else{
-            CIM_ERROR("Unexpected Token");
-        }
-        return (t2.type == term1) ? 0 : 1;
-    }
-    ureg expr_start;
-    ast_node* expr;
-    if(!sub_expr){
-        //second one is for expression size
-        expr = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
-        expr->expr.type= EXPR_NODE_TYPE_EXPR;
-        expr_start = (u8*)expr - cu->ast.start;
-    }
-    else{
-        expr_start = dbuffer_get_size(&cu->ast);
-    }
     ast_node* e;
     ast_node sop;
-    ureg shy_ops_start = cu->shy_ops.head - cu->shy_ops.start;
-    bool expecting_op = false;
     u8 prec;
     ast_node* sho_re = (void*)(cu->shy_ops.start + shy_ops_start - sizeof(ast_node));
     ast_node* sho_ri = (void*)(cu->shy_ops.head - sizeof(ast_node));
@@ -437,14 +381,16 @@ lbl_default:
                     for(;sho_ri != sho_re; sho_ri--){
                         flush_shy_op(cu, sho_ri);
                     }
-                    if(!sub_expr){
-                        expr = (ast_node*)(cu->ast.start + expr_start);
-                        expr->expr.size = (ast_rel_ptr)((ast_node*)cu->ast.head - expr);
-                    }
-                    else{
+                    ast_node* expr;
+                    if(sub_expr){
                         expr = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
                         expr->top_level_expr.size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - expr_start) / sizeof(ast_node));
                         expr->top_level_expr.astnt = ASTNT_EXPRESSION;
+                    }
+                    else{
+                        expr = (ast_node*)(cu->ast.start + expr_start);
+                        expr->expr.size = (ast_rel_ptr)((ast_node*)cu->ast.head - expr);
+                        expr->expr.type = EXPR_NODE_TYPE_EXPR;
                     }
                     return (t1.type == term1) ? 0 : 1;
                 }
@@ -453,6 +399,55 @@ lbl_default:
         }
         consume_token(cu, &t1);
     }
+}
+static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_expr){
+    token t1;
+    token t2;
+    consume_token(cu, &t1);
+    peek_token(cu, &t2);
+    //printf("parsing expr (%llu)\n", POS(cu->ast.head));
+    if(t2.type == term1 || t2.type == term2){
+        void_lookahead_token(cu);
+        //short expression optimization
+        ast_node* e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
+        (e+1)->expr.size = 2;
+        if( t1.type == TOKEN_NUMBER ||
+            t1.type == TOKEN_BINARY_LITERAL ||
+            t1.type == TOKEN_LITERAL)
+        {
+            //reverse order for subexprs
+            if(!sub_expr){
+                e->expr.type = (expr_node_type)t1.type; //token type matches ASTNT type for these
+                e++;
+                e->str = t1.str;
+            }
+            else{
+                e->str = t1.str;
+                e++;
+                e->expr.type = (expr_node_type)t1.type; //token type matches expr elem type for these
+            }
+        }
+        else if(t1.type == TOKEN_STRING) {
+            if(!sub_expr){
+                e->expr.type= EXPR_NODE_TYPE_VARIABLE;
+                e++;
+                e->str = t1.str;
+            }
+            else{
+                e->str = t1.str;
+                e++;
+                e->expr.type = EXPR_NODE_TYPE_VARIABLE;
+            }
+        }
+        else{
+            CIM_ERROR("Unexpected Token");
+        }
+        return (t2.type == term1) ? 0 : 1;
+    }
+    ureg expr_start = dbuffer_get_size(&cu->ast);
+    if(!sub_expr)dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
+    ureg shy_ops_start = cu->shy_ops.head - cu->shy_ops.start;
+    continue_parse_expr(cu, term1, term2, sub_expr, expr_start, shy_ops_start, t1, false);
 }
 static u8 parse_ptrs(cunit* cu){
     token t1;
@@ -468,11 +463,8 @@ static u8 parse_ptrs(cunit* cu){
         }
     }
 }
-static bool parse_potential_type(cunit* cu){
-
-}
 //consider passing one token as param to significantly reduce peeking
-static void parse_type(cunit* cu){
+static ast_node* parse_type(cunit* cu){
     ureg ast_pos = dbuffer_get_size(&cu->ast);
     ast_node* t;
     ast_node* tn;
@@ -545,7 +537,7 @@ static void parse_type(cunit* cu){
     //loop because a function pointer might be the return type of a function pointer
     while(t2.type == TOKEN_PAREN_OPEN){
         peek_2nd_token(cu, &t1);
-        if(t1.type != TOKEN_STAR)return;
+        if(t1.type != TOKEN_STAR)break;
         // function pointer
         ast_rel_ptr ret_type_size = (ast_rel_ptr)
                 ((dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_node));
@@ -577,6 +569,7 @@ static void parse_type(cunit* cu){
         //doesnt have a name, not part of the type
         peek_token(cu, &t2);
     }
+    return t;
 }
 static int parse_meta(cunit* cu, token* t1){
 
@@ -602,7 +595,7 @@ static int parse_typedef(cunit* cu, int mods){
     CIM_ASSERT(t.type == TOKEN_SEMICOLON);
     return 0;
 }
-static int parse_function(cunit* cu, int mods){
+static int parse_function_decl_after_type(cunit *cu, int mods, ureg ast_start){
 
 }
 static int parse_var_declaration(cunit* cu, int mods){
@@ -639,6 +632,58 @@ static inline int parse_modifiers(cunit* cu, token* t){
     }
     return mods;
 }
+static void push_ptrs_for_expr(cunit* cu, u8 ptrs){
+     if(ptrs){
+        ast_node* sop = dbuffer_claim_small_space(&cu->shy_ops, sizeof(ast_node) * ptrs);
+        sop->op.opcode = OP_MULTIPLY;
+        sop->op.expr_node_type = EXPR_NODE_TYPE_OP_LR;
+        sop++;
+        while((void*)sop!= cu->shy_ops.head){
+            sop->op.expr_node_type = EXPR_NODE_TYPE_UNARY;
+            sop->op.opcode = OP_DEREFERENCE;
+        }
+    }
+}
+static inline int parse_leading_string(cunit* cu){
+    ureg ast_pos = dbuffer_get_size(&cu->ast);
+    dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
+    ast_node* t = parse_type(cu);
+    token t1, t2;
+    peek_token(cu, &t1);
+    if(t->type.type == AST_TYPE_TYPE_SIMPLE){
+        if(t1.type == TOKEN_STRING){
+            peek_2nd_token(cu, &t2);
+            if(t2.type == TOKEN_SEMICOLON){
+                clear_lookahead(cu);
+                //make this into a var declaration
+                return 0;
+            }
+            if(t2.type == TOKEN_PAREN_OPEN)return parse_function_decl_after_type(cu, 0, ast_pos);
+        }
+        if(t1.type == TOKEN_PAREN_OPEN && t->type.ptrs == 0){
+            void_lookahead_token(cu);
+            char* fn_name = (t-1)->str;
+            cu->ast.head = (void*)(t-1); //we have to override these nodes :(
+            ast_rel_ptr args_size = parse_arg_list(cu, TOKEN_PAREN_CLOSE);
+            ast_node* e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
+            e->str = fn_name;
+            e++;
+            e->expr.size = args_size + 2;
+            e->expr.type= EXPR_NODE_TYPE_FN_CALL;
+            consume_token(cu, &t1);
+            continue_parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false,
+                                ast_pos, dbuffer_get_size(&cu->shy_ops), t1, true);
+            return 0;
+        }
+        ureg shy_ops_pos = dbuffer_get_size(&cu->shy_ops);
+        t->expr.type = EXPR_NODE_TYPE_VARIABLE;
+        push_ptrs_for_expr(cu, t->type.ptrs);
+        void_lookahead_token(cu); //void lookahead for t1
+        return continue_parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false, ast_pos, shy_ops_pos, t1, t->type.ptrs == 0);
+
+    }
+    return parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
+}
 static inline int parse_elem(cunit* cu){
     token t1;
     peek_token(cu, &t1);
@@ -654,10 +699,15 @@ static inline int parse_elem(cunit* cu){
                 if(t1.str == KEYWORD_STRUCT)return parse_struct(cu, mods);
                 if(t1.str == KEYWORD_TYPEDEF)return parse_typedef(cu, mods);
                 peek_3rd_token(cu, &t3);
-                if(t3.type == TOKEN_PAREN_OPEN)return parse_function(cu, mods);
+                if(t3.type == TOKEN_PAREN_OPEN){
+                    ureg ast_pos = dbuffer_get_size(&cu->ast);
+                    dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
+                    parse_type(cu);
+                    return parse_function_decl_after_type(cu, mods, ast_pos);
+                };
                 return parse_var_declaration(cu, mods);
             }
-            return parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
+           return parse_leading_string(cu);
         }
         case TOKEN_HASH:
         case TOKEN_DOUBLE_HASH: {
