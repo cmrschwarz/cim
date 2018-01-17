@@ -12,7 +12,7 @@ int main(){
         "fn_call_with_params(4, var);"
         "fn_call_nested(4, nested_fn_call(4, 1, nest_3()));"
        // "generic_fn_call[int](4, nested_fn_call(2), empty_generic_nest[]());"
-        "random * expression + 4 * op_prec * (op - prec);"
+        "random * expression + 4 * op_prec && (parenthesis - prec);"
         //"generic_fn_call[int]() * x;"
         "typedef td x;"
         "typedef sc x:td;"

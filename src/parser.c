@@ -259,12 +259,23 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
             case TOKEN_DOUBLE_GREATER_THAN:
             case TOKEN_EQUALS:
             case TOKEN_DOUBLE_EQUALS:
+            case TOKEN_EXCLAMATION_MARK:
             case TOKEN_EXCLAMATION_MARK_EQUALS:
             case TOKEN_MINUS_EQUALS:
             case TOKEN_PLUS_EQUALS:
             case TOKEN_PERCENT:
             case TOKEN_PERCENT_EQUALS:
             case TOKEN_DOUBLE_GREATER_THAN_EQUALS:
+            case TOKEN_DOUBLE_AND:
+            case TOKEN_CARET:
+            case TOKEN_CARET_EQUALS:
+            case TOKEN_DOUBLE_CARET:
+            case TOKEN_PIPE:
+            case TOKEN_PIPE_EQUALS:
+            case TOKEN_DOUBLE_PIPE:
+
+            case TOKEN_TILDE:
+            case TOKEN_TILDE_EQUALS:
             case TOKEN_DOUBLE_LESS_THAN_EQUALS:{
                 //for these, the toke  type is set to be equal to the op type
                 sop.op.opcode = (u8)(t1.type);
