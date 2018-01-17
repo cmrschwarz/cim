@@ -21,7 +21,7 @@ int sbuffer_init(sbuffer* sb, ureg pages_per_segment);
 int sbuffer_fin(sbuffer* sb);
 sbuffer_segment* sbuffer_segment_create(ureg size);
 int sbuffer_segment_append(sbuffer* sb, ureg size);
-
+ureg sbuffer_get_size(sbuffer* sb);
 //Segmented Buffer Iterator -->sbi
 typedef struct sbi_s{
     sbuffer_segment* seg;

@@ -177,6 +177,7 @@ void print_ptrs(u8 ptrs){
 }
 ast_node* print_type(cunit* cu, ast_node* t);
 void reverse_print_type_list(cunit* cu, ast_node* start, ast_node* end){
+    if(start == end)return;
     ast_node* next = start - start->type.size ;
     if(next != end){
         reverse_print_type_list(cu, next, end);
@@ -237,25 +238,49 @@ ast_node* print_type(cunit* cu, ast_node* t){
     print_ptrs(t->type.ptrs);
     return t + 1;
 }
-void print_ast(cunit* cu){
-    u8* astn = (void*)cu->ast.start;
-    u8* end = (void*)cu->ast.head;
-    ureg indent = 0;
+void reverse_print_func_params(cunit* cu, ast_node* elem, ast_node* end){
+    if(elem == end)return;
+    elem-=1;
+    ast_node* nxt = elem - elem->expr.size;
+    if(nxt != end){
+        reverse_print_func_params(cu, nxt, end);
+        putchar(',');
+        putchar(' ');
+    }
+    print_type(cu, elem);
+    putchar(' ');
+    printf((elem+1)->str);
+}
+void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
     while(astn!=end){
-        switch(*astn){
-            case ASTNT_DECLARATION:{
+        switch(astn->top_level_expr.astnt){
+            case ASTNT_VARIABLE_DECLARATION:{
                 print_indent(indent);
-                astn_declaration* d = (void*)astn;
-                astn+= sizeof(*d);
-                printf(d->type);
+                ast_node* d = (void*)astn;
+                ast_node* l =  d + d->top_level_expr.size -1;
+                astn = l + 1;
+                print_type(cu, l-1);
                 putchar(' ');
-                printf(d->name);
-                if(d->assigning == false){
-                    putchar(';');
-                    putchar('\n');
-                    break;
-                }
-                fputs(" = ", stdout);
+                printf(l->str);
+                putchar(';');putchar('\n');
+            }break;
+            case ASTNT_FUNCTION_DECLARATION:{
+                print_indent(indent);
+                ast_node* d = (void*)astn;
+                ast_node* l =  d + d->top_level_expr.size -1;
+                ast_node* param_end = l-1;
+                ast_node* ret_type = param_end - param_end->expr.size - 1;
+                print_type(cu, ret_type);
+                putchar(' ');
+                printf(l->str);
+                putchar('(');
+                reverse_print_func_params(cu, param_end - 1, ret_type);
+                putchar(')');putchar('{');putchar('\n');
+                ast_node* block = l+1;
+                void* block_end = (u8*)(block + 1) + block->size;
+                print_ast_within(cu, indent + 1, block + 1, block_end);
+                putchar('}');
+                astn = block_end;
             }break;
             case ASTNT_EXPRESSION:{
                 astn = (void*)print_expr(cu, (void*)astn);
@@ -292,4 +317,7 @@ void print_ast(cunit* cu){
             default:CIM_ERROR("Unexpected ASTN");
         }
     }
+}
+void print_ast(cunit* cu){
+    print_ast_within(cu, 0, cu->ast.start, cu->ast.head);
 }

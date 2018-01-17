@@ -46,6 +46,16 @@ int sbuffer_fin(sbuffer* sb){
 #       endif
     }while(sb->last != NULL);
 }
+
+ureg sbuffer_get_size(sbuffer* sb){
+    ureg size = 0;
+    sbuffer_segment* s = sb->first;
+    do{
+        size+= s->head - s->start;
+        s = s->next;
+    }while(s!=NULL);
+    return size;
+}
 sbuffer_segment* sbuffer_segment_create(ureg size){
     sbuffer_segment* seg;
 #   ifdef __linux__

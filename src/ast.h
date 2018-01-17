@@ -10,7 +10,7 @@
 //astn stands for abstract syntax tree node
 //astnt stands for abstract systax tree node type
 //all nodes are at least aligned to a sizeof(ureg) byte boundary
-#define DEBUG_ENUMS 0
+#define DEBUG_ENUMS 1
 
 typedef uregh ast_rel_ptr;
 
@@ -23,7 +23,7 @@ typedef enum astnt_e{
     ASTNT_TYPEDEF,
     ASTNT_EXPRESSION,
     ASTNT_ASSIGNMENT,
-    ASTNT_DECLARATION,
+    ASTNT_VARIABLE_DECLARATION,
     ASTNT_FUNCTION_DECLARATION,
 }astnt;
 
@@ -62,7 +62,7 @@ typedef enum expr_node_type_t{
 typedef union ast_node_u{
     struct {
 #       if DEBUG_ENUMS
-            astnt astnt;
+            enum astnt_e astnt;
             operation _padding_;
 #       else
             u8 astnt;
@@ -102,6 +102,7 @@ typedef union ast_node_u{
         ast_rel_ptr size;
     }type;
     char* str;
+    ureg size;
 }ast_node;
 
 typedef struct astn_assignment_t{
@@ -109,12 +110,6 @@ typedef struct astn_assignment_t{
     u16 ptrs;
 }astn_assignment;
 
-typedef struct astn_declaration_t{
-    u8 astnt;
-    bool assigning;
-    char* type;
-    char* name;
-}astn_declaration;
 typedef struct astn_typedef_s{
     u8 astnt;
     ast_rel_ptr size;

@@ -129,6 +129,9 @@ void cunit_fin(cunit* cu){
 	dbuffer_fin(&cu->ast);
     dbuffer_fin(&cu->shy_ops);
 }
+static inline ast_rel_ptr get_ast_growth(cunit* cu, ureg ast_start){
+    return (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - ast_start) / sizeof(ast_node));
+}
 static inline void flush_shy_op(cunit* cu, ast_node* s){
     ast_node* expr_rit =  (void*)(cu->ast.head - sizeof(ast_node));
     int its;
@@ -606,30 +609,46 @@ static int parse_typedef(cunit* cu, int mods){
     CIM_ASSERT(t.type == TOKEN_SEMICOLON);
     return 0;
 }
+static int parse_elem(cunit* cu);
 static int parse_function_decl_after_type(cunit *cu, int mods, ureg ast_start){
-
-}
-static int parse_var_declaration(cunit* cu, int mods){
-    token t1;
-    token t2;
+    token t1, t2;
     consume_token(cu, &t1);
     consume_token(cu, &t2);
-    astn_declaration* d = dbuffer_claim_small_space(&cu->ast, sizeof(astn_declaration));
-    d->astnt = ASTNT_DECLARATION;
-    d->type = t1.str;
-    d->name = t2.str;
-    consume_token(cu, &t1);
-    if(t1.type == TOKEN_SEMICOLON){
-        d->assigning = false;
-    }
-    else if(t1.type == TOKEN_EQUALS){
-        clear_lookahead(cu);
-        d->assigning = true;
-        return parse_expr(cu, TOKEN_SEMICOLON,TOKEN_SEMICOLON, false);
+    CIM_ASSERT(t2.type == TOKEN_PAREN_OPEN);
+    ureg ast_pos_pre_params = dbuffer_get_size(&cu->ast);
+    peek_token(cu, &t2);
+    if(t2.type != TOKEN_PAREN_CLOSE){
+        do{
+            parse_type(cu);
+            ast_node* n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
+            consume_token(cu, &t2);
+            CIM_ASSERT(t2.type == TOKEN_STRING);
+            n->str = t2.str;
+            consume_token(cu, &t2);
+        }while(t2.type == TOKEN_COMMA);
+        CIM_ASSERT(t2.type == TOKEN_PAREN_CLOSE);
     }
     else{
-       CIM_ERROR("Unexpected token");
+        void_lookahead_token(cu);
     }
+    ast_node* s = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 3);
+    s->expr.size = get_ast_growth(cu, ast_pos_pre_params) - 3;
+    s++;
+    s->str = t1.str;
+
+    s = (ast_node*)(cu->ast.start + ast_start);
+    s->top_level_expr.astnt = ASTNT_FUNCTION_DECLARATION;
+    s->top_level_expr.size = get_ast_growth(cu, ast_start) - 1;
+    ast_start = dbuffer_get_size(&cu->ast);
+    consume_token(cu, &t1);
+    CIM_ASSERT(t1.type == TOKEN_BRACE_OPEN);
+    int r;
+    do{
+      r = parse_elem(cu);
+    } while(r == 0);
+    CIM_ASSERT(r == 2);
+    s = (ast_node*)(cu->ast.start + ast_start)-1;
+    s->size = dbuffer_get_size(&cu->ast) - ast_start;
     return 0;
 }
 static inline int parse_modifiers(cunit* cu, token* t){
@@ -666,7 +685,11 @@ static inline int parse_leading_string(cunit* cu){
             peek_2nd_token(cu, &t2);
             if(t2.type == TOKEN_SEMICOLON){
                 clear_lookahead(cu);
-                //make this into a var declaration
+                ast_node* n = (ast_node*)(cu->ast.start + ast_pos);
+                n->top_level_expr.astnt = ASTNT_VARIABLE_DECLARATION;
+                n->top_level_expr.size = (ast_rel_ptr)(t - n + 2);
+                n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
+                n->str = t1.str;
                 return 0;
             }
             if(t2.type == TOKEN_PAREN_OPEN)return parse_function_decl_after_type(cu, 0, ast_pos);
@@ -716,7 +739,7 @@ static inline int parse_elem(cunit* cu){
                     parse_type(cu);
                     return parse_function_decl_after_type(cu, mods, ast_pos);
                 };
-                return parse_var_declaration(cu, mods);
+                return parse_leading_string(cu); //TODO: implement this branch
             }
            return parse_leading_string(cu);
         }
@@ -727,6 +750,10 @@ static inline int parse_elem(cunit* cu){
         case TOKEN_EOF: {
             clear_lookahead(cu);
             return 1;
+        }
+        case TOKEN_BRACE_CLOSE:{
+            void_lookahead_token(cu);
+            return 2;
         }
         default: {
             return parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
