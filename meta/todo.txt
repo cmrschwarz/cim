@@ -1,0 +1,42 @@
+-Parsing
+	-finish parse_leading_string
+		-generic function calls
+		-generic funtion declarations
+		-generic struct variable declarations
+		-array accesses
+	
+	-struct parsing
+	-scoped / typed function call parsing
+	-scoped / typed variable access parsing
+	-namespaces 
+	-switch, if, for, while, do parsing
+	-unions
+	-generic structs
+	-meta #
+	-modifiers
+		-inline, unlikely, likely, public, const, 
+	-implement hash table
+	-change string store to use hash table
+	-error messages	
+	-exceptions?
+
+-Type System etc.
+	-decide the data structures to use (hash table, linked list, all in one, etc.)
+	-start implementing implement type system
+	-add usable error messages
+	-add special (meta?)functions
+		-sizeof
+		-typeof
+		-offsetof
+		-alignof?
+		-#paste{
+		-assert
+		
+	
+LONG TERM
+	-implement interpreter
+	-implement compiler to C
+	-implement compiler to LLVM
+	-implement compiler to Assembly
+	-implement Optimizer (inlining,)
+		
