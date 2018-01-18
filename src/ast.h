@@ -10,11 +10,11 @@
 //astn stands for abstract syntax tree node
 //astnt stands for abstract systax tree node type
 //all nodes are at least aligned to a sizeof(ureg) byte boundary
-#define DEBUG_ENUMS 1
+#define DEBUG_ENUMS 0
 
 typedef uregh ast_rel_ptr;
 
-typedef enum astnt_e{
+enum ast_node_type_e{
     //used instead of a single element expression
     ASTNT_NUMBER = TOKEN_NUMBER,
     ASTNT_LITERAL = TOKEN_LITERAL,
@@ -25,19 +25,19 @@ typedef enum astnt_e{
     ASTNT_ASSIGNMENT,
     ASTNT_VARIABLE_DECLARATION,
     ASTNT_FUNCTION_DECLARATION,
-}astnt;
+};
 
-typedef enum type_node_type_e{
+enum type_node_type_e{
     //TODO: maybe we need to make a resolved mask in here
     AST_TYPE_TYPE_SIMPLE,
     AST_TYPE_TYPE_SCOPED,
     AST_TYPE_TYPE_FN_PTR, //if it's referencing a fn_ptr, that looks like simple
     AST_TYPE_TYPE_GENERIC_STRUCT,
     AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT,
-}type_node_type;
+};
 
 
-typedef enum expr_node_type_t{
+enum expr_node_type_t{
     EXPR_NODE_TYPE_NUMBER = TOKEN_NUMBER,
     EXPR_NODE_TYPE_LITERAL = TOKEN_LITERAL,
     EXPR_NODE_TYPE_BINARY_LITERAL = TOKEN_BINARY_LITERAL,
@@ -51,54 +51,40 @@ typedef enum expr_node_type_t{
     EXPR_NODE_TYPE_FN_CALL,
     EXPR_NODE_TYPE_ARRAY_ACCESS,
     EXPR_NODE_TYPE_GENERIC_FN_CALL,
-}expr_node_type;
+};
+
 
 #if DEBUG_ENUMS
-    enum ptrs_e{
-        CIM___PTRS_DUMMY_ENUM
-    };
+    typedef enum ast_node_type_e ast_node_type;
+    typedef enum type_node_type_e type_node_type;
+    typedef enum expr_node_type_t expr_node_type;
+#else
+    typedef u8 ast_node_type;
+    typedef u8 type_node_type;
+    typedef u8 expr_node_type;
 #endif
 
 typedef union ast_node_u{
+    //ast_expr, sub_expr and op must have identical memory layout
+    //because flush_shy_op just uses sub_expr.size for all three
     struct {
-#       if DEBUG_ENUMS
-            enum astnt_e astnt;
-            operation _padding_;
-#       else
-            u8 astnt;
-            u8 _padding_;
-#       endif
+        ast_node_type astnt;
+        operation _padding_;
         ast_rel_ptr size;
-    }top_level_expr;
+    }ast_expr;
     struct {
-#       if DEBUG_ENUMS
-            expr_node_type type;
-            operation _padding_;
-#       else
-            u8 type;
-            u8 _padding_;
-#       endif
+        expr_node_type type;
+        operation _padding_;
         ast_rel_ptr size;
-    }expr;
+    }sub_expr;
     struct {
-#       if DEBUG_ENUMS
-            expr_node_type expr_node_type;
-            operation opcode;
-#       else
-            u8 expr_node_type;
-            u8 opcode;
-#       endif
+        expr_node_type expr_node_type;
+        operation opcode;
         ast_rel_ptr size;
     }op;
     struct{
-#       if DEBUG_ENUMS
-            type_node_type type;
-            //to restore identical memory layout to other structs in the union
-            enum ptrs_e ptrs;
-#       else
-            u8 type;
-            u8 ptrs;
-#       endif
+        type_node_type type;
+        u8 ptrs;
         ast_rel_ptr size;
     }type;
     char* str;

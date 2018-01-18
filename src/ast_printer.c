@@ -6,7 +6,7 @@
 static ast_node* print_ast_node(cunit* cu, ast_node* e);
 void reverse_print_func_args(cunit* cu, ast_node* elem, ast_node* end){
     if(elem == end)return;
-    ast_node* nxt = elem - elem->expr.size;
+    ast_node* nxt = elem - elem->sub_expr.size;
     if(nxt != end){
         reverse_print_func_args(cu, nxt, end);
         putchar(',');
@@ -70,7 +70,7 @@ void print_op(u8 op){
 	}
 }
 static ast_node* print_ast_node(cunit* cu, ast_node* e){
-    switch(e->expr.type){
+    switch(e->sub_expr.type){
         case EXPR_NODE_TYPE_NUMBER:
         case EXPR_NODE_TYPE_VARIABLE:
             printf((e-1)->str);
@@ -85,15 +85,15 @@ static ast_node* print_ast_node(cunit* cu, ast_node* e){
             putchar('(');
             ast_node* r = (void*)(e-1);
             ast_node* l;
-            if( r->expr.type == EXPR_NODE_TYPE_NUMBER ||
-                r->expr.type == EXPR_NODE_TYPE_VARIABLE ||
-                r->expr.type == EXPR_NODE_TYPE_LITERAL ||
-                r->expr.type == EXPR_NODE_TYPE_BINARY_LITERAL)
+            if( r->sub_expr.type == EXPR_NODE_TYPE_NUMBER ||
+                r->sub_expr.type == EXPR_NODE_TYPE_VARIABLE ||
+                r->sub_expr.type == EXPR_NODE_TYPE_LITERAL ||
+                r->sub_expr.type == EXPR_NODE_TYPE_BINARY_LITERAL)
             {
                 l = r-2;
             }
             else {
-                l= r - r->expr.size;
+                l= r - r->sub_expr.size;
             }
 
             ast_node* end_op = print_ast_node(cu, l);
@@ -125,7 +125,7 @@ static ast_node* print_ast_node(cunit* cu, ast_node* e){
             return end_op;
         }
         case EXPR_NODE_TYPE_FN_CALL:{
-            ast_node* end = e - e->expr.size;
+            ast_node* end = e - e->sub_expr.size;
             e--;
             printf(e->str);
             e--;
@@ -135,11 +135,11 @@ static ast_node* print_ast_node(cunit* cu, ast_node* e){
             return end;
         }
         case EXPR_NODE_TYPE_GENERIC_FN_CALL:{
-            ast_node* end = e - e->expr.size;
+            ast_node* end = e - e->sub_expr.size;
             e--;
             printf(e->str);
             e--;
-            ast_node* generic_args_rstart = e - e->expr.size - 1;
+            ast_node* generic_args_rstart = e - e->sub_expr.size - 1;
             e--;
             putchar('[');
             reverse_print_func_args(cu, generic_args_rstart, end);
@@ -162,7 +162,7 @@ static ast_node* print_ast_node(cunit* cu, ast_node* e){
     return e-2;
 }
 static inline ast_node* print_expr(cunit* cu, ast_node* expr){
-    ast_node* e = expr + expr->expr.size - 1;
+    ast_node* e = expr + expr->sub_expr.size - 1;
     print_ast_node(cu, e);
     return e+1;
 }
@@ -241,7 +241,7 @@ ast_node* print_type(cunit* cu, ast_node* t){
 void reverse_print_func_params(cunit* cu, ast_node* elem, ast_node* end){
     if(elem == end)return;
     elem-=1;
-    ast_node* nxt = elem - elem->expr.size;
+    ast_node* nxt = elem - elem->type.size;
     if(nxt != end){
         reverse_print_func_params(cu, nxt, end);
         putchar(',');
@@ -253,30 +253,30 @@ void reverse_print_func_params(cunit* cu, ast_node* elem, ast_node* end){
 }
 void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
     while(astn!=end){
-        switch(astn->top_level_expr.astnt){
+        switch(astn->ast_expr.astnt){
             case ASTNT_VARIABLE_DECLARATION:{
                 print_indent(indent);
-                ast_node* d = (void*)astn;
-                ast_node* l =  d + d->top_level_expr.size -1;
-                astn = l + 1;
-                print_type(cu, l-1);
+                ast_node* decl = (void*)astn;
+                ast_node* name =  decl + decl->ast_expr.size -1;
+                astn = name + 1;
+                print_type(cu, name-1);
                 putchar(' ');
-                printf(l->str);
+                printf(name->str);
                 putchar(';');putchar('\n');
             }break;
             case ASTNT_FUNCTION_DECLARATION:{
                 print_indent(indent);
-                ast_node* d = (void*)astn;
-                ast_node* l =  d + d->top_level_expr.size -1;
-                ast_node* param_end = l-1;
-                ast_node* ret_type = param_end - param_end->expr.size - 1;
+                ast_node* decl = (void*)astn;
+                ast_node* fn_name =  decl + decl->ast_expr.size -1;
+                ast_node* params_size = fn_name-1;
+                ast_node* ret_type = params_size - params_size->ast_expr.size - 1;
                 print_type(cu, ret_type);
                 putchar(' ');
-                printf(l->str);
+                printf(fn_name->str);
                 putchar('(');
-                reverse_print_func_params(cu, param_end - 1, ret_type);
+                reverse_print_func_params(cu, params_size - 1, ret_type);
                 putchar(')');putchar('{');putchar('\n');
-                ast_node* block = l+1;
+                ast_node* block = fn_name+1;
                 void* block_end = (u8*)(block + 1) + block->size;
                 print_ast_within(cu, indent + 1, block + 1, block_end);
                 putchar('}');
@@ -319,5 +319,5 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
     }
 }
 void print_ast(cunit* cu){
-    print_ast_within(cu, 0, cu->ast.start, cu->ast.head);
+    print_ast_within(cu, 0, (void*)cu->ast.start, (void*)cu->ast.head);
 }
