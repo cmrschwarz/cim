@@ -6,10 +6,7 @@
 #define TO_U8(i)((u8)((i) & 0xFF))
 #define TO_CHAR(i)((char)((i) & 0xFF))
 #define TO_UREG(c)((ureg)(c))
-//ast stands for abstract syntax tree
-//astn stands for abstract syntax tree node
-//astnt stands for abstract systax tree node type
-//all nodes are at least aligned to a sizeof(ureg) byte boundary
+
 #define DEBUG_ENUMS 0
 
 typedef uregh ast_rel_ptr;
@@ -68,7 +65,7 @@ typedef union ast_node_u{
     //ast_expr, sub_expr and op must have identical memory layout
     //because flush_shy_op just uses sub_expr.size for all three
     struct {
-        ast_node_type astnt;
+        ast_node_type type;
         operation _padding_;
         ast_rel_ptr size;
     }ast_expr;
@@ -92,18 +89,18 @@ typedef union ast_node_u{
 }ast_node;
 
 typedef struct astn_assignment_t{
-    u8 astnt;
+    u8 type;
     u16 ptrs;
 }astn_assignment;
 
 typedef struct astn_typedef_s{
-    u8 astnt;
+    u8 type;
     ast_rel_ptr size;
     ast_node tgt_type;
 }astn_typedef;
 
 typedef struct astn_function_call_t{
-    u8 astnt;
+    u8 type;
     ureg arg_count;
 }astn_function_call;
 

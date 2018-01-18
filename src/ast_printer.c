@@ -253,7 +253,7 @@ void reverse_print_func_params(cunit* cu, ast_node* elem, ast_node* end){
 }
 void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
     while(astn!=end){
-        switch(astn->ast_expr.astnt){
+        switch(astn->ast_expr.type){
             case ASTNT_VARIABLE_DECLARATION:{
                 print_indent(indent);
                 ast_node* decl = (void*)astn;

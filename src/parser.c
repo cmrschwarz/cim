@@ -399,7 +399,7 @@ lbl_default:
                     if(sub_expr){
                         expr = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
                         expr->ast_expr.size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - expr_start) / sizeof(ast_node));
-                        expr->ast_expr.astnt = ASTNT_EXPRESSION;
+                        expr->ast_expr.type = ASTNT_EXPRESSION;
                     }
                     else{
                         expr = (ast_node*)(cu->ast.start + expr_start);
@@ -596,7 +596,7 @@ static int parse_typedef(cunit* cu, int mods){
     void_lookahead_token(cu);
     ureg ast_pos = dbuffer_get_size(&cu->ast);
     astn_typedef* td = dbuffer_claim_small_space(&cu->ast, sizeof(astn_typedef));
-    td->astnt = ASTNT_TYPEDEF;
+    td->type = ASTNT_TYPEDEF;
     token t;
     consume_token(cu, &t);
     td->tgt_type.str = t.str;
@@ -637,7 +637,7 @@ static int parse_function_decl_after_type(cunit *cu, int mods, ureg ast_start){
     s->str = t1.str;
 
     s = (ast_node*)(cu->ast.start + ast_start);
-    s->ast_expr.astnt = ASTNT_FUNCTION_DECLARATION;
+    s->ast_expr.type = ASTNT_FUNCTION_DECLARATION;
     s->ast_expr.size = get_ast_growth(cu, ast_start) - 1;
     ast_start = dbuffer_get_size(&cu->ast);
     consume_token(cu, &t1);
@@ -686,7 +686,7 @@ static inline int parse_leading_string(cunit* cu){
             if(t2.type == TOKEN_SEMICOLON){
                 clear_lookahead(cu);
                 ast_node* n = (ast_node*)(cu->ast.start + ast_pos);
-                n->ast_expr.astnt = ASTNT_VARIABLE_DECLARATION;
+                n->ast_expr.type = ASTNT_VARIABLE_DECLARATION;
                 n->ast_expr.size = (ast_rel_ptr)(t - n + 2);
                 n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
                 n->str = t1.str;
