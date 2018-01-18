@@ -3,7 +3,7 @@
 #include "error.h"
 #include "ast.h"
 
-static ast_node* print_ast_node(cunit* cu, ast_node* e);
+static ast_node* print_expr_node(cunit *cu, ast_node *e);
 void reverse_print_func_args(cunit* cu, ast_node* elem, ast_node* end){
     if(elem == end)return;
     ast_node* nxt = elem - elem->sub_expr.size;
@@ -12,7 +12,7 @@ void reverse_print_func_args(cunit* cu, ast_node* elem, ast_node* end){
         putchar(',');
         putchar(' ');
     }
-    print_ast_node(cu, elem);
+    print_expr_node(cu, elem);
 }
 void print_literal(cunit* cu, char* str){
     putchar('\"');
@@ -69,7 +69,7 @@ void print_op(u8 op){
         default:CIM_ERROR("Unknown token");
 	}
 }
-static ast_node* print_ast_node(cunit* cu, ast_node* e){
+static ast_node* print_expr_node(cunit *cu, ast_node *e){
     switch(e->sub_expr.type){
         case EXPR_NODE_TYPE_NUMBER:
         case EXPR_NODE_TYPE_VARIABLE:
@@ -96,21 +96,21 @@ static ast_node* print_ast_node(cunit* cu, ast_node* e){
                 l= r - r->sub_expr.size;
             }
 
-            ast_node* end_op = print_ast_node(cu, l);
+            ast_node* end_op = print_expr_node(cu, l);
             putchar(' ');
             print_op(e->op.opcode);
             putchar(' ');
-            print_ast_node(cu, r);
+            print_expr_node(cu, r);
             putchar(')');
             return end_op;
         }
         case EXPR_NODE_TYPE_EXPR:{
-            return print_ast_node(cu, e-1);
+            return print_expr_node(cu, e - 1);
         }
         case EXPR_NODE_TYPE_OP_R:{
             putchar('(');
             ast_node *u = e - 1;
-            ast_node* end_op = print_ast_node(cu, u);
+            ast_node* end_op = print_expr_node(cu, u);
             print_op(e->op.opcode);
             putchar(')');
             return end_op;
@@ -120,7 +120,7 @@ static ast_node* print_ast_node(cunit* cu, ast_node* e){
             putchar('(');
             ast_node *u = e - 1;
             print_op(e->op.opcode);
-            ast_node* end_op = print_ast_node(cu, u);
+            ast_node* end_op = print_expr_node(cu, u);
             putchar(')');
             return end_op;
         }
@@ -153,7 +153,7 @@ static ast_node* print_ast_node(cunit* cu, ast_node* e){
             printf(e->str);
             e--;
             putchar('[');
-            e = print_ast_node(cu, e);
+            e = print_expr_node(cu, e);
             putchar(']');
             return e;
         }
@@ -163,7 +163,7 @@ static ast_node* print_ast_node(cunit* cu, ast_node* e){
 }
 static inline ast_node* print_expr(cunit* cu, ast_node* expr){
     ast_node* e = expr + expr->sub_expr.size - 1;
-    print_ast_node(cu, e);
+    print_expr_node(cu, e);
     return e+1;
 }
 
@@ -253,9 +253,9 @@ void reverse_print_func_params(cunit* cu, ast_node* elem, ast_node* end){
 }
 void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
     while(astn!=end){
+        print_indent(indent);
         switch(astn->ast_expr.type){
             case ASTNT_VARIABLE_DECLARATION:{
-                print_indent(indent);
                 ast_node* decl = (void*)astn;
                 ast_node* name =  decl + decl->ast_expr.size -1;
                 astn = name + 1;
@@ -265,7 +265,6 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
                 putchar(';');putchar('\n');
             }break;
             case ASTNT_FUNCTION_DECLARATION:{
-                print_indent(indent);
                 ast_node* decl = (void*)astn;
                 ast_node* fn_name =  decl + decl->ast_expr.size -1;
                 ast_node* params_size = fn_name-1;
@@ -285,26 +284,6 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
             case ASTNT_EXPRESSION:{
                 astn = (void*)print_expr(cu, (void*)astn);
                 puts(";");
-            }break;
-            case ASTNT_VARIABLE:
-            case ASTNT_NUMBER:{
-                ast_node* n = (void*)astn;
-                astn+= sizeof(*n) * 2;
-                printf((n+1)->str);
-                putchar(';');
-                putchar('\n');
-            }break;
-            case ASTNT_LITERAL:{
-                ast_node* e = (void*)astn;
-                print_literal(cu, (e+1)->str);
-                putchar(';');
-                putchar('\n');
-            }break;
-            case ASTNT_BINARY_LITERAL:{
-                ast_node* e = (void*)astn;
-                print_binary_literal(cu, (e+1)->str);
-                putchar(';');
-                putchar('\n');
             }break;
             case ASTNT_TYPEDEF:{
                 astn_typedef* t = (void*)astn;

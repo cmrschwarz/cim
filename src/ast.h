@@ -22,6 +22,7 @@ enum ast_node_type_e{
     ASTNT_ASSIGNMENT,
     ASTNT_VARIABLE_DECLARATION,
     ASTNT_FUNCTION_DECLARATION,
+    //@PERF: consider adding function call to avoid expr wrapper
 };
 
 enum type_node_type_e{
@@ -55,10 +56,12 @@ enum expr_node_type_t{
     typedef enum ast_node_type_e ast_node_type;
     typedef enum type_node_type_e type_node_type;
     typedef enum expr_node_type_t expr_node_type;
+    typedef enum operation_e operation;
 #else
     typedef u8 ast_node_type;
     typedef u8 type_node_type;
     typedef u8 expr_node_type;
+    typedef u8 operation;
 #endif
 
 typedef union ast_node_u{
@@ -75,7 +78,7 @@ typedef union ast_node_u{
         ast_rel_ptr size;
     }sub_expr;
     struct {
-        expr_node_type expr_node_type;
+        expr_node_type node_type; //avoiding confusion with opcode
         operation opcode;
         ast_rel_ptr size;
     }op;
@@ -84,23 +87,27 @@ typedef union ast_node_u{
         u8 ptrs;
         ast_rel_ptr size;
     }type;
+    struct type_define{
+        ast_node_type type;
+        ast_rel_ptr size;
+    };
     char* str;
     ureg size;
 }ast_node;
 
 typedef struct astn_assignment_t{
-    u8 type;
+    ast_node_type type;
     u16 ptrs;
 }astn_assignment;
 
 typedef struct astn_typedef_s{
-    u8 type;
+    ast_node_type type;
     ast_rel_ptr size;
     ast_node tgt_type;
 }astn_typedef;
 
 typedef struct astn_function_call_t{
-    u8 type;
+    ast_node_type type;
     ureg arg_count;
 }astn_function_call;
 

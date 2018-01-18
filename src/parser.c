@@ -146,7 +146,7 @@ static inline void flush_shy_op(cunit* cu, ast_node* s){
     //needs to be precomputed because the realloc might invalidate the expr_rit ptr
     ast_rel_ptr size = (ast_rel_ptr)((ast_node*)cu->ast.head - expr_rit);
     ast_node* e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
-    e->op.expr_node_type = s->op.expr_node_type;
+    e->op.node_type = s->op.node_type;
     e->op.opcode = s->op.opcode;
     //TODO: evaluate the necessity of this for single arg ops
     e->op.size = size;
@@ -666,10 +666,10 @@ static void push_ptrs_for_expr(cunit* cu, u8 ptrs){
      if(ptrs){
         ast_node* sop = dbuffer_claim_small_space(&cu->shy_ops, sizeof(ast_node) * ptrs);
         sop->op.opcode = OP_MULTIPLY;
-        sop->op.expr_node_type = EXPR_NODE_TYPE_OP_LR;
+        sop->op.node_type = EXPR_NODE_TYPE_OP_LR;
         sop++;
         while((void*)sop!= cu->shy_ops.head){
-            sop->op.expr_node_type = EXPR_NODE_TYPE_UNARY;
+            sop->op.node_type = EXPR_NODE_TYPE_UNARY;
             sop->op.opcode = OP_DEREFERENCE;
         }
     }
@@ -684,6 +684,7 @@ static inline int parse_leading_string(cunit* cu){
         if(t1.type == TOKEN_STRING){
             peek_2nd_token(cu, &t2);
             if(t2.type == TOKEN_SEMICOLON){
+                //simple var declaration
                 clear_lookahead(cu);
                 ast_node* n = (ast_node*)(cu->ast.start + ast_pos);
                 n->ast_expr.type = ASTNT_VARIABLE_DECLARATION;
@@ -695,6 +696,7 @@ static inline int parse_leading_string(cunit* cu){
             if(t2.type == TOKEN_PAREN_OPEN)return parse_function_decl_after_type(cu, 0, ast_pos);
         }
         if(t1.type == TOKEN_PAREN_OPEN && t->type.ptrs == 0){
+            //function call
             void_lookahead_token(cu);
             char* fn_name = (t-1)->str;
             cu->ast.head = (void*)(t-1); //we have to override these nodes :(
@@ -709,12 +711,27 @@ static inline int parse_leading_string(cunit* cu){
                                 ast_pos, dbuffer_get_size(&cu->shy_ops), t1, true);
             return 0;
         }
+        //expression
         ureg shy_ops_pos = dbuffer_get_size(&cu->shy_ops);
         t->sub_expr.type = EXPR_NODE_TYPE_VARIABLE;
         push_ptrs_for_expr(cu, t->type.ptrs);
         void_lookahead_token(cu); //void lookahead for t1
         return continue_parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false, ast_pos, shy_ops_pos, t1, t->type.ptrs == 0);
-
+    }
+    else if(t->type.type == AST_TYPE_TYPE_SCOPED){
+        if(t1.type == TOKEN_STRING) {
+            peek_2nd_token(cu, &t2);
+            if(t2.type == TOKEN_PAREN_OPEN)return parse_function_decl_after_type(cu, 0, ast_pos);
+        }
+    }
+    else if(t->type.type == AST_TYPE_TYPE_GENERIC_STRUCT ||
+            t->type.type == AST_TYPE_TYPE_FN_PTR ||
+            t->type.type == AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT)
+    {
+        if(t1.type == TOKEN_STRING) {
+            peek_2nd_token(cu, &t2);
+            if(t2.type == TOKEN_PAREN_OPEN)return parse_function_decl_after_type(cu, 0, ast_pos);
+        }
     }
     return parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
 }

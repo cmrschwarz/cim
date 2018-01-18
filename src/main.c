@@ -23,7 +23,7 @@ int main(){
         "typedef td scope:generic[nested_generic[x]];"
         "typedef td scope:generic[scoped:nested_generic[x]];"
         "typedef td void(*)(char*) (*)(int);";
-    char* input = "int foo(int x, generic[scope:int] f){int x;}";
+    char* input = "int foo(int x, generic[scope:int] f){int x;float y; print(x + y);}";
     printf("input:\n%s\n\n", input);
     for(int i=0;i<1;i++){
         parse(&cu, input);

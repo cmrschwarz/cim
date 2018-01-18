@@ -47,4 +47,4 @@ typedef enum operation_e{
     OP_TEMP_PAREN_OPEN,
     OP_ACCESS_MEMBER,
     OP_DEREFERENCE_ACCESS_MEMBER,
-}operation;
+};
