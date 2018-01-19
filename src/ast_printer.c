@@ -2,8 +2,9 @@
 #include <stdio.h>
 #include "error.h"
 #include "ast.h"
-
+void reverse_print_type_list(cunit* cu, ast_node* start, ast_node* end);
 static ast_node* print_expr_node(cunit *cu, ast_node *e);
+
 void reverse_print_func_args(cunit* cu, ast_node* elem, ast_node* end){
     if(elem == end)return;
     ast_node* nxt = elem - elem->sub_expr.size;
@@ -105,7 +106,9 @@ static ast_node* print_expr_node(cunit *cu, ast_node *e){
             return end_op;
         }
         case EXPR_NODE_TYPE_EXPR:{
-            return print_expr_node(cu, e - 1);
+            if(e->sub_expr.size != 1)return print_expr_node(cu, e - 1);
+            return e-1;
+
         }
         case EXPR_NODE_TYPE_OP_R:{
             putchar('(');
@@ -141,9 +144,9 @@ static ast_node* print_expr_node(cunit *cu, ast_node *e){
             e--;
             ast_node* generic_args_rstart = e - e->sub_expr.size - 1;
             e--;
-            putchar('[');
-            reverse_print_func_args(cu, generic_args_rstart, end);
-            putchar(']');putchar('(');
+            putchar('{');
+            reverse_print_type_list(cu, generic_args_rstart, end);
+            putchar('}');putchar('(');
             reverse_print_func_args(cu, e, generic_args_rstart);
             putchar(')');
             return end;
@@ -163,7 +166,7 @@ static ast_node* print_expr_node(cunit *cu, ast_node *e){
 }
 static inline ast_node* print_expr(cunit* cu, ast_node* expr){
     ast_node* e = expr + expr->sub_expr.size - 1;
-    print_expr_node(cu, e);
+    if(e != expr) print_expr_node(cu, e);
     return e+1;
 }
 
@@ -200,12 +203,14 @@ ast_node* print_type(cunit* cu, ast_node* t){
                 putchar(':');
             }
             fputs(tn->str, stdout);
+            print_ptrs(t->type.ptrs);
         }break;
         case AST_TYPE_TYPE_GENERIC_STRUCT:{
             fputs(tn->str, stdout);
-            putchar('[');
+            putchar('{');
             reverse_print_type_list(cu, t - 2, last-1);
-            putchar(']');
+            putchar('}');
+            print_ptrs(t->type.ptrs);
         }break;
         case AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT:{
             ast_node* gen_args_rstart = t - 3;
@@ -215,9 +220,10 @@ ast_node* print_type(cunit* cu, ast_node* t){
                 putchar(':');
             }
             fputs((t-2)->str, stdout);
-            putchar('[');
+            putchar('{');
             reverse_print_type_list(cu, gen_args_rstart, scopes_end);
-            putchar(']');
+            putchar('}');
+            print_ptrs(t->type.ptrs);
         }break;
         case AST_TYPE_TYPE_FN_PTR:{
             ast_node* args_start = (t-2);
@@ -230,12 +236,17 @@ ast_node* print_type(cunit* cu, ast_node* t){
             putchar('(');
             reverse_print_type_list(cu, args_start, ret);
             putchar(')');
-
-            return t + 1;
+        }break;
+        case AST_TYPE_TYPE_ARRAY:{
+            ast_node* expr = t-1;
+            print_type(cu, expr - expr->sub_expr.size);
+            putchar('[');
+            print_expr_node(cu, expr);
+            putchar(']');
+            print_ptrs(t->type.ptrs);
         }break;
         default:CIM_ERROR("Unknown AST_TYPE_TYPE");
     }
-    print_ptrs(t->type.ptrs);
     return t + 1;
 }
 void reverse_print_func_params(cunit* cu, ast_node* elem, ast_node* end){
@@ -278,7 +289,7 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
                 ast_node* block = fn_name+1;
                 void* block_end = (u8*)(block + 1) + block->size;
                 print_ast_within(cu, indent + 1, block + 1, block_end);
-                putchar('}');
+                putchar('}');putchar('\n');
                 astn = block_end;
             }break;
             case ASTNT_EXPRESSION:{

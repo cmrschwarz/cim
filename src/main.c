@@ -7,23 +7,24 @@ int main(){
 	cunit cu;
 	cunit_init(&cu);
 
-     char* input2 =
-        "int** x;"
+     char* input =
+        "int**[y]**[x] x;"
         "fn_call();"
         "fn_call_with_params(4, var);"
+        "generic_fn_call{int}(x);"
         "fn_call_nested(4, nested_fn_call(4, 1, nest_3()));"
-       // "generic_fn_call[int](4, nested_fn_call(2), empty_generic_nest[]());"
+        "generic_fn_call{int}(4, nested_fn_call(2), empty_generic_fn{}());"
         "random * expression + 4 * op_prec && (parenthesis - prec);"
-        //"generic_fn_call[int]() * x;"
+        "x * generic_fn_call{int}();"
         "typedef td x;"
         "typedef sc x:td;"
-        "typedef td generic[x];"
-        "typedef td scope:generic[x];"
-        "typedef td scope:generic[scope:nested];"
-        "typedef td scope:generic[nested_generic[x]];"
-        "typedef td scope:generic[scoped:nested_generic[x]];"
-        "typedef td void(*)(char*) (*)(int);";
-    char* input = "int foo(int x, generic[scope:int] f){int x;float y; print(x + y);}";
+        "typedef td generic{x};"
+        "typedef td scope:generic{x};"
+        "typedef td scope:generic{scope:nested};"
+        "typedef td scope:generic{nested_generic{x}};"
+        "typedef td scope:generic{scoped:nested_generic{x}};"
+        "typedef td void(*)(char*) (*)(int);"
+        "int[]**[]**[]*[]****[]*[x] x;";
     printf("input:\n%s\n\n", input);
     for(int i=0;i<1;i++){
         parse(&cu, input);

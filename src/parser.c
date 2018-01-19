@@ -346,14 +346,14 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
                             ((dbuffer_get_size(&cu->ast) - ast_size) / sizeof(ast_node));
                     e->sub_expr.type= EXPR_NODE_TYPE_FN_CALL;
                 }
-                else if(t2.type == TOKEN_BRACKET_OPEN){
+                else if(t2.type == TOKEN_BRACE_OPEN){
                     void_lookahead_token(cu);
                     char* el_name = t1.str;
                     //we cant' just use a pointer here because we might have a realloc
                     //this ammends the - sizeof(ast_node) because its used in a subtraction
                     //so it's gonna be canceled out
                     ureg el_end= dbuffer_get_size(&cu->ast);
-                    parse_arg_list(cu, TOKEN_BRACKET_CLOSE);
+                    parse_arg_list(cu, TOKEN_BRACE_CLOSE);
                     peek_token(cu, &t2);
                     if(t2.type == TOKEN_PAREN_OPEN){
                         void_lookahead_token(cu);
@@ -371,12 +371,17 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
                         e->sub_expr.type= EXPR_NODE_TYPE_GENERIC_FN_CALL;
                     }
                     else{
-                        e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
-                        e->str= el_name;
-                        e++;
-                        e->sub_expr.size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - el_end) / sizeof(ast_node));
-                        e->sub_expr.type= EXPR_NODE_TYPE_ARRAY_ACCESS;
+                       //scoped type stuff
                     }
+                }
+                else if(t2.type == TOKEN_BRACKET_OPEN){
+                    ureg el_end= dbuffer_get_size(&cu->ast);
+                    parse_arg_list(cu, TOKEN_BRACKET_CLOSE);
+                    e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
+                    e->str= t1.str;
+                    e++;
+                    e->sub_expr.size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - el_end) / sizeof(ast_node));
+                    e->sub_expr.type= EXPR_NODE_TYPE_ARRAY_ACCESS;
                 }
                 else {
                     e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
@@ -498,17 +503,17 @@ static ast_node* parse_type(cunit* cu){
         }while(t2.type == TOKEN_COLON);
         //t2 is peeked during the loop
     }
-    if(t2.type == TOKEN_BRACKET_OPEN){
+    if(t2.type == TOKEN_BRACE_OPEN){
         ureg post_scope_ast_pos = dbuffer_get_size(&cu->ast);
          // generic struct, potentially pointer
         void_lookahead_token(cu);
         peek_token(cu, &t2);
-        if(t2.type != TOKEN_BRACKET_CLOSE){
+        if(t2.type != TOKEN_BRACE_CLOSE){
             do{
                 parse_type(cu);
                 consume_token(cu, &t2);
             }while(t2.type == TOKEN_COMMA);
-            CIM_ASSERT(t2.type == TOKEN_BRACKET_CLOSE);
+            CIM_ASSERT(t2.type == TOKEN_BRACE_CLOSE);
         }
         else{
             void_lookahead_token(cu);
@@ -546,7 +551,7 @@ static ast_node* parse_type(cunit* cu){
         // simple type
         t->type.type = scoped ? AST_TYPE_TYPE_SCOPED : AST_TYPE_TYPE_SIMPLE;
         t->type.ptrs = parse_ptrs(cu);
-        //t2 stays peeked
+        peek_token(cu, &t2);//t2 peek is restored
     }
     //loop because a function pointer might be the return type of a function pointer
     while(t2.type == TOKEN_PAREN_OPEN){
@@ -581,6 +586,17 @@ static ast_node* parse_type(cunit* cu){
         t->type.ptrs = ptrs;
         tn->type.size = t->type.size - ret_type_size - 2;
         //doesnt have a name, not part of the type
+        peek_token(cu, &t2);
+    }
+    while(t2.type == TOKEN_BRACKET_OPEN){
+        void_lookahead_token(cu);
+        peek_token(cu, &t2);
+        parse_expr(cu, TOKEN_BRACKET_CLOSE, TOKEN_BRACKET_CLOSE, true);
+        t = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
+        t->type.size = (ast_rel_ptr)
+                    (dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_node);
+        t->type.type = AST_TYPE_TYPE_ARRAY;
+        t->type.ptrs = parse_ptrs(cu);
         peek_token(cu, &t2);
     }
     return t;
@@ -680,26 +696,23 @@ static inline int parse_leading_string(cunit* cu){
     ast_node* t = parse_type(cu);
     token t1, t2;
     peek_token(cu, &t1);
-    if(t1.type == TOKEN_STRING){
-        peek_2nd_token(cu, &t2);
-        if(t2.type == TOKEN_SEMICOLON){
-            //var declaration
-            clear_lookahead(cu);
-            ast_node* n = (ast_node*)(cu->ast.start + ast_pos);
-            n->var_decl.type = ASTNT_VARIABLE_DECLARATION;
-            n->var_decl.size = (ast_rel_ptr)(t - n + 2);
-            n->var_decl.assigning = false;
-            n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
-            n->str = t1.str;
-            return 0;
-        }
-        if(t2.type == TOKEN_PAREN_OPEN)return parse_function_decl_after_type(cu, 0, ast_pos);
-        if(t2.type == TOKEN_BRACKET_OPEN)return -1;//TODO: generic function declaration
+    peek_2nd_token(cu, &t2);
+    if(t1.type == TOKEN_STRING && t2.type == TOKEN_SEMICOLON){
+        //var declaration
+        //TODO: assigning declarations
+        clear_lookahead(cu);
+        ast_node* n = (ast_node*)(cu->ast.start + ast_pos);
+        n->var_decl.type = ASTNT_VARIABLE_DECLARATION;
+        n->var_decl.size = (ast_rel_ptr)(t - n + 2);
+        n->var_decl.assigning = false;
+        n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
+        n->str = t1.str;
+        return 0;
     }
     switch(t->type.type) {
         case AST_TYPE_TYPE_SIMPLE: {
             if (t1.type == TOKEN_PAREN_OPEN && t->type.ptrs == 0) {
-                //simple function call
+                //function call
                 void_lookahead_token(cu);
                 char *fn_name = (t - 1)->str;
                 cu->ast.head = (void *) (t - 1); //we have to override these nodes :(
@@ -714,6 +727,9 @@ static inline int parse_leading_string(cunit* cu){
                                     ast_pos, dbuffer_get_size(&cu->shy_ops), t1, true);
                 return 0;
             }
+            else if(t1.type == TOKEN_STRING && t2.type == TOKEN_PAREN_OPEN){
+                return parse_function_decl_after_type(cu, 0, ast_pos);
+            }
             //expression
             ureg shy_ops_pos = dbuffer_get_size(&cu->shy_ops);
             t->sub_expr.type = EXPR_NODE_TYPE_VARIABLE;
@@ -724,11 +740,30 @@ static inline int parse_leading_string(cunit* cu){
         }
         case AST_TYPE_TYPE_GENERIC_STRUCT: {
             if (t1.type == TOKEN_PAREN_OPEN) {
-                //TODO: generic function call
-
+                //generic function call
+                void_lookahead_token(cu);
+                char *fn_name = (t - 1)->str;
+                cu->ast.head = (void *) (t - 1); //we have to override these nodes :(
+                ast_rel_ptr args_size = parse_arg_list(cu, TOKEN_PAREN_CLOSE);
+                ast_node *e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 3);
+                e->sub_expr.size = args_size;
+                e++;
+                e->str = fn_name;
+                e++;
+                e->sub_expr.size = get_ast_growth(cu, ast_pos) - 1;//the one belongs to expr
+                e->sub_expr.type = EXPR_NODE_TYPE_GENERIC_FN_CALL;
+                consume_token(cu, &t1);
+                continue_parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false,
+                                    ast_pos, dbuffer_get_size(&cu->shy_ops), t1, true);
+                return 0;
             }
         }
-        default: return -1;
+        default:{
+            if(t1.type == TOKEN_STRING && t2.type == TOKEN_PAREN_OPEN){
+                return parse_function_decl_after_type(cu, 0, ast_pos);
+            }
+            return -1;
+        }
     }
 }
 static inline int parse_elem(cunit* cu){

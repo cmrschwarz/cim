@@ -7,7 +7,7 @@
 #define TO_CHAR(i)((char)((i) & 0xFF))
 #define TO_UREG(c)((ureg)(c))
 
-#define DEBUG_ENUMS 0
+#define DEBUG_ENUMS 1
 
 typedef uregh ast_rel_ptr;
 
@@ -32,6 +32,7 @@ enum type_node_type_e{
     AST_TYPE_TYPE_FN_PTR, //if it's referencing a fn_ptr, that looks like simple
     AST_TYPE_TYPE_GENERIC_STRUCT,
     AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT,
+    AST_TYPE_TYPE_ARRAY,
 };
 
 

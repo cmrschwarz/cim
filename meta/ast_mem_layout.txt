@@ -3,15 +3,15 @@ AST MEMORY LAYOUT FOR CIM
 --------------------------------------------------------------------------------
 GROUPS:
 
-OPERATOR_LR/OPERATOR/	    	    :
-VARIABLE/LITERAL		    : SUB_EXPR_CONTENT
+OPERATOR_LR/OPERATOR/                :
+VARIABLE/LITERAL                     : SUB_EXPR_CONTENT
 
-SUB_EXPR/VARIABLE/LITERAL	    : ARGUMENT
+SUB_EXPR/VARIABLE/LITERAL            : ARGUMENT
 
-SIMPLE/SCOPED/GENERIC_STRUCT/	    :
-SCOPED_GENERIC_STRUCT/FN_PTR/	    : ANY_TYPE
+SIMPLE/SCOPED/GENERIC_STRUCT/        :
+SCOPED_GENERIC_STRUCT/FN_PTR/        : ANY_TYPE
 
-ANY_TYPE/SUB_EXPR		    : GENERIC_PARAM
+ANY_TYPE/SUB_EXPR                    : GENERIC_PARAM
 
 EXPRESSION/
 
@@ -28,30 +28,30 @@ u8 type; u8 op; u16 size;           : OPERATOR_LR
 
 
 char* str; /lit* resolved;          : 
-u8 type;			    : LITERAL (BIN-, DEC-, HEX- NUMBER, STRING,)	
+u8 type;                            : LITERAL (BIN-, DEC-, HEX- NUMBER, STRING,)
 
 
 char* str; / var* resolved;         :
 u8 type;                            : VARIABLE
 
 
-SUB_EXPR_CONTENT		    : sub expr content continuation
-SUB_EXPR_CONTENT		    : sub expr content start
+SUB_EXPR_CONTENT                    : sub expr content continuation
+SUB_EXPR_CONTENT                    : sub expr content start
 u8 type;u16 size;                   : SUB_EXPR
 
 
-ARGUMENT		            : arg 1 
-ARGUMENT		            : arg 2 
+ARGUMENT                            : arg 1
+ARGUMENT                            : arg 2
 char* str;                          : FN name
 u8 type; u16 size;                  : FN_CALL
 
-GENERIC_PARAM		            : generic arg 1 
-GENERIC_PARAM		            : generic arg 2 
-ARGUMENT		            : arg 1 
-ARGUMENT		      	    : arg 2
+GENERIC_PARAM                       : generic arg 1
+GENERIC_PARAM                       : generic arg 2
+ARGUMENT                            : arg 1
+ARGUMENT                            : arg 2
 u16 size;                           : normal params size
 char* str;                          : FN name
-u8 type; u16 size;             	    : GENERIC_FN_CALL
+u8 type; u16 size;                  : GENERIC_FN_CALL
 
 --------------------------------------------------------------------------------
 TYPES:
@@ -67,10 +67,10 @@ char* str;                          : name
 u8 type; u8 ptrs; u16 size;         : SCOPED
 
 
-ANY_TYPE			    : ret type
-ANY_TYPE			    : arg type 1
-ANY_TYPE			    : arg type 2
-u16 size;	                    : args size
+ANY_TYPE                            : ret type
+ANY_TYPE                            : arg type 1
+ANY_TYPE                            : arg type 2
+u16 size;                           : args size
 u8 type; u8 ptrs; u16 size;         : FN PTR
 
 
@@ -82,30 +82,34 @@ u8 type; u8 ptrs; u16 size;         : GENERIC_STRUCT
 
 char* str;                          : scope 1
 char* str;                          : scope 2
-GENERIC_PARAM		            : generic arg type 1
-GENERIC_PARAM		            : generic arg type 2
+GENERIC_PARAM                       : generic arg type 1
+GENERIC_PARAM                       : generic arg type 2
 u16 args_size;                      : generic args size
 char* name;                         : name
 u8 type; u8 ptrs; u16 size;         : SCOPED_GENERIC_STRUCT
+
+ANY_TYPE                            :array type
+u16 size;                           :params size
+u8 type; u8 ptrs; u16 size;         :ARRAY
 
 --------------------------------------------------------------------------------
 AST_NODES (TODO):
 
 u8 type; u16 size;                  : EXPRESSION
 
-u8 type; u16 size;		    : TYPEDEF
-char* name;			    : defined name
-ANY_TYPE			    : aliased type
+u8 type; u16 size;                  : TYPEDEF
+char* name;                         : defined name
+ANY_TYPE                            : aliased type
 
-u8 type; u16 size;		    : FN_DECLARATION
-ANY_TYPE			    : return type
-ANY_TYPE			    : param 1 type
-char* str;			    : param 1 name	 
-ANY_TYPE			    : param 2 type
-char* str;			    : param 2 name	
-u16 size;			    : params size 
-char* name;			    : name
-u32 blk_size;			    : block size
+u8 type; u16 size;                  : FN_DECLARATION
+ANY_TYPE                            : return type
+ANY_TYPE                            : param 1 type
+char* str;                          : param 1 name
+ANY_TYPE                            : param 2 type
+char* str;                          : param 2 name
+u16 size;                           : params size
+char* name;                         : name
+u32 blk_size;                       : block size
 
 
 
