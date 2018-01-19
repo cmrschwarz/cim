@@ -1,5 +1,5 @@
 #pragma once
-typedef enum operation_e{
+enum operation_e{
     OP_SUBTRACT_ASSIGN = TOKEN_MINUS_EQUALS,
     OP_ADD_ASSIGN = TOKEN_PLUS_EQUALS,
     OP_MULTIPLY_ASSIGN = TOKEN_STAR_EQUALS,

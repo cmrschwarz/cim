@@ -87,10 +87,15 @@ typedef union ast_node_u{
         u8 ptrs;
         ast_rel_ptr size;
     }type;
-    struct type_define{
+    struct {
         ast_node_type type;
         ast_rel_ptr size;
-    };
+    }type_define;
+    struct {
+        ast_node_type type;
+        bool assigning;
+        ast_rel_ptr size;
+    }var_decl;
     char* str;
     ureg size;
 }ast_node;

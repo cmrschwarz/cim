@@ -680,60 +680,56 @@ static inline int parse_leading_string(cunit* cu){
     ast_node* t = parse_type(cu);
     token t1, t2;
     peek_token(cu, &t1);
-    if(t->type.type == AST_TYPE_TYPE_SIMPLE){
-        if(t1.type == TOKEN_STRING){
-            peek_2nd_token(cu, &t2);
-            if(t2.type == TOKEN_SEMICOLON){
-                //simple var declaration
-                clear_lookahead(cu);
-                ast_node* n = (ast_node*)(cu->ast.start + ast_pos);
-                n->ast_expr.type = ASTNT_VARIABLE_DECLARATION;
-                n->ast_expr.size = (ast_rel_ptr)(t - n + 2);
-                n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
-                n->str = t1.str;
-                return 0;
-            }
-            if(t2.type == TOKEN_PAREN_OPEN)return parse_function_decl_after_type(cu, 0, ast_pos);
-        }
-        if(t1.type == TOKEN_PAREN_OPEN && t->type.ptrs == 0){
-            //function call
-            void_lookahead_token(cu);
-            char* fn_name = (t-1)->str;
-            cu->ast.head = (void*)(t-1); //we have to override these nodes :(
-            ast_rel_ptr args_size = parse_arg_list(cu, TOKEN_PAREN_CLOSE);
-            ast_node* e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
-            e->str = fn_name;
-            e++;
-            e->sub_expr.size = args_size + 2;
-            e->sub_expr.type= EXPR_NODE_TYPE_FN_CALL;
-            consume_token(cu, &t1);
-            continue_parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false,
-                                ast_pos, dbuffer_get_size(&cu->shy_ops), t1, true);
+    if(t1.type == TOKEN_STRING){
+        peek_2nd_token(cu, &t2);
+        if(t2.type == TOKEN_SEMICOLON){
+            //var declaration
+            clear_lookahead(cu);
+            ast_node* n = (ast_node*)(cu->ast.start + ast_pos);
+            n->var_decl.type = ASTNT_VARIABLE_DECLARATION;
+            n->var_decl.size = (ast_rel_ptr)(t - n + 2);
+            n->var_decl.assigning = false;
+            n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
+            n->str = t1.str;
             return 0;
         }
-        //expression
-        ureg shy_ops_pos = dbuffer_get_size(&cu->shy_ops);
-        t->sub_expr.type = EXPR_NODE_TYPE_VARIABLE;
-        push_ptrs_for_expr(cu, t->type.ptrs);
-        void_lookahead_token(cu); //void lookahead for t1
-        return continue_parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false, ast_pos, shy_ops_pos, t1, t->type.ptrs == 0);
+        if(t2.type == TOKEN_PAREN_OPEN)return parse_function_decl_after_type(cu, 0, ast_pos);
+        if(t2.type == TOKEN_BRACKET_OPEN)return -1;//TODO: generic function declaration
     }
-    else if(t->type.type == AST_TYPE_TYPE_SCOPED){
-        if(t1.type == TOKEN_STRING) {
-            peek_2nd_token(cu, &t2);
-            if(t2.type == TOKEN_PAREN_OPEN)return parse_function_decl_after_type(cu, 0, ast_pos);
+    switch(t->type.type) {
+        case AST_TYPE_TYPE_SIMPLE: {
+            if (t1.type == TOKEN_PAREN_OPEN && t->type.ptrs == 0) {
+                //simple function call
+                void_lookahead_token(cu);
+                char *fn_name = (t - 1)->str;
+                cu->ast.head = (void *) (t - 1); //we have to override these nodes :(
+                ast_rel_ptr args_size = parse_arg_list(cu, TOKEN_PAREN_CLOSE);
+                ast_node *e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
+                e->str = fn_name;
+                e++;
+                e->sub_expr.size = args_size + 2;
+                e->sub_expr.type = EXPR_NODE_TYPE_FN_CALL;
+                consume_token(cu, &t1);
+                continue_parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false,
+                                    ast_pos, dbuffer_get_size(&cu->shy_ops), t1, true);
+                return 0;
+            }
+            //expression
+            ureg shy_ops_pos = dbuffer_get_size(&cu->shy_ops);
+            t->sub_expr.type = EXPR_NODE_TYPE_VARIABLE;
+            push_ptrs_for_expr(cu, t->type.ptrs);
+            void_lookahead_token(cu); //void lookahead for t1
+            return continue_parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false, ast_pos, shy_ops_pos, t1,
+                                       t->type.ptrs == 0);
         }
-    }
-    else if(t->type.type == AST_TYPE_TYPE_GENERIC_STRUCT ||
-            t->type.type == AST_TYPE_TYPE_FN_PTR ||
-            t->type.type == AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT)
-    {
-        if(t1.type == TOKEN_STRING) {
-            peek_2nd_token(cu, &t2);
-            if(t2.type == TOKEN_PAREN_OPEN)return parse_function_decl_after_type(cu, 0, ast_pos);
+        case AST_TYPE_TYPE_GENERIC_STRUCT: {
+            if (t1.type == TOKEN_PAREN_OPEN) {
+                //TODO: generic function call
+
+            }
         }
+        default: return -1;
     }
-    return parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
 }
 static inline int parse_elem(cunit* cu){
     token t1;
