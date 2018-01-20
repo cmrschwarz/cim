@@ -8,6 +8,8 @@ static inline int parse_elem(cunit* cu);
 static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_expr);
 
 #define OP_RANGE (1 << (sizeof(u8)*8))
+static u8 prec_table[OP_RANGE];
+static u8 assoc_table[OP_RANGE];
 
 enum assocs{
     LEFT_ASSOCIATIVE = 0,
@@ -710,12 +712,12 @@ static arg_or_params_list parse_arg_or_param_list(cunit* cu, bool generic, ast_r
                 goto its_an_arg_list;
             }
             else{
-                peek_token(cu, &t2);
+                peek_2nd_token(cu, &t2);
                 if( t1.type != TOKEN_STRING ||
                    (t2.type != TOKEN_COMMA && t2.type != term)) goto its_an_arg_list;
                 //it's ambiguous, assume param list (much more likely
                 //as otherwise it's a thrown away expression) and continue
-                size_inc_as_arg_list+=  1 + t->type.ptrs;
+                size_inc_as_arg_list+=  2 + t->type.ptrs;
                 void_2_lookahead_tokens(cu);
                 ast_node* n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
                 n->str = t1.str;
@@ -756,7 +758,7 @@ its_an_arg_list:;
         dbuffer_make_space(&cu->ast, (list_size + size_inc_as_arg_list) * sizeof(ast_node));
         ast_node* list = (void*)(cu->ast.head+ast_start);
         ast_node* temp_list = list + list_size + size_inc_as_arg_list;
-        memcpy(temp_list, list, list_size + preparsed_type_size);
+        memcpy(temp_list, list, (list_size + preparsed_type_size) * (sizeof(ast_node)));
         turn_param_list_into_arg_list(cu, list, temp_list + list_size, temp_list);
         //restore the preparsed type at the end
         t = list + list_size + size_inc_as_arg_list;
