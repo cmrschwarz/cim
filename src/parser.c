@@ -8,92 +8,94 @@ static inline int parse_elem(cunit* cu);
 static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_expr);
 
 #define OP_RANGE (1 << (sizeof(u8)*8))
-static u8 prec_table [OP_RANGE];
-static u8 assoc_table [OP_RANGE];
+
 enum assocs{
     LEFT_ASSOCIATIVE = 0,
     RIGHT_ASSOCIATIVE = 1,
 };
+
+static u8 prec_table [OP_RANGE] = {
+    [OP_NONE] = 1, //initialization flag
+    //uniquely has this precedence level so it is not removed during flush
+    [OP_TEMP_PAREN_OPEN] = 0,
+
+    [OP_POSTINCREMENT] = 15,
+    [OP_POSTINCREMENT] = 15,
+
+    [OP_PREINCREMENT] = 14,
+    [OP_PREDECREMENT] = 14,
+    [OP_LOGICAL_NOT] = 14,
+    [OP_BITWISE_NOT] = 14,
+    [OP_DEREFERENCE] = 14,
+    [OP_ADDRESS_OF] = 14,
+
+    [OP_MULTIPLY] = 13,
+    [OP_DIVIDE] = 13,
+    [OP_MODULO] = 13,
+
+    [OP_ADD] = 12,
+    [OP_SUBTRACT] = 12,
+
+    [OP_LSHIFT] = 11,
+    [OP_RSHIFT] = 11,
+
+    [OP_LESS_THAN] = 10,
+    [OP_GREATER_THAN] = 10,
+    [OP_LESS_THAN_OR_EQUAL] = 10,
+    [OP_GREATER_THAN_OR_EQUAL] = 10,
+
+    [OP_EQUALS] = 9,
+    [OP_NOT_EQUAL] = 9,
+
+    [OP_BITWISE_AND] = 8,
+
+    [OP_BITWISE_XOR] = 7,
+
+    [OP_BITWISE_OR] = 6,
+
+    [OP_LOGICAL_AND] = 5,
+
+    [OP_LOGICAL_XOR] = 4,
+
+    [OP_LOGICAL_OR] = 3,
+
+    [OP_ASSIGN] = 2,
+    [OP_ADD_ASSIGN] = 2,
+    [OP_SUBTRACT_ASSIGN] = 2,
+    [OP_MULTIPLY_ASSIGN] = 2,
+    [OP_DIVIDE_ASSIGN] = 2,
+    [OP_MODULO_ASSIGN] = 2,
+    [OP_LSHIFT_ASSIGN] = 2,
+    [OP_RSHIFT_ASSIGN] = 2,
+    [OP_BITWISE_AND_ASSIGN] = 2,
+    [OP_BITWISE_OR_ASSIGN] = 2,
+    [OP_BITWISE_XOR_ASSIGN] = 2,
+    [OP_BITWISE_NOT_ASSIGN] = 2,
+};
+
+static u8 assoc_table [OP_RANGE] = {
+    [OP_NONE] = RIGHT_ASSOCIATIVE,
+    [OP_PREINCREMENT] = RIGHT_ASSOCIATIVE,
+    [OP_PREDECREMENT] = RIGHT_ASSOCIATIVE,
+    [OP_LOGICAL_NOT] = RIGHT_ASSOCIATIVE,
+    [OP_BITWISE_NOT] = RIGHT_ASSOCIATIVE,
+    [OP_DEREFERENCE] = RIGHT_ASSOCIATIVE,
+    [OP_ADDRESS_OF] = RIGHT_ASSOCIATIVE,
+    [OP_ASSIGN] = RIGHT_ASSOCIATIVE,
+    [OP_ADD_ASSIGN] = RIGHT_ASSOCIATIVE,
+    [OP_SUBTRACT_ASSIGN] = RIGHT_ASSOCIATIVE,
+    [OP_MULTIPLY_ASSIGN] = RIGHT_ASSOCIATIVE,
+    [OP_DIVIDE_ASSIGN] = RIGHT_ASSOCIATIVE,
+    [OP_MODULO_ASSIGN] = RIGHT_ASSOCIATIVE,
+    [OP_LSHIFT_ASSIGN] = RIGHT_ASSOCIATIVE,
+    [OP_RSHIFT_ASSIGN] = RIGHT_ASSOCIATIVE,
+    [OP_BITWISE_AND_ASSIGN] = RIGHT_ASSOCIATIVE,
+    [OP_BITWISE_OR_ASSIGN] = RIGHT_ASSOCIATIVE,
+    [OP_BITWISE_XOR_ASSIGN] = RIGHT_ASSOCIATIVE,
+    [OP_BITWISE_NOT_ASSIGN] = RIGHT_ASSOCIATIVE,
+};
+
 void cunit_init(cunit* cu){
-    if(prec_table[OP_NONE] == 0){
-        prec_table[OP_NONE] = 1; //initialization flag
-        //uniquely has this precedence level so it is not removed during flush
-        prec_table[OP_TEMP_PAREN_OPEN] = 0;
-
-        prec_table[OP_POSTINCREMENT]=15;
-        prec_table[OP_POSTINCREMENT]=15;
-
-        prec_table[OP_PREINCREMENT]=14;
-        prec_table[OP_PREDECREMENT]=14;
-        prec_table[OP_LOGICAL_NOT]=14;
-        prec_table[OP_BITWISE_NOT]=14;
-        prec_table[OP_DEREFERENCE]=14;
-        prec_table[OP_ADDRESS_OF]=14;
-
-        prec_table[OP_MULTIPLY]=13;
-        prec_table[OP_DIVIDE]=13;
-        prec_table[OP_MODULO]=13;
-
-        prec_table[OP_ADD]=12;
-        prec_table[OP_SUBTRACT]=12;
-
-        prec_table[OP_LSHIFT]=11;
-        prec_table[OP_RSHIFT]=11;
-
-        prec_table[OP_LESS_THAN]=10;
-        prec_table[OP_GREATER_THAN]=10;
-        prec_table[OP_LESS_THAN_OR_EQUAL]=10;
-        prec_table[OP_GREATER_THAN_OR_EQUAL]=10;
-
-        prec_table[OP_EQUALS] = 9;
-        prec_table[OP_NOT_EQUAL] = 9;
-
-        prec_table[OP_BITWISE_AND] = 8;
-
-        prec_table[OP_BITWISE_XOR] = 7;
-
-        prec_table[OP_BITWISE_OR] = 6;
-
-        prec_table[OP_LOGICAL_AND] = 5;
-
-        prec_table[OP_LOGICAL_XOR] = 4;
-
-        prec_table[OP_LOGICAL_OR] = 3;
-
-        prec_table[OP_ASSIGN] = 2;
-        prec_table[OP_ADD_ASSIGN] = 2;
-        prec_table[OP_SUBTRACT_ASSIGN] = 2;
-        prec_table[OP_MULTIPLY_ASSIGN] = 2;
-        prec_table[OP_DIVIDE_ASSIGN] = 2;
-        prec_table[OP_MODULO_ASSIGN] = 2;
-        prec_table[OP_LSHIFT_ASSIGN] = 2;
-        prec_table[OP_RSHIFT_ASSIGN] = 2;
-        prec_table[OP_BITWISE_AND_ASSIGN] = 2;
-        prec_table[OP_BITWISE_OR_ASSIGN] = 2;
-        prec_table[OP_BITWISE_XOR_ASSIGN] = 2;
-        prec_table[OP_BITWISE_NOT_ASSIGN] = 2;
-    }
-    if(assoc_table[OP_NONE] == LEFT_ASSOCIATIVE){
-        assoc_table[OP_NONE] = RIGHT_ASSOCIATIVE;
-        assoc_table[OP_PREINCREMENT]=RIGHT_ASSOCIATIVE;
-        assoc_table[OP_PREDECREMENT]=RIGHT_ASSOCIATIVE;
-        assoc_table[OP_LOGICAL_NOT]=RIGHT_ASSOCIATIVE;
-        assoc_table[OP_BITWISE_NOT]=RIGHT_ASSOCIATIVE;
-        assoc_table[OP_DEREFERENCE]=RIGHT_ASSOCIATIVE;
-        assoc_table[OP_ADDRESS_OF]=RIGHT_ASSOCIATIVE;
-        assoc_table[OP_ASSIGN] = RIGHT_ASSOCIATIVE;
-        assoc_table[OP_ADD_ASSIGN] = RIGHT_ASSOCIATIVE;
-        assoc_table[OP_SUBTRACT_ASSIGN] = RIGHT_ASSOCIATIVE;
-        assoc_table[OP_MULTIPLY_ASSIGN] = RIGHT_ASSOCIATIVE;
-        assoc_table[OP_DIVIDE_ASSIGN] = RIGHT_ASSOCIATIVE;
-        assoc_table[OP_MODULO_ASSIGN] = RIGHT_ASSOCIATIVE;
-        assoc_table[OP_LSHIFT_ASSIGN] = RIGHT_ASSOCIATIVE;
-        assoc_table[OP_RSHIFT_ASSIGN] = RIGHT_ASSOCIATIVE;
-        assoc_table[OP_BITWISE_AND_ASSIGN] = RIGHT_ASSOCIATIVE;
-        assoc_table[OP_BITWISE_OR_ASSIGN] = RIGHT_ASSOCIATIVE;
-        assoc_table[OP_BITWISE_XOR_ASSIGN] = RIGHT_ASSOCIATIVE;
-        assoc_table[OP_BITWISE_NOT_ASSIGN] = RIGHT_ASSOCIATIVE;
-    }
 	sbuffer_init(&cu->data_store, 4);
 	dbuffer_init(&cu->string_ptrs);
 	dbuffer_init(&cu->ast);
