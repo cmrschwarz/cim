@@ -21,22 +21,13 @@ enum ast_node_type_e{
     //@PERF: consider adding function call to avoid expr wrapper
 };
 
-enum type_node_type_e{
-    //TODO: maybe we need to make a resolved mask in here
-    AST_TYPE_TYPE_SIMPLE,
-    AST_TYPE_TYPE_SCOPED,
-    AST_TYPE_TYPE_FN_PTR, //if it's referencing a fn_ptr, that looks like simple
-    AST_TYPE_TYPE_GENERIC_STRUCT,
-    AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT,
-    AST_TYPE_TYPE_ARRAY,
-};
-
 
 enum expr_node_type_t{
     EXPR_NODE_TYPE_NUMBER = TOKEN_NUMBER,
     EXPR_NODE_TYPE_LITERAL = TOKEN_LITERAL,
     EXPR_NODE_TYPE_BINARY_LITERAL = TOKEN_BINARY_LITERAL,
     EXPR_NODE_TYPE_VARIABLE,
+    EXPR_NODE_TYPE_SCOPED_VARIABLE,
     EXPR_NODE_TYPE_EXPR = ASTNT_EXPRESSION,
     EXPR_NODE_TYPE_OP_LR,
     EXPR_NODE_TYPE_OP_L,
@@ -47,7 +38,15 @@ enum expr_node_type_t{
     EXPR_NODE_TYPE_ARRAY_ACCESS,
     EXPR_NODE_TYPE_GENERIC_FN_CALL,
 };
-
+enum type_node_type_e{
+    //TODO: maybe we need to make a resolved mask in here
+    AST_TYPE_TYPE_SIMPLE = EXPR_NODE_TYPE_VARIABLE,
+    AST_TYPE_TYPE_SCOPED = EXPR_NODE_TYPE_SCOPED_VARIABLE,
+    AST_TYPE_TYPE_FN_PTR, //if it's referencing a fn_ptr, that looks like simple
+    AST_TYPE_TYPE_GENERIC_STRUCT,
+    AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT,
+    AST_TYPE_TYPE_ARRAY,
+};
 
 #if DEBUG_ENUMS
     typedef enum ast_node_type_e ast_node_type;

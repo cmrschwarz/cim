@@ -287,7 +287,7 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
                 reverse_print_func_params(cu, params_size - 1, ret_type);
                 putchar(')');putchar('{');putchar('\n');
                 ast_node* block = fn_name+1;
-                void* block_end = (u8*)(block + 1) + block->size;
+                void* block_end = (u8*)block + block->size;
                 print_ast_within(cu, indent + 1, block + 1, block_end);
                 putchar('}');putchar('\n');
                 astn = block_end;

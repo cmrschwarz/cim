@@ -25,7 +25,7 @@ int main(){
         "typedef td scope:generic{scoped:nested_generic{x}};"
         "typedef td void(*)(char*) (*)(int);"
         "int[]**[]**[]*[]****[]*[x] x;";
-    char* input = "x * foo(x);";
+    char* input = "ret_type * foo(int* param2, int param){}";
     printf("input:\n%s\n\n", input);
     for(int i=0;i<1;i++){
         parse(&cu, input);

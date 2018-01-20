@@ -13,7 +13,7 @@ SCOPED_GENERIC_STRUCT/FN_PTR/        : ANY_TYPE
 
 ANY_TYPE/SUB_EXPR                    : GENERIC_PARAM
 
-EXPRESSION/
+EXPRESSION/FN_DECLARATION/           : AST_NODE
 
 --------------------------------------------------------------------------------
 EXPRESSIONS:
@@ -93,7 +93,16 @@ u16 size;                           :params size
 u8 type; u8 ptrs; u16 size;         :ARRAY
 
 --------------------------------------------------------------------------------
-AST_NODES (TODO):
+AST_NODES:
+
+u32 blk_size;                       : OWNED_BLOCK (size)
+AST_NODE                            : content 1
+AST_NODE                            : content 2
+
+u8 type;                            : FREE_BLOCK
+u32 blk_size;                       : block size
+AST_NODE                            : content 1
+AST_NODE                            : content 2
 
 u8 type; u16 size;                  : EXPRESSION
 
@@ -110,7 +119,7 @@ FN_PARAMETER                        : param 1
 FN_PARAMETER                        : param 2
 u16 size;                           : params size
 char* name;                         : name
-u32 blk_size;                       : block size
+OWNED_BLOCK                         : fn body
 
 
 
