@@ -14,7 +14,6 @@ int main(){
         "generic_fn_call{int}(x);"
         "fn_call_nested(4, nested_fn_call(4, 1, nest_3()));"
         "generic_fn_call{int}(4, nested_fn_call(2), empty_generic_fn{}());"
-                "random * expression + 4 * op_prec && (parenthesis - prec);"
         "typedef td x;"
         "typedef sc x:td;"
         "typedef td generic{x};"
@@ -24,7 +23,7 @@ int main(){
         "typedef td scope:generic{scoped:nested_generic{x}};"
         "typedef td void(*)(char*) (*)(int);"
         "int[]**[]**[]*[]****[]*[x] x;";
-
+    char* input2 =  "random * expression + 4 * op_prec && (parenthesis - prec);";
     printf("input:\n%s\n\n", input);
     for(int i=0;i<1;i++){
         parse(&cu, input);
