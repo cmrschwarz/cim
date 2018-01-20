@@ -12,6 +12,13 @@ static inline void void_lookahead_token(cunit* cu){
         do{*s = *(s+1);s++;}while(s != cu->lookahead_head);
     }
 }
+static inline void void_2_lookahead_tokens(cunit* cu){
+    cu->lookahead_head-=2;
+    if(cu->lookahead_head != cu->lookahead_store){
+        token* s = cu->lookahead_store;
+        do{*s = *(s+1);s++;}while(s != cu->lookahead_head);
+    }
+}
 static inline void consume_lookahead_token(cunit* cu, token* t){
     *t =  cu->lookahead_store[0];
     void_lookahead_token(cu);

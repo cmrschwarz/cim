@@ -101,12 +101,13 @@ u8 type; u16 size;                  : TYPEDEF
 char* name;                         : defined name
 ANY_TYPE                            : aliased type
 
+ANY_TYPE
+char* str;                          : FN_PARAMETER
+
 u8 type; u16 size;                  : FN_DECLARATION
 ANY_TYPE                            : return type
-ANY_TYPE                            : param 1 type
-char* str;                          : param 1 name
-ANY_TYPE                            : param 2 type
-char* str;                          : param 2 name
+FN_PARAMETER                        : param 1
+FN_PARAMETER                        : param 2
 u16 size;                           : params size
 char* name;                         : name
 u32 blk_size;                       : block size
