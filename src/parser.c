@@ -649,10 +649,7 @@ static int parse_typedef(cunit* cu, int mods){
     CIM_ASSERT(t.type == TOKEN_SEMICOLON);
     return 0;
 }
-static int check_size_inc_from_type_as_expr(ast_node* type){
-    //TODO
-}
-static int parse_type_as_expr_begin(cunit *cu, ureg ast_start, ast_node *type,
+static int parse_type_as_expr_begin(cunit *cu, ureg ast_start, ast_node *type, bool subexpr,
                                     token_type term1, token_type term2, bool after_fn_call){
     //TODO: add scoped
     ureg shy_ops_start = dbuffer_get_size(&cu->shy_ops);
@@ -674,12 +671,24 @@ static int parse_type_as_expr_begin(cunit *cu, ureg ast_start, ast_node *type,
     }
     token t1;
     consume_token(cu, &t1);
-    return continue_parse_expr(cu, term1, term2, false, ast_start,
+    return continue_parse_expr(cu, term1, term2, subexpr, ast_start,
                                shy_ops_start,shy_ops_pos, t1,
                                (after_fn_call == true || type->type.ptrs == 0));
 };
 static void turn_param_list_into_arg_list(cunit* cu, ast_node* tgt, ast_node* rstart, ast_node* rend){
-    //TODO
+    //this can only contain simple and scoped pointer types
+    //otherwise the parse wouldn't have been ambiguous
+    while(rstart != rend){
+        if(rstart->type.type == AST_TYPE_TYPE_SIMPLE){
+
+        }
+        else if(rstart->type.type == AST_TYPE_TYPE_SIMPLE){
+
+        }
+        else{
+            CIM_ERROR("Unexpected type in turn_param_list_into_arg_list");
+        }
+    }
 }
 //returns 0 if it's ambiguous, 1 if it created a params list and 2 for a argument list
 typedef enum arg_or_params_list_e{
@@ -767,25 +776,35 @@ its_an_arg_list:;
         //restore the preparsed type at the end
         t = list + list_size + size_inc_as_arg_list;
         if(t1.type != TOKEN_COMMA && t1.type != term) {
-            memcpy(t+1, temp_list + list_size, preparsed_type_size);
-            parse_type_as_expr_begin(cu, ast_start, t, TOKEN_COMMA, term, false);
+            if(parse_type_as_expr_begin(cu, ast_start, t,true, TOKEN_COMMA, term, false) == 0){
+                while (parse_expr(cu, TOKEN_COMMA, term, true) == 0);
+            }
         }
         else{
-             memcpy(t, temp_list + list_size, preparsed_type_size);
+            memcpy(t, temp_list + list_size, preparsed_type_size);
+            if(t1.type == TOKEN_COMMA) {
+                void_lookahead_token(cu);
+                while (parse_expr(cu, TOKEN_COMMA, term, true) == 0);
+            }
+            else{
+                CIM_ASSERT(t1.type == term);
+            }
         }
         cu->ast.head += size_inc_as_arg_list * sizeof(ast_node);
     }
-    else{
-        if(t1.type != TOKEN_COMMA && t1.type != term){
-            memcpy(t+1,t,t->type.size * sizeof(ast_node));
-            parse_type_as_expr_begin(cu, ast_start, t, TOKEN_COMMA, term, false);
+    else {
+        //otherwise it's a var or scoped var, memory layout is identical to simple types
+        if (t1.type != TOKEN_COMMA && t1.type != term) {
+            if (parse_type_as_expr_begin(cu, ast_start, t,true, TOKEN_COMMA, term, false) == 0) {
+                while (parse_expr(cu, TOKEN_COMMA, term, true) == 0);
+            }
         }
-        else{
-            void_lookahead_token(cu);
+        else {
+            if (t1.type == TOKEN_COMMA) {
+                void_lookahead_token(cu);
+                while (parse_expr(cu, TOKEN_COMMA, term, true) == 0);
+            }
         }
-    }
-    if(t1.type != term){
-         while(parse_expr(cu, TOKEN_COMMA, term, true) == 0);
     }
     return AOPL_ARG_LIST;
 }
@@ -910,8 +929,9 @@ static inline int parse_leading_string(cunit* cu){
                         n++;
                         n->sub_expr.type = EXPR_NODE_TYPE_FN_CALL;
                         t = (void*)(cu->ast.start + type_rstart);
+                        //-1 because of the expression that is the parent
                         n->sub_expr.size = get_ast_growth(cu, ast_start) - t->type.size-1;
-                        return parse_type_as_expr_begin(cu, ast_start, t,
+                        return parse_type_as_expr_begin(cu, ast_start, t,false,
                                                  TOKEN_SEMICOLON, TOKEN_SEMICOLON,true);
                     }
                 }
@@ -920,7 +940,7 @@ static inline int parse_leading_string(cunit* cu){
                 }
             }
             //expression
-            parse_type_as_expr_begin(cu, ast_start, t, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
+            parse_type_as_expr_begin(cu, ast_start, t,false, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
         }
         case AST_TYPE_TYPE_GENERIC_STRUCT: {
             if (t1.type == TOKEN_PAREN_OPEN) {
