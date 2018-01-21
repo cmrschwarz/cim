@@ -23,7 +23,7 @@ int main(){
         "typedef td scope:generic{scoped:nested_generic{x}};"
         "typedef td void(*)(char*) (*)(int);"
         "int[]**[]**[]*[]****[]*[x] x;";
-    char* input =  "int* foo(foo *bn, foo x){}";
+    char* input =  "ret_type ***** foo(a1* x, a2* x2) * 3;";
     printf("input:\n%s\n\n", input);
     for(int i=0;i<1;i++){
         parse(&cu, input);
@@ -31,9 +31,9 @@ int main(){
     printf("ast size: %llu bytes (%llu regs)\n",
            dbuffer_get_size(&cu.ast),
            dbuffer_get_size(&cu.ast) / sizeof(ast_node));
-    printf("string store size: %llu bytes (%llu strings)\n",
+    printf("string store size: %llu bytes (%llu strings, 19 keywords)\n",
            sbuffer_get_size(&cu.data_store),
-           dbuffer_get_size(&cu.string_ptrs) / sizeof(ureg));
+           dbuffer_get_size(&cu.string_ptrs) / sizeof(ureg) - 19);
     printf("\noutput:\n");
     print_ast(&cu);
     cunit_fin(&cu);
