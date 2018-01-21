@@ -30,10 +30,12 @@ void print_binary_literal(cunit* cu, char* str){
 }
 void print_op(u8 op){
 	switch(op){
+        case OP_UNARY_PLUS:
         case OP_ADD:putchar('+');return;
         case OP_PREINCREMENT:
         case OP_POSTINCREMENT: putchar('+');putchar('+'); return;
         case OP_ADD_ASSIGN: putchar('+');putchar('='); return;
+        case OP_UNARY_MINUS:
         case OP_SUBTRACT:putchar('-'); return;
         case OP_PREDECREMENT:
         case OP_POSTDECREMENT: putchar('-');putchar('-'); return;

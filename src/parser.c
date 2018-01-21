@@ -730,6 +730,7 @@ typedef enum arg_or_params_list_e{
     AOPL_AMBIGUOUS, //in this case it was parsed as a param list
 }arg_or_params_list;
 static arg_or_params_list parse_arg_or_param_list(cunit* cu, bool generic, ast_rel_ptr* r_size_inc_as_arg_list){
+    bool no_type_preparsed = false;
     ureg ast_start = dbuffer_get_size(&cu->ast);
     token t1;
     token t2;
@@ -747,6 +748,10 @@ static arg_or_params_list parse_arg_or_param_list(cunit* cu, bool generic, ast_r
     ast_rel_ptr size_inc_as_arg_list = 0;
     ast_node* t;
     while(t1.type != term){
+        if(t1.type != TOKEN_STRING){
+            no_type_preparsed = true;
+            goto its_an_arg_list;
+        }
         t = parse_type(cu);
         peek_token(cu, &t1);
         if(t->type.type == AST_TYPE_TYPE_SIMPLE || t->type.type == AST_TYPE_TYPE_SCOPED) {
@@ -809,40 +814,51 @@ its_an_arg_list:;
     if(size_inc_as_arg_list != 0){
         ureg ast_pos = dbuffer_get_size(&cu->ast);
         ureg list_size = (ast_pos - ast_start) / sizeof(ast_node);
-        ureg preparsed_type_size = t->type.size;
-        list_size -= preparsed_type_size;
+        ureg preparsed_type_size = 0;
+        if(!no_type_preparsed){
+            preparsed_type_size = t->type.size;
+            list_size -= preparsed_type_size;
+        }
         //we only need it to be available for our temp_list, we don't actually claim it
         ureg new_list_size = list_size + size_inc_as_arg_list;
         dbuffer_make_space(&cu->ast, new_list_size * sizeof(ast_node));
         ast_node* list = (void*)(cu->ast.start+ast_start);
         ast_node* temp_list = list + new_list_size + preparsed_type_size;
         t = list + new_list_size;
-        memcpy(t, list+list_size, preparsed_type_size * sizeof(ast_node));
+        if(!no_type_preparsed) memcpy(t, list+list_size, preparsed_type_size * sizeof(ast_node));
 
         memcpy(temp_list, list, list_size * (sizeof(ast_node)));
         turn_param_list_into_arg_list(cu, t-1, temp_list + list_size -1, temp_list-1);
-        //restore the preparsed type at the end
-        t+=preparsed_type_size-1; //go to end of t
-        cu->ast.head = (void*)temp_list;
-        if(t1.type != TOKEN_COMMA && t1.type != term) {
-            if(parse_type_as_expr_begin(cu, ast_start+new_list_size*sizeof(ast_node), t,true, TOKEN_COMMA, term, false) == 0){
-                while (parse_expr(cu, TOKEN_COMMA, term, true) == 0);
+        if(!no_type_preparsed){
+            //restore the preparsed type at the end
+            t+=preparsed_type_size-1; //go to end of t
+            cu->ast.head = (void*)temp_list;
+            if(t1.type != TOKEN_COMMA && t1.type != term) {
+                if(parse_type_as_expr_begin(cu, ast_start+new_list_size*sizeof(ast_node), t,true, TOKEN_COMMA, term, false) == 0){
+                    while (parse_expr(cu, TOKEN_COMMA, term, true) == 0);
+                }
+            }
+            else{
+                memcpy(t, temp_list + list_size, preparsed_type_size);
+                if(t1.type == TOKEN_COMMA) {
+                    void_lookahead_token(cu);
+                    while (parse_expr(cu, TOKEN_COMMA, term, true) == 0);
+                }
+                else{
+                    CIM_ASSERT(t1.type == term);
+                }
             }
         }
         else{
-            memcpy(t, temp_list + list_size, preparsed_type_size);
-            if(t1.type == TOKEN_COMMA) {
-                void_lookahead_token(cu);
-                while (parse_expr(cu, TOKEN_COMMA, term, true) == 0);
-            }
-            else{
-                CIM_ASSERT(t1.type == term);
-            }
+            while (parse_expr(cu, TOKEN_COMMA, term, true) == 0);
         }
     }
     else {
         //otherwise it's a var or scoped var, memory layout is identical to simple types
-        if (t1.type != TOKEN_COMMA && t1.type != term) {
+        if(no_type_preparsed){
+             while (parse_expr(cu, TOKEN_COMMA, term, true) == 0);
+        }
+        else if (t1.type != TOKEN_COMMA && t1.type != term) {
             if (parse_type_as_expr_begin(cu, ast_start, t,true, TOKEN_COMMA, term, false) == 0) {
                 while (parse_expr(cu, TOKEN_COMMA, term, true) == 0);
             }

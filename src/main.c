@@ -7,7 +7,7 @@ int main(){
 	cunit cu;
 	cunit_init(&cu);
 
-     char* input2 =
+     char* input =
         "int**[y]**[x] x;"
         "fn_call();"
         "fn_call_with_params(4, var);"
@@ -22,8 +22,9 @@ int main(){
         "typedef td scope:generic{nested_generic{x}};"
         "typedef td scope:generic{scoped:nested_generic{x}};"
         "typedef td void(*)(char*) (*)(int);"
-        "int[]**[]**[]*[]****[]*[x] x;";
-    char* input =  "ret_type ***** foo(a1* x, a2* x2) * 3;";
+        "int[]**[]**[]*[]****[]*[x] x;"
+        "ret_type ***** foo(a1* x, a2* x2, +int) + 3;";
+    char* input2 = "char* foo(+a);";
     printf("input:\n%s\n\n", input);
     for(int i=0;i<1;i++){
         parse(&cu, input);
