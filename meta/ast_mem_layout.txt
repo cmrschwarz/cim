@@ -1,6 +1,9 @@
 AST MEMORY LAYOUT FOR CIM
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
+General info:
+-size nodes always include their own size
+--------------------------------------------------------------------------------
 GROUPS:
 
 OPERATOR_LR/OPERATOR/                :
@@ -116,6 +119,17 @@ char* str;                          : FN_PARAMETER
 
 u8 type; u16 size;                  : FN_DECLARATION
 ANY_TYPE                            : return type
+FN_PARAMETER                        : param 1
+FN_PARAMETER                        : param 2
+u16 size;                           : params size
+char* name;                         : name
+OWNED_BLOCK                         : fn body
+
+u8 type; u16 size;                  : GENRIC_FN_DECLARATION
+ANY_TYPE                            : return type
+GENERIC_PARAM                       : generic param 1
+GENERIC_PARAM                       : generic param 2
+u16 size;                           : generic params size
 FN_PARAMETER                        : param 1
 FN_PARAMETER                        : param 2
 u16 size;                           : params size

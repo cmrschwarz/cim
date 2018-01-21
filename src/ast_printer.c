@@ -144,7 +144,7 @@ static ast_node* print_expr_node(cunit *cu, ast_node *e){
             e--;
             printf(e->str);
             e--;
-            ast_node* generic_args_rstart = e - e->sub_expr.size - 1;
+            ast_node* generic_args_rstart = e - e->sub_expr.size;
             e--;
             putchar('{');
             reverse_print_type_list(cu, generic_args_rstart, end);
@@ -229,7 +229,7 @@ ast_node* print_type(cunit* cu, ast_node* t){
         }break;
         case AST_TYPE_TYPE_FN_PTR:{
             ast_node* args_start = (t-2);
-            ast_node* ret = args_start - tn->type.size;
+            ast_node* ret = args_start - tn->type.size + 1;
             print_type(cu, ret);
             putchar(' ');
             putchar('(');
@@ -241,9 +241,9 @@ ast_node* print_type(cunit* cu, ast_node* t){
         }break;
         case AST_TYPE_TYPE_ARRAY:{
             ast_node* expr = t-1;
-            print_type(cu, expr - expr->sub_expr.size -1);
+            print_type(cu, expr - expr->sub_expr.size);
             putchar('[');
-            if(expr->sub_expr.size != 0)print_expr_node(cu, expr-1);
+            if(expr->sub_expr.size != 1)print_expr_node(cu, expr-1);
             putchar(']');
             print_ptrs(t->type.ptrs);
         }break;
@@ -281,12 +281,33 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
                 ast_node* decl = (void*)astn;
                 ast_node* fn_name =  decl + decl->ast_expr.size -1;
                 ast_node* params_size = fn_name-1;
-                ast_node* ret_type = params_size - params_size->ast_expr.size - 1;
+                ast_node* ret_type = params_size - params_size->ast_expr.size;
                 print_type(cu, ret_type);
                 putchar(' ');
                 printf(fn_name->str);
                 putchar('(');
                 reverse_print_func_params(cu, params_size - 1, ret_type);
+                putchar(')');putchar('{');putchar('\n');
+                ast_node* block = fn_name+1;
+                void* block_end = (u8*)block + block->size;
+                print_ast_within(cu, indent + 1, block + 1, block_end);
+                putchar('}');putchar('\n');
+                astn = block_end;
+            }break;
+            case ASTNT_GENERIC_FUNCTION_DECLARATION:{
+                ast_node* decl = (void*)astn;
+                ast_node* fn_name =  decl + decl->ast_expr.size -1;
+                ast_node* params_size = fn_name-1;
+                ast_node* generic_params_size = params_size - params_size->ast_expr.size;
+                ast_node* ret_type = generic_params_size - generic_params_size->ast_expr.size;
+                print_type(cu, ret_type);
+                putchar(' ');
+                printf(fn_name->str);
+                putchar('{');
+                reverse_print_func_params(cu, generic_params_size - 1, ret_type);
+                putchar('}');
+                putchar('(');
+                reverse_print_func_params(cu, params_size - 1, generic_params_size);
                 putchar(')');putchar('{');putchar('\n');
                 ast_node* block = fn_name+1;
                 void* block_end = (u8*)block + block->size;

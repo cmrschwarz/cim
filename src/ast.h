@@ -18,6 +18,7 @@ enum ast_node_type_e{
     ASTNT_ASSIGNMENT,
     ASTNT_VARIABLE_DECLARATION,
     ASTNT_FUNCTION_DECLARATION,
+    ASTNT_GENERIC_FUNCTION_DECLARATION,
     //@PERF: consider adding function call to avoid expr wrapper
 };
 
