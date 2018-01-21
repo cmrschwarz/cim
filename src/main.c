@@ -7,7 +7,7 @@ int main(){
 	cunit cu;
 	cunit_init(&cu);
 
-     char* input =
+     char* input2 =
         "int**[y]**[x] x;"
         "fn_call();"
         "fn_call_with_params(4, var);"
@@ -23,7 +23,7 @@ int main(){
         "typedef td scope:generic{scoped:nested_generic{x}};"
         "typedef td void(*)(char*) (*)(int);"
         "int[]**[]**[]*[]****[]*[x] x;";
-    char* input2 =  "random * expression + 4 * op_prec && (parenthesis - prec);";
+    char* input =  "int foo(){;}";
     printf("input:\n%s\n\n", input);
     for(int i=0;i<1;i++){
         parse(&cu, input);

@@ -428,6 +428,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_ex
     token t1;
     token t2;
     consume_token(cu, &t1);
+    if(t1.type == term1 || t1.type == term2)return 0;
     peek_token(cu, &t2);
     //printf("parsing expr (%llu)\n", POS(cu->ast.head));
     if(t2.type == term1 || t2.type == term2){
@@ -807,14 +808,13 @@ static int parse_function_decl_after_type(cunit *cu, int mods, ureg ast_start){
     else{
         void_lookahead_token(cu);
     }
-    ast_node* s = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 3);
-    s->ast_expr.size = get_ast_growth(cu, ast_pos_pre_params) - 3;
+    ast_node* s = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
+    s->ast_expr.size = get_ast_growth(cu, ast_pos_pre_params) - 2;
     s++;
     s->str = t1.str;
-
     s = (ast_node*)(cu->ast.start + ast_start);
     s->ast_expr.type = ASTNT_FUNCTION_DECLARATION;
-    s->ast_expr.size = get_ast_growth(cu, ast_start) - 1;
+    s->ast_expr.size = get_ast_growth(cu, ast_start);
     return parse_block(cu);
 }
 static inline int parse_modifiers(cunit* cu, token* t){
