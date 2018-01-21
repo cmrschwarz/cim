@@ -88,9 +88,10 @@ u16 args_size;                      : generic args size
 char* name;                         : name
 u8 type; u8 ptrs; u16 size;         : SCOPED_GENERIC_STRUCT
 
-ANY_TYPE                            :array type
-u16 size;                           :params size
-u8 type; u8 ptrs; u16 size;         :ARRAY
+ANY_TYPE                            : array type
+EXPRESSION                          : array_bounds_expr
+u16 size;                           : params size
+u8 type; u8 ptrs; u16 size;         : ARRAY
 
 --------------------------------------------------------------------------------
 AST_NODES:
@@ -120,6 +121,9 @@ FN_PARAMETER                        : param 2
 u16 size;                           : params size
 char* name;                         : name
 OWNED_BLOCK                         : fn body
+
+u8 type; u16 size;                  : VARIABLE_DECLARATION
+ANY_TYPE                            : return type
 
 
 

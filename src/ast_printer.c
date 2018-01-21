@@ -239,9 +239,9 @@ ast_node* print_type(cunit* cu, ast_node* t){
         }break;
         case AST_TYPE_TYPE_ARRAY:{
             ast_node* expr = t-1;
-            print_type(cu, expr - expr->sub_expr.size);
+            print_type(cu, expr - expr->sub_expr.size -1);
             putchar('[');
-            print_expr_node(cu, expr);
+            if(expr->sub_expr.size != 0)print_expr_node(cu, expr-1);
             putchar(']');
             print_ptrs(t->type.ptrs);
         }break;

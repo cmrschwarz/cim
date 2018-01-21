@@ -597,12 +597,15 @@ static ast_node* parse_type(cunit* cu){
     while(t2.type == TOKEN_BRACKET_OPEN){
         void_lookahead_token(cu);
         peek_token(cu, &t2);
+        ureg expr_start = dbuffer_get_size(&cu->ast);
         parse_expr(cu, TOKEN_BRACKET_CLOSE, TOKEN_BRACKET_CLOSE, true);
-        t = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
-        t->type.size = (ast_rel_ptr)
-                    (dbuffer_get_size(&cu->ast) - ast_pos) / sizeof(ast_node);
+        ast_rel_ptr exp_size = get_ast_growth(cu, expr_start);;
+        t = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
+        t->type.size = exp_size;
+        t++;
         t->type.type = AST_TYPE_TYPE_ARRAY;
         t->type.ptrs = count_ptrs(cu);
+        t->type.size = get_ast_growth(cu, ast_pos);
         peek_token(cu, &t2);
     }
     return t;
