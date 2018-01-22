@@ -13,12 +13,26 @@ typedef uregh ast_rel_ptr;
 
 enum ast_node_type_e{
     //used instead of a single element expression
-    ASTNT_TYPEDEF,
+    ASTNT_NUMBER = TOKEN_NUMBER,
+    ASTNT_LITERAL = TOKEN_LITERAL,
+    ASTNT_BINARY_LITERAL = TOKEN_BINARY_LITERAL,
+    ASTNT_VARIABLE,
+    ASTNT_SCOPED_VARIABLE,
     ASTNT_EXPRESSION,
+    ASTNT_CANCER_PTRS,
+    ASTNT_SCOPED_CANCER_PTRS,
+    ASTNT_TYPEDEF,
     ASTNT_ASSIGNMENT,
     ASTNT_VARIABLE_DECLARATION,
     ASTNT_FUNCTION_DECLARATION,
     ASTNT_GENERIC_FUNCTION_DECLARATION,
+
+    ASTNT_TYPE_FN_PTR,
+    ASTNT_TYPE_GENERIC_STRUCT,
+    ASTNT_TYPE_SCOPED_GENERIC_STRUCT,
+    ASTNT_TYPE_ARRAY,
+    ASTNT_TYPE_SIMPLE,
+    ASTNT_TYPE_SCOPED,
     //@PERF: consider adding function call to avoid expr wrapper
 };
 
@@ -27,9 +41,11 @@ enum expr_node_type_t{
     EXPR_NODE_TYPE_NUMBER = TOKEN_NUMBER,
     EXPR_NODE_TYPE_LITERAL = TOKEN_LITERAL,
     EXPR_NODE_TYPE_BINARY_LITERAL = TOKEN_BINARY_LITERAL,
-    EXPR_NODE_TYPE_VARIABLE,
+    EXPR_NODE_TYPE_VARIABLE = ASTNT_VARIABLE,
     EXPR_NODE_TYPE_SCOPED_VARIABLE,
     EXPR_NODE_TYPE_EXPR = ASTNT_EXPRESSION,
+    EXPR_NODE_TYPE_CANCER_PTRS = ASTNT_CANCER_PTRS,
+    EXPR_NODE_TYPE_SCOPED_CANCER_PTRS = ASTNT_SCOPED_CANCER_PTRS,
     EXPR_NODE_TYPE_OP_LR,
     EXPR_NODE_TYPE_OP_L,
     EXPR_NODE_TYPE_OP_R,
@@ -38,15 +54,7 @@ enum expr_node_type_t{
     EXPR_NODE_TYPE_FN_CALL,
     EXPR_NODE_TYPE_ARRAY_ACCESS,
     EXPR_NODE_TYPE_GENERIC_FN_CALL,
-};
-enum type_node_type_e{
-    //TODO: maybe we need to make a resolved mask in here
-    AST_TYPE_TYPE_SIMPLE = EXPR_NODE_TYPE_VARIABLE,
-    AST_TYPE_TYPE_SCOPED = EXPR_NODE_TYPE_SCOPED_VARIABLE,
-    AST_TYPE_TYPE_FN_PTR, //if it's referencing a fn_ptr, that looks like simple
-    AST_TYPE_TYPE_GENERIC_STRUCT,
-    AST_TYPE_TYPE_SCOPED_GENERIC_STRUCT,
-    AST_TYPE_TYPE_ARRAY,
+
 };
 
 #if DEBUG_ENUMS
@@ -54,15 +62,17 @@ enum type_node_type_e{
     typedef enum type_node_type_e type_node_type;
     typedef enum expr_node_type_t expr_node_type;
     typedef enum operation_e operation;
+    typedef int cancer_ptrs_v;
 #else
     typedef u8 ast_node_type;
     typedef u8 type_node_type;
     typedef u8 expr_node_type;
     typedef u8 operation;
+    typedef u8 cancer_ptrs_v;
 #endif
 
 typedef union ast_node_u{
-    //ast_expr, sub_expr and op must have identical memory layout
+    //ast_expr, sub_expr, cancer_mult and op must have identical memory layout
     //because flush_shy_op just uses sub_expr.size for all three
     struct {
         ast_node_type type;
@@ -75,12 +85,17 @@ typedef union ast_node_u{
         ast_rel_ptr size;
     }sub_expr;
     struct {
+        expr_node_type type;
+        cancer_ptrs_v ptrs;
+        ast_rel_ptr size;
+    }cancer_ptrs;
+    struct {
         expr_node_type node_type; //avoiding confusion with opcode
         operation opcode;
         ast_rel_ptr size;
     }op;
     struct{
-        type_node_type type;
+        ast_node_type type;
         u8 ptrs;
         ast_rel_ptr size;
     }type;

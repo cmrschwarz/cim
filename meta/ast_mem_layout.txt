@@ -9,7 +9,9 @@ GROUPS:
 OPERATOR_LR/OPERATOR/                :
 VARIABLE/LITERAL                     : SUB_EXPR_CONTENT
 
-SUB_EXPR/VARIABLE/LITERAL            : ARGUMENT
+SUB_EXPR/VARIABLE/LITERAL/           :
+CANCER_MULTIPLY/                     :
+SCOPED_CANCER_MULTIPLY               : ARGUMENT
 
 SIMPLE/SCOPED/GENERIC_STRUCT/        :
 SCOPED_GENERIC_STRUCT/FN_PTR/        : ANY_TYPE
@@ -31,12 +33,26 @@ u8 type; u8 op; u16 size;           : OPERATOR_LR
 
 
 char* str; /lit* resolved;          : 
-u8 type;                            : LITERAL (BIN-, DEC-, HEX- NUMBER, STRING,)
+u8 type; u16 size = 2;              : LITERAL (BIN-, DEC-, HEX- NUMBER, STRING,)
 
 
 char* str; / var* resolved;         :
-u8 type;                            : VARIABLE
+u8 type; u16 size = 2;              : VARIABLE
 
+char* scope 1;                      : scope 1
+char* scope 2;                      : scope 2
+char* str; / var* resolved;         :
+u8 type; u16 size = 2;              : SCOPED VARIABLE (TODO)
+
+char* left;                         : var before *'s
+char* right;                        : var after *'s
+u8 type; u8 ptrs; u16 size;         : CANCER_PTRS (amount of ptrs)
+
+char* scope 1;                      : scope 1
+char* scope 2;                      : scope 2
+char* left;                         : scoped var before *'s
+char* right;                        : var after *'s
+u8 type; u8 ptrs; u16 size;         : SCOPED_CANCER_PTRS (amount of ptrs)
 
 SUB_EXPR_CONTENT                    : sub expr content continuation
 SUB_EXPR_CONTENT                    : sub expr content start
