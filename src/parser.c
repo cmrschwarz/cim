@@ -1009,18 +1009,17 @@ static inline int parse_leading_string(cunit* cu){
                     if(r == AOPL_AMBIGUOUS){
                         peek_token(cu, &t1);
                         if(t1.type == TOKEN_BRACE_OPEN){
-                            add_size_node(cu, arg_list_start);
                             r = AOPL_PARAM_LIST;
                         }
                         else{
                             ureg arg_list_size = get_ast_growth(cu, arg_list_start);
                             ureg size_inc = size_inc_as_arg_list * sizeof(ast_node);
                             turn_param_list_into_arg_list(cu, arg_list_size, size_inc, 0);
-                            add_size_node(cu, arg_list_start);
                             r = AOPL_ARG_LIST;
                         }
                     }
                     if(r == AOPL_PARAM_LIST){
+                        add_size_node(cu, arg_list_start);
                         ast_node* n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
                         n->str = fn_name;
                         n = (void*)(cu->ast.start + ast_start);

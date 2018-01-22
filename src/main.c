@@ -6,10 +6,10 @@ int main(){
 	cunit cu;
 	cunit_init(&cu);
 
-     char* input =
+     char* input2 =
          "int* foo(int* x, int + 2);"
-         "int* foo(int* x){}"
-        "int* foo{int x, int* y}(heureka * p){};"
+         "int* foo(int(*)(char*) fn_ptr){bar();}"
+        "int* foo{int x, int* y}(heureka * p){baz();};"
         "char* foo(+a, int ************b);"
         "int foo(int x){}"
         "int**[y]**[x] x;"
@@ -28,7 +28,7 @@ int main(){
         "typedef td void(*)(char*) (*)(int);"
         "int[]**[]**[]*[]****[]*[x] x;"
         "ret_type ***** foo(a1* x, a2* x2, +int) + 3;";
-    char* input2 = "int * foo{int*********** x}(int x, int * a, a int){}";
+    char* input =  "int* foo(int(*)(char*) fn_ptr){bar();}";
     printf("input:\n%s\n\n", input);
     for(int i=0;i<1;i++){
         parse(&cu, input);
