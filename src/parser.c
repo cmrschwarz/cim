@@ -143,6 +143,11 @@ static inline void add_size_node(cunit* cu, ureg ast_start){
     ast_node* n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
     n->sub_expr.size = get_ast_growth(cu, ast_start);
 }
+static inline void consume_required_token(cunit* cu, token_type t){
+    token t1;
+    consume_token(cu, &t1);
+    CIM_ASSERT(t1.type == t);
+}
 static inline void flush_shy_op(cunit* cu, ast_node* s){
     ast_node* expr_rit =  (void*)(cu->ast.head - sizeof(ast_node));
     int its;
@@ -165,7 +170,8 @@ static inline void flush_shy_op(cunit* cu, ast_node* s){
     //this will hopefully be inlined and brought out of the loop
     cu->shy_ops.head -= sizeof(ast_node);
 }
-static inline void push_shy_op(cunit* cu, ast_node* sop, ast_node** sho_root, ast_node** sho_ri, ast_node** sho_re){
+static inline void push_shy_op(cunit* cu, ast_node* sop, ast_node** sho_root, ast_node** sho_ri,
+                               ast_node** sho_re){
     if(dbuffer_has_space(&cu->shy_ops, sizeof(ast_node))){
         *((ast_node*)cu->shy_ops.head) = *sop;
         cu->shy_ops.head += sizeof(ast_node);
@@ -411,7 +417,7 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
                         e++;
                         e->str = el_name;
                         e++;
-                        e->sub_expr.size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - el_end) / sizeof(ast_node));
+                        e->sub_expr.size= get_ast_growth(cu, el_end);
                         e->sub_expr.type= EXPR_NODE_TYPE_GENERIC_FN_CALL;
                     }
                     else{
@@ -424,7 +430,7 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
                     e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
                     e->str= t1.str;
                     e++;
-                    e->sub_expr.size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - el_end) / sizeof(ast_node));
+                    e->sub_expr.size= get_ast_growth(cu, el_end);
                     e->sub_expr.type= EXPR_NODE_TYPE_ARRAY_ACCESS;
                 }
                 else {
@@ -447,12 +453,12 @@ lbl_default:
                     ast_node* expr;
                     if(sub_expr){
                         expr = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
-                        expr->sub_expr.size= (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - expr_start) / sizeof(ast_node));
+                        expr->sub_expr.size= get_ast_growth(cu, expr_start);
                         expr->sub_expr.type = EXPR_NODE_TYPE_EXPR;
                     }
                     else{
                         expr = (ast_node*)(cu->ast.start + expr_start);
-                        expr->ast_expr.size = (ast_rel_ptr)((ast_node*)cu->ast.head - expr);
+                        expr->ast_expr.size = get_ast_growth(cu, expr_start);
                         expr->ast_expr.type = ASTNT_EXPRESSION;
                     }
                     return (t1.type == term1) ? 0 : 1;
@@ -483,10 +489,12 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_ex
             if(sub_expr){
                 e->str = t1.str;
                 e++;
-                e->sub_expr.type = (expr_node_type)t1.type; //token type matches expr elem type for these
+                 //token type matches expr elem type for these
+                e->sub_expr.type = (expr_node_type)t1.type;
             }
             else{
-                e->sub_expr.type = (expr_node_type)t1.type; //token type matches ASTNT type for these
+                //token type matches ASTNT type for these
+                e->sub_expr.type = (expr_node_type)t1.type;
                 e++;
                 e->str = t1.str;
             }
@@ -511,7 +519,8 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_ex
     ureg expr_start = dbuffer_get_size(&cu->ast);
     if(!sub_expr)dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
     ureg shy_ops_start = cu->shy_ops.head - cu->shy_ops.start;
-    continue_parse_expr(cu, term1, term2, sub_expr, expr_start, shy_ops_start,shy_ops_start, t1, false);
+    continue_parse_expr(cu, term1, term2, sub_expr, expr_start, shy_ops_start,shy_ops_start,
+                        t1, false);
 }
 static u8 count_ptrs(cunit *cu){
     token t1;
@@ -537,6 +546,7 @@ static ast_node* parse_type(cunit* cu){
     consume_token(cu, &t1);
     peek_token(cu, &t2);
     bool scoped= false;
+    CIM_ASSERT(t1.type == TOKEN_STRING);
     if(t2.type == TOKEN_COLON){
         scoped = true;
         do{
@@ -782,21 +792,12 @@ typedef enum arg_or_params_list_e{
     AOPL_PARAM_LIST,
     AOPL_AMBIGUOUS, //in this case it was parsed as a param list
 }arg_or_params_list;
-static arg_or_params_list parse_arg_or_param_list(cunit* cu, bool generic, ast_rel_ptr* r_size_inc_as_arg_list){
+static arg_or_params_list parse_arg_or_param_list(cunit* cu, token_type term,
+                                                  ast_rel_ptr* r_size_inc_as_arg_list){
     bool type_preparsed = true;
     ureg ast_start = dbuffer_get_size(&cu->ast);
     token t1;
     token t2;
-    token_type term;
-    consume_token(cu, &t1);
-    if(generic){
-        CIM_ASSERT(t1.type == TOKEN_BRACE_OPEN);
-        term = TOKEN_BRACE_CLOSE;
-    }
-    else{
-        CIM_ASSERT(t1.type == TOKEN_PAREN_OPEN);
-        term = TOKEN_PAREN_CLOSE;
-    }
     peek_token(cu, &t1);
     ast_rel_ptr size_inc_as_arg_list = 0;
     ast_node* t;
@@ -846,6 +847,7 @@ its_a_param_list:;
     //handling the current parameter
     ast_node* n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
     consume_token(cu, &t1);
+    CIM_ASSERT(t1.type == TOKEN_STRING);
     n->str = t1.str;
     consume_token(cu, &t1);
     while(t1.type == TOKEN_COMMA){
@@ -873,7 +875,9 @@ its_an_arg_list:;
         if(type_preparsed){
              //restore the preparsed type at the end
             t = (ast_node*)(cu->ast.head) - 1;
-            if(parse_type_as_expr_begin(cu, ast_start+new_list_size, t,true, TOKEN_COMMA, term, false) == 0){
+            if(parse_type_as_expr_begin(cu, ast_start+new_list_size, t,true,
+                                        TOKEN_COMMA, term, false) == 0)
+            {
                 while (parse_expr(cu, TOKEN_COMMA, term, true) == 0);
             }
         }
@@ -993,13 +997,15 @@ static inline int parse_leading_string(cunit* cu){
             }
             else if(t1.type == TOKEN_STRING){
                 if(t2.type == TOKEN_PAREN_OPEN){
-                    //+1 because of the leading expression node
-                    ureg arg_list_start = ast_start + 1 + type_size * sizeof(ast_node);
+                    //+sizeof(ast_node) because of the leading expression node
                     if(t->type.ptrs == 0) return parse_function_decl_after_type(cu, 0, ast_start);
+                    ureg arg_list_start = ast_start + sizeof(ast_node) +
+                                          type_size * sizeof(ast_node);
                     char* fn_name = t1.str;
-                    void_lookahead_token(cu);
+                    void_2_lookahead_tokens(cu);
                     ast_rel_ptr size_inc_as_arg_list;
-                    arg_or_params_list r = parse_arg_or_param_list(cu, false, &size_inc_as_arg_list);
+                    arg_or_params_list r = parse_arg_or_param_list(cu, TOKEN_PAREN_CLOSE,
+                                                                   &size_inc_as_arg_list);
                     if(r == AOPL_AMBIGUOUS){
                         peek_token(cu, &t1);
                         if(t1.type == TOKEN_BRACE_OPEN){
@@ -1027,20 +1033,91 @@ static inline int parse_leading_string(cunit* cu){
                         n->str = fn_name;
                         n++;
                         n->sub_expr.type = EXPR_NODE_TYPE_FN_CALL;
-                        //we start at arg list start because the leading 'type' was actually a var * ... expression
+                        // we start at arg list start because the leading 'type'
+                        // was actually a var * ... expression
                         n->sub_expr.size = get_ast_growth(cu, arg_list_start);
-                        t = (ast_node*)(cu->ast.start + ast_start) + type_size; //not -1 because of the expr node
+                        //not -sizeof(ast_node) because of the expr node
+                        t = (ast_node*)(cu->ast.start + ast_start) + type_size;
                         return parse_type_as_expr_begin(cu, ast_start, t, false,
                                                  TOKEN_SEMICOLON, TOKEN_SEMICOLON,true);
                     }
                 }
                 else if (t2.type == TOKEN_BRACE_OPEN){
-                    if(t->type.ptrs == 0) return parse_generic_function_decl_after_type(cu, 0, ast_start);
+                    if(t->type.ptrs == 0){
+                        return parse_generic_function_decl_after_type(cu, 0, ast_start);
+                    }
+                    ureg generic_arg_list_start = dbuffer_get_size(&cu->ast);
+                    char* fn_name = t1.str;
+                    void_2_lookahead_tokens(cu);
+                    ast_rel_ptr size_inc_as_arg_list;
+                    arg_or_params_list r = parse_arg_or_param_list(cu, TOKEN_BRACE_CLOSE,
+                                                                   &size_inc_as_arg_list);
+                    ureg arg_list_start;
+                    consume_required_token(cu, TOKEN_PAREN_OPEN);
+                    if(r == AOPL_AMBIGUOUS){
+                        add_size_node(cu, generic_arg_list_start); //we assume decl again
+                        arg_list_start = dbuffer_get_size(&cu->ast);
+                        arg_or_params_list r2 = parse_arg_or_param_list(cu, TOKEN_PAREN_CLOSE,
+                                                                        &size_inc_as_arg_list);
+                        if(r2 == AOPL_AMBIGUOUS){
+                            peek_token(cu, &t1);
+                            if(t1.type == TOKEN_BRACE_OPEN){
+                                r = AOPL_PARAM_LIST;
+                            }
+                            else{
+                                r = AOPL_ARG_LIST;
+                                //conv both
+                            };
+                        }
+                        else if(r2 == AOPL_PARAM_LIST){
+                            r = AOPL_PARAM_LIST;
+                        }
+                        else{
+                            //conv 1st one
+                        }
+                    }
+                    else{
 
+                        if(r == AOPL_PARAM_LIST){
+                            add_size_node(cu, generic_arg_list_start);
+                            arg_list_start = dbuffer_get_size(&cu->ast);
+                            parse_param_list(cu, TOKEN_PAREN_CLOSE);
+                        }
+                        else{
+                            arg_list_start = dbuffer_get_size(&cu->ast);
+                            parse_arg_list(cu, TOKEN_PAREN_CLOSE);
+                        }
+
+                    }
+                    if(r == AOPL_PARAM_LIST){
+                        ast_node* n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
+                        //exclude one node because of the fn name
+                        n->sub_expr.size = get_ast_growth(cu, arg_list_start + sizeof(ast_node));
+                        n++;
+                        n->str = fn_name;
+                        n = (void*)(cu->ast.start + ast_start);
+                        n->ast_expr.type = ASTNT_GENERIC_FUNCTION_DECLARATION;
+                        n->ast_expr.size = get_ast_growth(cu, ast_start);
+                        return parse_block(cu);
+                    }
+                    else {
+                        ast_node* n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
+                        n->str = fn_name;
+                        n++;
+                        n->sub_expr.type = EXPR_NODE_TYPE_GENERIC_FN_CALL;
+                        //we start at arg list start because the leading 'type'
+                        // was actually a var * ... expression
+                        n->sub_expr.size = get_ast_growth(cu, generic_arg_list_start);
+                        //not -1 because of the expr node
+                        t = (ast_node*)(cu->ast.start + ast_start) + type_size;
+                        return parse_type_as_expr_begin(cu, ast_start, t, false,
+                                                 TOKEN_SEMICOLON, TOKEN_SEMICOLON,true);
+                    }
                 }
             }
             //expression
-           return parse_type_as_expr_begin(cu, ast_start, t,false, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
+           return parse_type_as_expr_begin(cu, ast_start, t,false, TOKEN_SEMICOLON,
+                                           TOKEN_SEMICOLON, false);
         }
         case AST_TYPE_TYPE_GENERIC_STRUCT: {
             if (t1.type == TOKEN_PAREN_OPEN) {
@@ -1106,8 +1183,12 @@ static inline int parse_elem(cunit* cu){
                 dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
                 parse_type(cu);
                 peek_token(cu, &t1);
-                if(t1.type == TOKEN_PAREN_OPEN) return parse_function_decl_after_type(cu, 0, ast_pos);
-                if(t1.type == TOKEN_BRACE_OPEN) return parse_generic_function_decl_after_type(cu, 0, ast_pos);
+                if(t1.type == TOKEN_PAREN_OPEN) {
+                    return parse_function_decl_after_type(cu, 0, ast_pos);
+                }
+                if(t1.type == TOKEN_BRACE_OPEN){
+                    return parse_generic_function_decl_after_type(cu, 0, ast_pos);
+                }
                 CIM_ERROR("Unexpected token following type declaration");
             }
            return parse_leading_string(cu);
