@@ -18,7 +18,6 @@ enum assocs{
 };
 
 static u8 prec_table [OP_RANGE] = {
-    [OP_NONE] = 1, //initialization flag
     //uniquely has this precedence level so it is not removed during flush
     [OP_TEMP_PAREN_OPEN] = 0,
 
@@ -77,7 +76,6 @@ static u8 prec_table [OP_RANGE] = {
 };
 
 static u8 assoc_table [OP_RANGE] = {
-    [OP_NONE] = RIGHT_ASSOCIATIVE,
     [OP_PREINCREMENT] = RIGHT_ASSOCIATIVE,
     [OP_PREDECREMENT] = RIGHT_ASSOCIATIVE,
     [OP_LOGICAL_NOT] = RIGHT_ASSOCIATIVE,
@@ -164,7 +162,7 @@ static inline void flush_shy_op(cunit* cu, ast_node* s){
     ast_node* e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
     //shy ops don't come from the ast but from shy_ops therefore s doesn't get invalidated
     e->expr.type = s->expr.type;
-    e->expr.opcode = s->expr.opcode;
+    e->expr.special.opcode = s->expr.special.opcode;
     //TODO: evaluate the necessity of this for single arg ops
     e->expr.size = size;
     //this will hopefully be inlined and brought out of the loop
@@ -243,21 +241,21 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
     while(true){
         switch(t1.type){
             case TOKEN_DOUBLE_PLUS: {
-                sop.expr.opcode = (expecting_op) ? OP_POSTINCREMENT : OP_PREINCREMENT;
+                sop.expr.special.opcode= (expecting_op) ? OP_POSTINCREMENT : OP_PREINCREMENT;
             }goto lbl_op_l_or_r;
             case TOKEN_DOUBLE_MINUS:{
-                sop.expr.opcode = (expecting_op) ? OP_POSTDECREMENT : OP_PREDECREMENT;
+                sop.expr.special.opcode= (expecting_op) ? OP_POSTDECREMENT : OP_PREDECREMENT;
             }//fallthrough to op_l_or_r
             lbl_op_l_or_r:{
                 sop.expr.type = (expecting_op) ? EXPR_NODE_OP_R : EXPR_NODE_OP_L;
-                prec = prec_table[sop.expr.opcode];
-                if (assoc_table[sop.expr.opcode] == LEFT_ASSOCIATIVE) {
-                    for (; sho_ri != sho_re && prec_table[sho_ri->expr.opcode] >= prec; sho_ri--) {
+                prec = prec_table[sop.expr.special.opcode];
+                if (assoc_table[sop.expr.special.opcode] == LEFT_ASSOCIATIVE) {
+                    for (; sho_ri != sho_re && prec_table[sho_ri->expr.special.opcode] >= prec; sho_ri--) {
                         flush_shy_op(cu, sho_ri);
                     }
                 }
                 else {
-                    for (; sho_ri != sho_re && prec_table[sho_ri->expr.opcode] > prec; sho_ri--) {
+                    for (; sho_ri != sho_re && prec_table[sho_ri->expr.special.opcode] > prec; sho_ri--) {
                         flush_shy_op(cu, sho_ri);
                     }
                 }
@@ -266,37 +264,37 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
             }break;
             case TOKEN_STAR:{
                 if (expecting_op) {
-                    sop.expr.opcode = OP_MULTIPLY;
+                    sop.expr.special.opcode= OP_MULTIPLY;
                     goto lbl_op_lr;
                 }
-                sop.expr.opcode = OP_DEREFERENCE;
+                sop.expr.special.opcode= OP_DEREFERENCE;
             }goto lbl_op_unary;
             case TOKEN_AND:{
                 if (expecting_op) {
-                    sop.expr.opcode = OP_BITWISE_AND;
+                    sop.expr.special.opcode= OP_BITWISE_AND;
                     goto lbl_op_lr;
                 }
-                sop.expr.opcode = OP_ADDRESS_OF;
+                sop.expr.special.opcode= OP_ADDRESS_OF;
             }goto lbl_op_unary;
             case TOKEN_PLUS: {
                 if (expecting_op) {
-                    sop.expr.opcode = OP_ADD;
+                    sop.expr.special.opcode= OP_ADD;
                     goto lbl_op_lr;
                 }
-                sop.expr.opcode = OP_UNARY_PLUS;
+                sop.expr.special.opcode= OP_UNARY_PLUS;
             }goto lbl_op_unary;
             case TOKEN_MINUS:{
                 if (expecting_op) {
-                    sop.expr.opcode = OP_SUBTRACT;
+                    sop.expr.special.opcode= OP_SUBTRACT;
                     goto lbl_op_lr;
                 }
-                sop.expr.opcode = OP_UNARY_MINUS;
+                sop.expr.special.opcode= OP_UNARY_MINUS;
             }//fallthrough to lbl_op_unary
             lbl_op_unary: {
                 sop.expr.type = EXPR_NODE_OP_L;
-                prec = prec_table[sop.expr.opcode];
+                prec = prec_table[sop.expr.special.opcode];
                 //unary is always right associative
-                for (; sho_ri != sho_re && prec_table[sho_ri->expr.opcode] > prec; sho_ri--) {
+                for (; sho_ri != sho_re && prec_table[sho_ri->expr.special.opcode] > prec; sho_ri--) {
                     flush_shy_op(cu, sho_ri);
                 }
                 push_shy_op(cu, &sop, &sho_root, &sho_ri, &sho_re);
@@ -332,18 +330,18 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
             case TOKEN_TILDE_EQUALS:
             case TOKEN_DOUBLE_LESS_THAN_EQUALS:{
                 //for these, the toke  type is set to be equal to the op type
-                sop.expr.opcode = (u8)(t1.type);
+                sop.expr.special.opcode= (u8)(t1.type);
             }//fall through to op_lr
             lbl_op_lr: {
                 sop.expr.type= EXPR_NODE_OP_LR;
-                prec = prec_table[sop.expr.opcode];
-                if (assoc_table[sop.expr.opcode] == LEFT_ASSOCIATIVE) {
-                    for (; sho_ri != sho_re && prec_table[sho_ri->expr.opcode] >= prec; sho_ri--) {
+                prec = prec_table[sop.expr.special.opcode];
+                if (assoc_table[sop.expr.special.opcode] == LEFT_ASSOCIATIVE) {
+                    for (; sho_ri != sho_re && prec_table[sho_ri->expr.special.opcode] >= prec; sho_ri--) {
                         flush_shy_op(cu, sho_ri);
                     }
                 }
                 else {
-                    for (; sho_ri != sho_re && prec_table[sho_ri->expr.opcode] > prec; sho_ri--) {
+                    for (; sho_ri != sho_re && prec_table[sho_ri->expr.special.opcode] > prec; sho_ri--) {
                         flush_shy_op(cu, sho_ri);
                     }
                 }
@@ -353,14 +351,14 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
             case TOKEN_PAREN_OPEN: {
                 open_paren_count++;
                 sop.expr.type = EXPR_NODE_PAREN;
-                sop.expr.opcode = OP_TEMP_PAREN_OPEN;
+                sop.expr.special.opcode= OP_TEMP_PAREN_OPEN;
                 push_shy_op(cu, &sop, &sho_root, &sho_ri, &sho_re);
                 expecting_op = false;
             }break;
             case TOKEN_PAREN_CLOSE: {
                 if(open_paren_count==0)goto lbl_default;
                 open_paren_count--;
-                for (;sho_ri != sho_re && sho_ri->expr.opcode != OP_TEMP_PAREN_OPEN;
+                for (;sho_ri != sho_re && sho_ri->expr.special.opcode!= OP_TEMP_PAREN_OPEN;
                       sho_ri--)
                 {
                     flush_shy_op(cu, sho_ri);
@@ -657,12 +655,12 @@ static int parse_type_as_expr_begin(cunit *cu, ureg ast_start, ast_node *type, b
     //type type is identical to sub_expr_type var / scoped var
     if(type->type.ptrs){
         ast_node* sop = dbuffer_claim_small_space(&cu->shy_ops, sizeof(ast_node) * type->type.ptrs);
-        sop->expr.opcode = OP_MULTIPLY;
+        sop->expr.special.opcode= OP_MULTIPLY;
         sop->expr.type = EXPR_NODE_OP_LR;
         sop++;
         while((void*)sop!= cu->shy_ops.head){
             sop->expr.type = EXPR_NODE_OP_L;
-            sop->expr.opcode = OP_DEREFERENCE;
+            sop->expr.special.opcode= OP_DEREFERENCE;
             sop++;
         }
         shy_ops_pos = dbuffer_get_size(&cu->shy_ops);
@@ -686,20 +684,20 @@ static void change_param_list_to_arg_list(ast_node* rit, ast_node* rend){
         ast_node* t = rit-1;
         switch(t->type.type){
             case EXPR_NODE_TYPE_SIMPLE:{
-                rit->cancer_ptrs.type = EXPR_NODE_CANCER_PTRS;
-                rit->cancer_ptrs.ptrs = t->type.ptrs;
-                rit->cancer_ptrs.size = 3;
+                rit->expr.type = EXPR_NODE_CANCER_PTRS;
+                rit->expr.special.ptrs = t->type.ptrs;
+                rit->expr.size = 3;
                 t->str = param;
             }break;
             case EXPR_NODE_TYPE_SCOPED:{
-                rit->cancer_ptrs.type = EXPR_NODE_SCOPED_CANCER_PTRS;
-                rit->cancer_ptrs.ptrs = t->type.ptrs;
-                rit->cancer_ptrs.size = t->type.size + 1;
+                rit->expr.type = EXPR_NODE_SCOPED_CANCER_PTRS;
+                rit->expr.special.ptrs = t->type.ptrs;
+                rit->expr.size = t->type.size + 1;
                 t->str = param;
             }break;
             default: CIM_ERROR("Unexpected parameter type in change_param_list_to_arg_list");
         }
-        rit -= rit->cancer_ptrs.size;
+        rit -= rit->expr.size;
     }
 }
 static void change_generic_param_list_to_arg_list(ast_node* rit, ast_node* rend){
@@ -708,18 +706,18 @@ static void change_generic_param_list_to_arg_list(ast_node* rit, ast_node* rend)
         ast_node* t = rit-1;
         switch(t->type.type){
             case EXPR_NODE_TYPE_SIMPLE:{
-                rit->cancer_ptrs.type = EXPR_NODE_CANCER_PTRS;
-                rit->cancer_ptrs.ptrs = t->type.ptrs;
-                rit->cancer_ptrs.size = 3;
+                rit->expr.type = EXPR_NODE_CANCER_PTRS;
+                rit->expr.special.ptrs = t->type.ptrs;
+                rit->expr.size = 3;
                 t->str = param;
                 rit -= 3;
             }break;
             case EXPR_NODE_TYPE_SCOPED:{
-                rit->cancer_ptrs.type = EXPR_NODE_SCOPED_CANCER_PTRS;
-                rit->cancer_ptrs.ptrs = t->type.ptrs;
-                rit->cancer_ptrs.size = t->type.size + 1;
+                rit->expr.type = EXPR_NODE_SCOPED_CANCER_PTRS;
+                rit->expr.special.ptrs = t->type.ptrs;
+                rit->expr.size = t->type.size + 1;
                 t->str = param;
-                rit -= rit->cancer_ptrs.size;
+                rit -= rit->expr.size;
             }break;
             default: CIM_ERROR("Unexpected parameter type in change_generic_param_list_to_arg_list");
         }
@@ -788,8 +786,15 @@ static arg_or_params_list parse_generic_arg_or_params_list(cunit* cu){
             return AOPL_PARAM_LIST;
         }
         peek_2nd_token(cu, &t2);
-        if(t2.type != TOKEN_COMMA && t2.type != TOKEN_BRACE_CLOSE)goto its_an_arg_list;
-        //its ambiguous, assume param list
+        if(t2.type != TOKEN_BRACE_CLOSE){
+             if(t2.type != TOKEN_COMMA) goto its_an_arg_list;
+        }
+        else{
+            n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
+            n->str = t1.str;
+            void_2_lookahead_tokens(cu);
+            return AOPL_AMBIGUOUS;
+        }
         n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
         n->str = t1.str;
         void_2_lookahead_tokens(cu);
@@ -855,8 +860,10 @@ static arg_or_params_list parse_arg_or_param_list(cunit* cu){
                     peek_token(cu, &t1);
                 }
                 else{
-                    void_lookahead_token(cu);
-                    t1 = t2;
+                    void_2_lookahead_tokens(cu);
+                    ast_node* n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
+                    n->str = param_name;
+                    return AOPL_AMBIGUOUS;
                 }
                 //it's ambiguous, assume param list (much more likely
                 //as otherwise it's a thrown away expression) and continue
@@ -1047,14 +1054,12 @@ static inline int parse_leading_string(cunit* cu){
                     ureg generic_arg_list_start = dbuffer_get_size(&cu->ast);
                     char* fn_name = t1.str;
                     void_2_lookahead_tokens(cu);
-                    ast_rel_ptr size_inc_as_arg_list;
                     arg_or_params_list r = parse_generic_arg_or_params_list(cu);
                     ureg arg_list_start;
                     consume_required_token(cu, TOKEN_PAREN_OPEN);
                     if(r == AOPL_AMBIGUOUS){
                         add_size_node(cu, generic_arg_list_start); //we assume decl again
                         arg_list_start = dbuffer_get_size(&cu->ast);
-                        ast_rel_ptr size_inc_as_arg_list2;
                         r= parse_arg_or_param_list(cu);
                         if(r == AOPL_AMBIGUOUS){
                             peek_token(cu, &t1);
@@ -1063,12 +1068,18 @@ static inline int parse_leading_string(cunit* cu){
                             }
                             else{
                                 r = AOPL_ARG_LIST;
+                                ast_node* arg_list_pos = (void*)(cu->ast.start + arg_list_start);
+                                //remove the size node for the generic arg list
+                                memmove(arg_list_pos-1, arg_list_pos,
+                                        cu->ast.head - (u8*)arg_list_pos);
+                                cu->ast.head-=sizeof(ast_node);
+                                change_param_list_to_arg_list((ast_node*)cu->ast.head - 1,
+                                                              arg_list_pos-2);
+                                arg_list_start-=sizeof(ast_node);
                                 change_generic_param_list_to_arg_list(
-                                        (ast_node*)(cu->ast.start + arg_list_start) - 2,
+                                        (ast_node*)(cu->ast.start + arg_list_start) - 1,
                                         (ast_node*)(cu->ast.start + generic_arg_list_start) - 1);
-                                change_param_list_to_arg_list(
-                                        (ast_node*)(cu->ast.start + arg_list_start)-1,
-                                        (ast_node*)cu->ast.head - 1);
+
                             };
                         }
                         else if(r == AOPL_PARAM_LIST){

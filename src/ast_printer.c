@@ -3,7 +3,7 @@
 #include "error.h"
 #include "ast.h"
 static void print_type(ast_node* t);
-static void print_sub_expr(ast_node *e);
+static void print_sub_expr(ast_node *e, bool allow_types);
 void write(char* str){
     fputs(str, stdout);
 }
@@ -67,7 +67,16 @@ void reverse_print_func_args(ast_node* elem, ast_node* end){
         putchar(',');
         putchar(' ');
     }
-    print_sub_expr(elem);
+    print_sub_expr(elem, false);
+}
+void reverse_print_generic_arg_list(ast_node* start, ast_node* end){
+    if(start == end)return;
+    ast_node* next = start - start->type.size ;
+    if(next != end){
+        reverse_print_generic_arg_list(next, end);
+        putchar(',');putchar(' ');
+    }
+    print_sub_expr(start, true);
 }
 void reverse_print_type_list(ast_node* start, ast_node* end){
     if(start == end)return;
@@ -145,14 +154,14 @@ static void print_type(ast_node* t){
             ast_node* expr = t-1;
             print_type(expr - expr->expr.size);
             putchar('[');
-            if(expr->expr.size != 1)print_sub_expr(expr-1);
+            if(expr->expr.size != 1)print_sub_expr(expr-1, false);
             putchar(']');
             print_ptrs(t->type.ptrs);
         }break;
         default:CIM_ERROR("Unknown AST_TYPE_TYPE");
     }
 }
-static void print_sub_expr(ast_node *e){
+static void print_sub_expr(ast_node *e, bool allow_types){
     ast_node* e2 = e-1;
     switch(e->expr.type){
         case EXPR_NODE_NUMBER:
@@ -171,14 +180,14 @@ static void print_sub_expr(ast_node *e){
         }return;
         case EXPR_NODE_OP_L:{
             putchar('(');
-            print_op(e->expr.opcode);
-            print_sub_expr(e2);
+            print_op(e->expr.special.opcode);
+            print_sub_expr(e2, false);
             putchar(')');
         }return;
         case EXPR_NODE_OP_R:{
             putchar('(');
-            print_sub_expr(e2);
-            print_op(e->expr.opcode);
+            print_sub_expr(e2, false);
+            print_op(e->expr.special.opcode);
             putchar(')');
         }return;
         case EXPR_NODE_OP_LR:{
@@ -186,11 +195,11 @@ static void print_sub_expr(ast_node *e){
             ast_node* r = e2;
             ast_node* l;
             l= r - r->expr.size;
-            print_sub_expr(l);
+            print_sub_expr(l, false);
             putchar(' ');
-            print_op(e->expr.opcode);
+            print_op(e->expr.special.opcode);
             putchar(' ');
-            print_sub_expr(r);
+            print_sub_expr(r, false);
             putchar(')');
         };return;
         case EXPR_NODE_FN_CALL:{
@@ -206,7 +215,7 @@ static void print_sub_expr(ast_node *e){
             ast_node* params_size = e-2;
             ast_node* generic_args_rstart = params_size - params_size->expr.size;
             putchar('{');
-            reverse_print_type_list(generic_args_rstart, end);
+            reverse_print_generic_arg_list(generic_args_rstart, end);
             putchar('}');putchar('(');
             reverse_print_func_args(params_size-1, generic_args_rstart);
             putchar(')');
@@ -214,18 +223,18 @@ static void print_sub_expr(ast_node *e){
         case EXPR_NODE_ARRAY_ACCESS:{
             write(e2->str);
             putchar('[');
-            print_sub_expr(e-2);
+            print_sub_expr(e-2, false);
             putchar(']');
         }return;
         case EXPR_NODE_CANCER_PTRS:{
             putchar('(');
             write((e-2)->str);
             putchar(' ');putchar('*');putchar(' ');
-            for(int i = 1; i < e->cancer_ptrs.ptrs; i++){
+            for(int i = 1; i < e->expr.special.ptrs; i++){
                 putchar('('); putchar('*');
             }
             write(e2->str);
-            for(int i = 0; i < e->cancer_ptrs.ptrs; i++){
+            for(int i = 0; i < e->expr.special.ptrs; i++){
                 putchar(')');
             }
         };return;
@@ -238,15 +247,22 @@ static void print_sub_expr(ast_node *e){
             }
             write((e-1)->str);
             putchar(' '); putchar('*'); putchar(' ');
-            for(int i = 1; i < e->cancer_ptrs.ptrs; i++){
+            for(int i = 1; i < e->expr.special.ptrs; i++){
                 putchar('('); putchar('*');
             }
             write(e2->str);
-            for(int i = 0; i < e->cancer_ptrs.ptrs; i++){
+            for(int i = 0; i < e->expr.special.ptrs; i++){
                 putchar(')');
             }
         }return;
-        default:CIM_ERROR("Unknown expression type");
+        default:{
+            if(allow_types){
+                print_type(e);
+            }
+            else{
+                 CIM_ERROR("Unknown expression type");
+            }
+        }
     }
 }
 void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
@@ -302,7 +318,7 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
             }break;
             case ASTNT_EXPRESSION:{
                 ast_node* n = astn + astn->expr.size - 1;
-                if(n != astn) print_sub_expr(n);
+                if(n != astn) print_sub_expr(n, false);
                 astn = n + 1;
                 puts(";");
             }break;
