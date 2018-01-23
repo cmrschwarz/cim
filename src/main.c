@@ -6,9 +6,10 @@ int main(){
 	cunit cu;
 	cunit_init(&cu);
 
-     char* input2 =
+     char* input =
+         "int* foo{int* x}(int* x, int + 2);"
          "int* foo{int* x}(int* x);"
-                 "int* foo{int* x}(int* x){;}"
+         "int* foo{int* x}(int* x){}"
          "int* foo{int* x}(int* x, int + 2);"
          "int* foo(int(*)(char*) fn_ptr){bar();}"
         "char* foo(+a, int ************b);"
@@ -30,7 +31,7 @@ int main(){
         "int[]**[]**[]*[]****[]*[x] x;"
         "ret_type ***** foo(a1* x, a2* x2, +int) + 3;";
 
-    char* input = "int* foo{int* x}(int* x, int + 2);";
+    char* input2 = "char* foo(+a, int ************b);";
     printf("input:\n%s\n\n", input);
     for(int i=0;i<1;i++){
         parse(&cu, input);
@@ -42,7 +43,7 @@ int main(){
            sbuffer_get_size(&cu.data_store),
            dbuffer_get_size(&cu.string_ptrs) / sizeof(ureg) - 19);
     printf("\noutput:\n");
-    print_ast(&cu);
+    //print_ast(&cu);
     cunit_fin(&cu);
 	return 0;
 }

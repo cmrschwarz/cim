@@ -100,7 +100,7 @@ void cunit_init(cunit* cu){
 	sbuffer_init(&cu->data_store, 4);
 	dbuffer_init(&cu->string_ptrs);
 	dbuffer_init(&cu->ast);
-    dbuffer_init(&cu->shy_ops);
+    dbuffer_init_with_capacity(&cu->shy_ops, 1000);
     clear_lookahead(cu);
 
 
@@ -163,7 +163,6 @@ static inline void flush_shy_op(cunit* cu, ast_node* s){
     //shy ops don't come from the ast but from shy_ops therefore s doesn't get invalidated
     e->expr.type = s->expr.type;
     e->expr.special.opcode = s->expr.special.opcode;
-    //TODO: evaluate the necessity of this for single arg ops
     e->expr.size = size;
     //this will hopefully be inlined and brought out of the loop
     cu->shy_ops.head -= sizeof(ast_node);
@@ -234,8 +233,8 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
     ast_node sop;
     u8 prec;
     ast_node* sho_root = (void*)(cu->shy_ops.start);
-    ast_node* sho_re = (void*)(cu->shy_ops.start + shy_ops_start - sizeof(ast_node));
-    ast_node* sho_ri = (void*)(cu->shy_ops.start + shy_op_pos - sizeof(ast_node));
+    ast_node* sho_re = (ast_node*)(cu->shy_ops.start + shy_ops_start) - 1;
+    ast_node* sho_ri = (ast_node*)(cu->shy_ops.start + shy_op_pos) - 1;
     ureg open_paren_count = 0;
     consume_token(cu, &t1);
     while(true){
@@ -412,7 +411,7 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
                         ast_rel_ptr arg_list_size = (ast_rel_ptr)
                                 ((dbuffer_get_size(&cu->ast) - generic_args_rstart) /
                                 sizeof(ast_node));
-                        e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 3);
+                        e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 3);
                         e->expr.size = arg_list_size + 1;
                         e++;
                         e->str = el_name;
@@ -427,14 +426,14 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
                 else if(t2.type == TOKEN_BRACKET_OPEN){
                     ureg el_end= dbuffer_get_size(&cu->ast);
                     parse_arg_list(cu, TOKEN_BRACKET_CLOSE);
-                    e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
+                    e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
                     e->str= t1.str;
                     e++;
                     e->expr.size= get_ast_growth(cu, el_end);
                     e->expr.type= EXPR_NODE_ARRAY_ACCESS;
                 }
                 else {
-                    e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
+                    e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
                     e->str= t1.str;
                     e++;
                     e->expr.size = 2;
@@ -443,9 +442,9 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
                 //true for all: fn call, var, array access and generic fn call
                 expecting_op = true;
             }break;
-            case TOKEN_EOF:CIM_ERROR("Unexpected eof");
+            case TOKEN_EOF:CIM_ERROR("We reached eof inside an expression");return-1;
             default:{
-lbl_default:
+lbl_default:;
                 if(t1.type == term1 || t1.type == term2){
                     for(;sho_ri != sho_re; sho_ri--){
                         flush_shy_op(cu, sho_ri);
@@ -458,7 +457,7 @@ lbl_default:
                     }
                     return (t1.type == term1) ? 0 : 1;
                 }
-                CIM_ERROR("Unexpected token");
+                CIM_ERROR("Unexpected token");return-1;
             }
         }
         consume_token(cu, &t1);
@@ -468,7 +467,7 @@ static int parse_expr(cunit *cu, token_type term1, token_type term2, bool sub_ex
     ureg expr_start = dbuffer_get_size(&cu->ast);
     if(!sub_expr)dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
     ureg shy_ops_start = cu->shy_ops.head - cu->shy_ops.start;
-    continue_parse_expr(cu, term1, term2, sub_expr, expr_start, shy_ops_start,shy_ops_start,
+    return continue_parse_expr(cu, term1, term2, sub_expr, expr_start, shy_ops_start,shy_ops_start,
                         false);
 }
 static u8 count_ptrs(cunit *cu){

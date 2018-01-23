@@ -7,7 +7,7 @@
 #define TO_CHAR(i)((char)((i) & 0xFF))
 #define TO_UREG(c)((ureg)(c))
 
-#define DEBUG_ENUMS 1
+#define DEBUG_ENUMS 0
 
 typedef uregh ast_rel_ptr;
 
@@ -49,13 +49,10 @@ enum expr_node_type_t{
     typedef enum ast_node_type_e ast_node_type;
     typedef enum expr_node_type_t expr_node_type;
     typedef enum operation_e operation;
-    typedef int cancer_ptrs_v;
 #else
     typedef u8 ast_node_type;
-    typedef u8 type_node_type;
     typedef u8 expr_node_type;
     typedef u8 operation;
-    typedef u8 cancer_ptrs_v;
 #endif
 
 typedef union ast_node_u{
