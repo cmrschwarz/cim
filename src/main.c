@@ -27,7 +27,7 @@ int main(){
         "typedef td void(*)(char*) (*)(int);"
         "int[]**[]**[]*[]****[]*[x] x;"
         "ret_type ***** foo(a1* x, a2* x2, +int) + 3;";
-    char* input2 =  "int* foo(x****y, y * x, y int){};";
+    char* input2 =  "int* foo(int* x, int + 2);";
     printf("input:\n%s\n\n", input);
     for(int i=0;i<1;i++){
         parse(&cu, input);

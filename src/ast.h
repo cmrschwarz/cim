@@ -12,54 +12,41 @@
 typedef uregh ast_rel_ptr;
 
 enum ast_node_type_e{
-    //used instead of a single element expression
-    ASTNT_NUMBER = TOKEN_NUMBER,
-    ASTNT_LITERAL = TOKEN_LITERAL,
-    ASTNT_BINARY_LITERAL = TOKEN_BINARY_LITERAL,
-    ASTNT_VARIABLE,
-    ASTNT_SCOPED_VARIABLE,
     ASTNT_EXPRESSION,
-    ASTNT_CANCER_PTRS,
-    ASTNT_SCOPED_CANCER_PTRS,
     ASTNT_TYPEDEF,
     ASTNT_ASSIGNMENT,
     ASTNT_VARIABLE_DECLARATION,
     ASTNT_FUNCTION_DECLARATION,
     ASTNT_GENERIC_FUNCTION_DECLARATION,
-
-    ASTNT_TYPE_FN_PTR,
-    ASTNT_TYPE_GENERIC_STRUCT,
-    ASTNT_TYPE_SCOPED_GENERIC_STRUCT,
-    ASTNT_TYPE_ARRAY,
-    ASTNT_TYPE_SIMPLE,
-    ASTNT_TYPE_SCOPED,
     //@PERF: consider adding function call to avoid expr wrapper
 };
 
 
 enum expr_node_type_t{
-    EXPR_NODE_TYPE_NUMBER = TOKEN_NUMBER,
-    EXPR_NODE_TYPE_LITERAL = TOKEN_LITERAL,
-    EXPR_NODE_TYPE_BINARY_LITERAL = TOKEN_BINARY_LITERAL,
-    EXPR_NODE_TYPE_VARIABLE = ASTNT_VARIABLE,
-    EXPR_NODE_TYPE_SCOPED_VARIABLE,
-    EXPR_NODE_TYPE_EXPR = ASTNT_EXPRESSION,
-    EXPR_NODE_TYPE_CANCER_PTRS = ASTNT_CANCER_PTRS,
-    EXPR_NODE_TYPE_SCOPED_CANCER_PTRS = ASTNT_SCOPED_CANCER_PTRS,
-    EXPR_NODE_TYPE_OP_LR,
-    EXPR_NODE_TYPE_OP_L,
-    EXPR_NODE_TYPE_OP_R,
-    EXPR_NODE_TYPE_UNARY,
-    EXPR_NODE_TYPE_PAREN,   //closing will never be stored
-    EXPR_NODE_TYPE_FN_CALL,
-    EXPR_NODE_TYPE_ARRAY_ACCESS,
-    EXPR_NODE_TYPE_GENERIC_FN_CALL,
-
+    EXPR_NODE_NUMBER = TOKEN_NUMBER,
+    EXPR_NODE_LITERAL = TOKEN_LITERAL,
+    EXPR_NODE_BINARY_LITERAL = TOKEN_BINARY_LITERAL,
+    EXPR_NODE_VARIABLE ,
+    EXPR_NODE_SCOPED_VARIABLE,
+    EXPR_NODE_CANCER_PTRS ,
+    EXPR_NODE_SCOPED_CANCER_PTRS ,
+    EXPR_NODE_OP_LR,
+    EXPR_NODE_OP_L,
+    EXPR_NODE_OP_R,
+    EXPR_NODE_FN_CALL,
+    EXPR_NODE_ARRAY_ACCESS,
+    EXPR_NODE_GENERIC_FN_CALL,
+    EXPR_NODE_TYPE_SIMPLE,
+    EXPR_NODE_TYPE_SCOPED,
+    EXPR_NODE_TYPE_FN_PTR,
+    EXPR_NODE_TYPE_GENERIC_STRUCT,
+    EXPR_NODE_TYPE_SCOPED_GENERIC_STRUCT,
+    EXPR_NODE_TYPE_ARRAY,
+    EXPR_NODE_PAREN,   //temp for shunting yard
 };
 
 #if DEBUG_ENUMS
     typedef enum ast_node_type_e ast_node_type;
-    typedef enum type_node_type_e type_node_type;
     typedef enum expr_node_type_t expr_node_type;
     typedef enum operation_e operation;
     typedef int cancer_ptrs_v;
@@ -95,7 +82,7 @@ typedef union ast_node_u{
         ast_rel_ptr size;
     }op;
     struct{
-        ast_node_type type;
+        expr_node_type type;
         u8 ptrs;
         ast_rel_ptr size;
     }type;
