@@ -857,6 +857,9 @@ static arg_or_params_list parse_arg_or_param_list(cunit* cu){
                 if(t2.type != TOKEN_PAREN_CLOSE){
                     if(t2.type != TOKEN_COMMA) goto its_an_arg_list;
                     void_2_lookahead_tokens(cu);
+                    change_params_required = true;
+                    ast_node* n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
+                    n->str = param_name;
                     peek_token(cu, &t1);
                 }
                 else{
@@ -865,11 +868,6 @@ static arg_or_params_list parse_arg_or_param_list(cunit* cu){
                     n->str = param_name;
                     return AOPL_AMBIGUOUS;
                 }
-                //it's ambiguous, assume param list (much more likely
-                //as otherwise it's a thrown away expression) and continue
-                change_params_required = true;
-                ast_node* n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
-                n->str = param_name;
             }
         }
         else{
@@ -1087,9 +1085,15 @@ static inline int parse_leading_string(cunit* cu){
                         }
                         else{
                             r = AOPL_ARG_LIST;
+                            ast_node* arg_list_pos = (void*)(cu->ast.start + arg_list_start);
+                            //remove the size node for the generic arg list
+                            memmove(arg_list_pos-1, arg_list_pos,
+                                    cu->ast.head - (u8*)arg_list_pos);
+                            cu->ast.head-=sizeof(ast_node);
+                            arg_list_start-=sizeof(ast_node);
                             change_generic_param_list_to_arg_list(
-                                        (ast_node*)(cu->ast.start + arg_list_start) - 2,
-                                        (ast_node*)(cu->ast.start + generic_arg_list_start) - 1);
+                                    (ast_node*)(cu->ast.start + arg_list_start) - 1,
+                                    (ast_node*)(cu->ast.start + generic_arg_list_start) - 1);
                         }
                     }
                     else{
