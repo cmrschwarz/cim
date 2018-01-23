@@ -59,37 +59,28 @@ enum expr_node_type_t{
 #endif
 
 typedef union ast_node_u{
-    //ast_expr, sub_expr, cancer_mult and op must have identical memory layout
-    //because flush_shy_op just uses sub_expr.size for all three
+    //main, sub_expr, cancer_mult and op must have identical memory layout
+    //because flush_shy_op just uses expr.size for all three
     struct {
         ast_node_type type;
-        operation _padding_;
+        operation __padding;
         ast_rel_ptr size;
-    }ast_expr;
+    }common;
     struct {
         expr_node_type type;
-        operation _padding_;
-        ast_rel_ptr size;
-    }sub_expr;
-    struct {
-        expr_node_type type;
-        cancer_ptrs_v ptrs;
-        ast_rel_ptr size;
-    }cancer_ptrs;
-    struct {
-        expr_node_type node_type; //avoiding confusion with opcode
         operation opcode;
         ast_rel_ptr size;
-    }op;
+    }expr;
     struct{
         expr_node_type type;
         u8 ptrs;
         ast_rel_ptr size;
     }type;
     struct {
-        ast_node_type type;
+        expr_node_type type;
+        cancer_ptrs_v ptrs;
         ast_rel_ptr size;
-    }type_define;
+    }cancer_ptrs;
     struct {
         ast_node_type type;
         bool assigning;

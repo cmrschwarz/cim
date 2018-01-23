@@ -141,7 +141,7 @@ static inline ast_rel_ptr get_ast_growth(cunit* cu, ureg ast_start){
 }
 static inline void add_size_node(cunit* cu, ureg ast_start){
     ast_node* n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
-    n->sub_expr.size = get_ast_growth(cu, ast_start);
+    n->expr.size = get_ast_growth(cu, ast_start);
 }
 static inline void consume_required_token(cunit* cu, token_type t){
     token t1;
@@ -151,22 +151,22 @@ static inline void consume_required_token(cunit* cu, token_type t){
 static inline void flush_shy_op(cunit* cu, ast_node* s){
     ast_node* expr_rit =  (void*)(cu->ast.head - sizeof(ast_node));
     int its;
-    switch (s->sub_expr.type){
+    switch (s->expr.type){
         case EXPR_NODE_PAREN: its = 0;break;
         case EXPR_NODE_OP_LR: its = 2;break;
         default: its = 1; break;
     }
     for(int i = 0; i != its; i++){
-        expr_rit = expr_rit - expr_rit->sub_expr.size;
+        expr_rit = expr_rit - expr_rit->expr.size;
     }
     //needs to be precomputed because the realloc might invalidate the expr_rit ptr
     ast_rel_ptr size = (ast_rel_ptr)((ast_node*)cu->ast.head - expr_rit);
     ast_node* e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
     //shy ops don't come from the ast but from shy_ops therefore s doesn't get invalidated
-    e->op.node_type = s->op.node_type;
-    e->op.opcode = s->op.opcode;
+    e->expr.type = s->expr.type;
+    e->expr.opcode = s->expr.opcode;
     //TODO: evaluate the necessity of this for single arg ops
-    e->op.size = size;
+    e->expr.size = size;
     //this will hopefully be inlined and brought out of the loop
     cu->shy_ops.head -= sizeof(ast_node);
 }
@@ -243,21 +243,21 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
     while(true){
         switch(t1.type){
             case TOKEN_DOUBLE_PLUS: {
-                sop.op.opcode = (expecting_op) ? OP_POSTINCREMENT : OP_PREINCREMENT;
+                sop.expr.opcode = (expecting_op) ? OP_POSTINCREMENT : OP_PREINCREMENT;
             }goto lbl_op_l_or_r;
             case TOKEN_DOUBLE_MINUS:{
-                sop.op.opcode = (expecting_op) ? OP_POSTDECREMENT : OP_PREDECREMENT;
+                sop.expr.opcode = (expecting_op) ? OP_POSTDECREMENT : OP_PREDECREMENT;
             }//fallthrough to op_l_or_r
             lbl_op_l_or_r:{
-                sop.sub_expr.type = (expecting_op) ? EXPR_NODE_OP_R : EXPR_NODE_OP_L;
-                prec = prec_table[sop.op.opcode];
-                if (assoc_table[sop.op.opcode] == LEFT_ASSOCIATIVE) {
-                    for (; sho_ri != sho_re && prec_table[sho_ri->op.opcode] >= prec; sho_ri--) {
+                sop.expr.type = (expecting_op) ? EXPR_NODE_OP_R : EXPR_NODE_OP_L;
+                prec = prec_table[sop.expr.opcode];
+                if (assoc_table[sop.expr.opcode] == LEFT_ASSOCIATIVE) {
+                    for (; sho_ri != sho_re && prec_table[sho_ri->expr.opcode] >= prec; sho_ri--) {
                         flush_shy_op(cu, sho_ri);
                     }
                 }
                 else {
-                    for (; sho_ri != sho_re && prec_table[sho_ri->op.opcode] > prec; sho_ri--) {
+                    for (; sho_ri != sho_re && prec_table[sho_ri->expr.opcode] > prec; sho_ri--) {
                         flush_shy_op(cu, sho_ri);
                     }
                 }
@@ -266,37 +266,37 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
             }break;
             case TOKEN_STAR:{
                 if (expecting_op) {
-                    sop.op.opcode = OP_MULTIPLY;
+                    sop.expr.opcode = OP_MULTIPLY;
                     goto lbl_op_lr;
                 }
-                sop.op.opcode = OP_DEREFERENCE;
+                sop.expr.opcode = OP_DEREFERENCE;
             }goto lbl_op_unary;
             case TOKEN_AND:{
                 if (expecting_op) {
-                    sop.op.opcode = OP_BITWISE_AND;
+                    sop.expr.opcode = OP_BITWISE_AND;
                     goto lbl_op_lr;
                 }
-                sop.op.opcode = OP_ADDRESS_OF;
+                sop.expr.opcode = OP_ADDRESS_OF;
             }goto lbl_op_unary;
             case TOKEN_PLUS: {
                 if (expecting_op) {
-                    sop.op.opcode = OP_ADD;
+                    sop.expr.opcode = OP_ADD;
                     goto lbl_op_lr;
                 }
-                sop.op.opcode = OP_UNARY_PLUS;
+                sop.expr.opcode = OP_UNARY_PLUS;
             }goto lbl_op_unary;
             case TOKEN_MINUS:{
                 if (expecting_op) {
-                    sop.op.opcode = OP_SUBTRACT;
+                    sop.expr.opcode = OP_SUBTRACT;
                     goto lbl_op_lr;
                 }
-                sop.op.opcode = OP_UNARY_MINUS;
+                sop.expr.opcode = OP_UNARY_MINUS;
             }//fallthrough to lbl_op_unary
             lbl_op_unary: {
-                sop.sub_expr.type = EXPR_NODE_OP_L;
-                prec = prec_table[sop.op.opcode];
+                sop.expr.type = EXPR_NODE_OP_L;
+                prec = prec_table[sop.expr.opcode];
                 //unary is always right associative
-                for (; sho_ri != sho_re && prec_table[sho_ri->op.opcode] > prec; sho_ri--) {
+                for (; sho_ri != sho_re && prec_table[sho_ri->expr.opcode] > prec; sho_ri--) {
                     flush_shy_op(cu, sho_ri);
                 }
                 push_shy_op(cu, &sop, &sho_root, &sho_ri, &sho_re);
@@ -332,18 +332,18 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
             case TOKEN_TILDE_EQUALS:
             case TOKEN_DOUBLE_LESS_THAN_EQUALS:{
                 //for these, the toke  type is set to be equal to the op type
-                sop.op.opcode = (u8)(t1.type);
+                sop.expr.opcode = (u8)(t1.type);
             }//fall through to op_lr
             lbl_op_lr: {
-                sop.op.node_type= EXPR_NODE_OP_LR;
-                prec = prec_table[sop.op.opcode];
-                if (assoc_table[sop.op.opcode] == LEFT_ASSOCIATIVE) {
-                    for (; sho_ri != sho_re && prec_table[sho_ri->op.opcode] >= prec; sho_ri--) {
+                sop.expr.type= EXPR_NODE_OP_LR;
+                prec = prec_table[sop.expr.opcode];
+                if (assoc_table[sop.expr.opcode] == LEFT_ASSOCIATIVE) {
+                    for (; sho_ri != sho_re && prec_table[sho_ri->expr.opcode] >= prec; sho_ri--) {
                         flush_shy_op(cu, sho_ri);
                     }
                 }
                 else {
-                    for (; sho_ri != sho_re && prec_table[sho_ri->op.opcode] > prec; sho_ri--) {
+                    for (; sho_ri != sho_re && prec_table[sho_ri->expr.opcode] > prec; sho_ri--) {
                         flush_shy_op(cu, sho_ri);
                     }
                 }
@@ -352,15 +352,15 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
             }break;
             case TOKEN_PAREN_OPEN: {
                 open_paren_count++;
-                sop.op.node_type = EXPR_NODE_PAREN;
-                sop.op.opcode = OP_TEMP_PAREN_OPEN;
+                sop.expr.type = EXPR_NODE_PAREN;
+                sop.expr.opcode = OP_TEMP_PAREN_OPEN;
                 push_shy_op(cu, &sop, &sho_root, &sho_ri, &sho_re);
                 expecting_op = false;
             }break;
             case TOKEN_PAREN_CLOSE: {
                 if(open_paren_count==0)goto lbl_default;
                 open_paren_count--;
-                for (;sho_ri != sho_re && sho_ri->op.opcode != OP_TEMP_PAREN_OPEN;
+                for (;sho_ri != sho_re && sho_ri->expr.opcode != OP_TEMP_PAREN_OPEN;
                       sho_ri--)
                 {
                     flush_shy_op(cu, sho_ri);
@@ -378,8 +378,8 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
                 e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
                 e->str = t1.str;
                 e++;
-                e->sub_expr.size = 2;
-                e->sub_expr.type= (expr_node_type)t1.type;
+                e->expr.size = 2;
+                e->expr.type= (expr_node_type)t1.type;
                 expecting_op = true;
             }break;
             case TOKEN_STRING: {
@@ -394,8 +394,8 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
                     e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
                     e->str = fn_name;
                     e++;
-                    e->sub_expr.size = get_ast_growth(cu, ast_size);
-                    e->sub_expr.type= EXPR_NODE_FN_CALL;
+                    e->expr.size = get_ast_growth(cu, ast_size);
+                    e->expr.type= EXPR_NODE_FN_CALL;
                 }
                 else if(t2.type == TOKEN_BRACE_OPEN){
                     void_lookahead_token(cu);
@@ -415,12 +415,12 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
                                 ((dbuffer_get_size(&cu->ast) - generic_args_rstart) /
                                 sizeof(ast_node));
                         e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 3);
-                        e->sub_expr.size = arg_list_size + 1;
+                        e->expr.size = arg_list_size + 1;
                         e++;
                         e->str = el_name;
                         e++;
-                        e->sub_expr.size= get_ast_growth(cu, el_end);
-                        e->sub_expr.type= EXPR_NODE_GENERIC_FN_CALL;
+                        e->expr.size= get_ast_growth(cu, el_end);
+                        e->expr.type= EXPR_NODE_GENERIC_FN_CALL;
                     }
                     else{
                        //scoped type stuff
@@ -432,15 +432,15 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
                     e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
                     e->str= t1.str;
                     e++;
-                    e->sub_expr.size= get_ast_growth(cu, el_end);
-                    e->sub_expr.type= EXPR_NODE_ARRAY_ACCESS;
+                    e->expr.size= get_ast_growth(cu, el_end);
+                    e->expr.type= EXPR_NODE_ARRAY_ACCESS;
                 }
                 else {
                     e = dbuffer_claim_small_space(&cu->ast, sizeof(*e) * 2);
                     e->str= t1.str;
                     e++;
-                    e->sub_expr.size = 2;
-                    e->sub_expr.type= EXPR_NODE_VARIABLE;
+                    e->expr.size = 2;
+                    e->expr.type= EXPR_NODE_VARIABLE;
                 }
                 //true for all: fn call, var, array access and generic fn call
                 expecting_op = true;
@@ -452,11 +452,11 @@ lbl_default:
                     for(;sho_ri != sho_re; sho_ri--){
                         flush_shy_op(cu, sho_ri);
                     }
-                    ast_node* expr;
                     if(!sub_expr){
-                        expr = (ast_node*)(cu->ast.start + expr_start);
-                        expr->ast_expr.size = get_ast_growth(cu, expr_start);
-                        expr->ast_expr.type = ASTNT_EXPRESSION;
+                        ast_node* decl;
+                        decl = (ast_node*)(cu->ast.start + expr_start);
+                        decl->common.size = get_ast_growth(cu, expr_start);
+                        decl->common.type = ASTNT_EXPRESSION;
                     }
                     return (t1.type == term1) ? 0 : 1;
                 }
@@ -657,12 +657,12 @@ static int parse_type_as_expr_begin(cunit *cu, ureg ast_start, ast_node *type, b
     //type type is identical to sub_expr_type var / scoped var
     if(type->type.ptrs){
         ast_node* sop = dbuffer_claim_small_space(&cu->shy_ops, sizeof(ast_node) * type->type.ptrs);
-        sop->op.opcode = OP_MULTIPLY;
-        sop->op.node_type = EXPR_NODE_OP_LR;
+        sop->expr.opcode = OP_MULTIPLY;
+        sop->expr.type = EXPR_NODE_OP_LR;
         sop++;
         while((void*)sop!= cu->shy_ops.head){
-            sop->op.node_type = EXPR_NODE_OP_L;
-            sop->op.opcode = OP_DEREFERENCE;
+            sop->expr.type = EXPR_NODE_OP_L;
+            sop->expr.opcode = OP_DEREFERENCE;
             sop++;
         }
         shy_ops_pos = dbuffer_get_size(&cu->shy_ops);
@@ -671,10 +671,10 @@ static int parse_type_as_expr_begin(cunit *cu, ureg ast_start, ast_node *type, b
         shy_ops_pos = shy_ops_start;
     }
     if(type->type.type == EXPR_NODE_TYPE_SIMPLE){
-        type->sub_expr.type = EXPR_NODE_VARIABLE;
+        type->expr.type = EXPR_NODE_VARIABLE;
     }
     else if(type->type.type == EXPR_NODE_TYPE_SCOPED){
-        type->sub_expr.type = EXPR_NODE_SCOPED_VARIABLE;
+        type->expr.type = EXPR_NODE_SCOPED_VARIABLE;
     }
     return continue_parse_expr(cu, term1, term2, sub_expr, ast_start,
                                shy_ops_start,shy_ops_pos,
@@ -919,13 +919,13 @@ static int parse_generic_function_decl_after_type(cunit* cu, int mods, ureg ast_
     CIM_ASSERT(t2.type == TOKEN_PAREN_OPEN);
     parse_param_list(cu, TOKEN_PAREN_CLOSE);
     ast_node* n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
-    n->sub_expr.size = get_ast_growth(cu, ast_pos_pre_params) - 1;
+    n->expr.size = get_ast_growth(cu, ast_pos_pre_params) - 1;
     n++;
     n->str = t1.str;
     n++;
     n = (ast_node*)(cu->ast.start + ast_start);
-    n->ast_expr.type = ASTNT_GENERIC_FUNCTION_DECLARATION;
-    n->ast_expr.size = get_ast_growth(cu, ast_start);
+    n->common.type = ASTNT_GENERIC_FUNCTION_DECLARATION;
+    n->common.size = get_ast_growth(cu, ast_start);
     return parse_block(cu);
 }
 static int parse_function_decl_after_type(cunit *cu, int mods, ureg ast_start){
@@ -938,12 +938,12 @@ static int parse_function_decl_after_type(cunit *cu, int mods, ureg ast_start){
     peek_token(cu, &t2);
     parse_param_list(cu, TOKEN_PAREN_CLOSE);
     ast_node* s = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
-    s->ast_expr.size = get_ast_growth(cu, ast_pos_pre_params) - 1;
+    s->common.size = get_ast_growth(cu, ast_pos_pre_params) - 1;
     s++;
     s->str = t1.str;
     s = (ast_node*)(cu->ast.start + ast_start);
-    s->ast_expr.type = ASTNT_FUNCTION_DECLARATION;
-    s->ast_expr.size = get_ast_growth(cu, ast_start);
+    s->common.type = ASTNT_FUNCTION_DECLARATION;
+    s->common.size = get_ast_growth(cu, ast_start);
     return parse_block(cu);
 }
 static inline int parse_modifiers(cunit* cu, token* t){
@@ -988,8 +988,8 @@ static inline int parse_leading_string(cunit* cu){
                 ast_node *e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
                 e->str = fn_name;
                 e++;
-                e->sub_expr.size = args_size + 2;
-                e->sub_expr.type = EXPR_NODE_FN_CALL;
+                e->expr.size = args_size + 2;
+                e->expr.type = EXPR_NODE_FN_CALL;
                 ureg shy_ops_pos = dbuffer_get_size(&cu->shy_ops);
                 continue_parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false,
                                     ast_start, shy_ops_pos,shy_ops_pos, true);
@@ -1022,18 +1022,18 @@ static inline int parse_leading_string(cunit* cu){
                         ast_node* n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node));
                         n->str = fn_name;
                         n = (void*)(cu->ast.start + ast_start);
-                        n->ast_expr.type = ASTNT_FUNCTION_DECLARATION;
-                        n->ast_expr.size = get_ast_growth(cu, ast_start);
+                        n->common.type = ASTNT_FUNCTION_DECLARATION;
+                        n->common.size = get_ast_growth(cu, ast_start);
                         return parse_block(cu);
                     }
                     else {
                         ast_node* n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
                         n->str = fn_name;
                         n++;
-                        n->sub_expr.type = EXPR_NODE_FN_CALL;
+                        n->expr.type = EXPR_NODE_FN_CALL;
                         // we start at arg list start because the leading 'type'
                         // was actually a var * ... expression
-                        n->sub_expr.size = get_ast_growth(cu, arg_list_start);
+                        n->expr.size = get_ast_growth(cu, arg_list_start);
                         //not -sizeof(ast_node) because of the expr node
                         t = (ast_node*)(cu->ast.start + ast_start) + type_size;
                         return parse_type_as_expr_begin(cu, ast_start, t, false,
@@ -1095,26 +1095,26 @@ static inline int parse_leading_string(cunit* cu){
                     if(r == AOPL_PARAM_LIST){
                         ast_node* n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 2);
                         //exclude one node because of the fn name
-                        n->sub_expr.size = get_ast_growth(cu, arg_list_start + sizeof(ast_node));
+                        n->expr.size = get_ast_growth(cu, arg_list_start + sizeof(ast_node));
                         n++;
                         n->str = fn_name;
                         n = (void*)(cu->ast.start + ast_start);
-                        n->ast_expr.type = ASTNT_GENERIC_FUNCTION_DECLARATION;
-                        n->ast_expr.size = get_ast_growth(cu, ast_start);
+                        n->common.type = ASTNT_GENERIC_FUNCTION_DECLARATION;
+                        n->common.size = get_ast_growth(cu, ast_start);
                         return parse_block(cu);
                     }
                     else {
                         ast_node* n = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 3);
                         //exclude the two following nodes
-                        n->sub_expr.size =
+                        n->expr.size =
                                 get_ast_growth(cu, arg_list_start + sizeof(ast_node) * 2);
                         n++;
                         n->str = fn_name;
                         n++;
-                        n->sub_expr.type = EXPR_NODE_GENERIC_FN_CALL;
+                        n->expr.type = EXPR_NODE_GENERIC_FN_CALL;
                         //we start at arg list start because the leading 'type'
                         // was actually a var * ... expression
-                        n->sub_expr.size = get_ast_growth(cu, generic_arg_list_start);
+                        n->expr.size = get_ast_growth(cu, generic_arg_list_start);
                         //not -1 because of the expr node
                         t = (ast_node*)(cu->ast.start + ast_start) + type_size;
                         return parse_type_as_expr_begin(cu, ast_start, t, false,
@@ -1136,12 +1136,12 @@ static inline int parse_leading_string(cunit* cu){
                 cu->ast.head = (void *) (t - 1); //we have to override these nodes :(
                 ast_rel_ptr args_size = parse_arg_list(cu, TOKEN_PAREN_CLOSE);
                 ast_node *e = dbuffer_claim_small_space(&cu->ast, sizeof(ast_node) * 3);
-                e->sub_expr.size = args_size + 1;
+                e->expr.size = args_size + 1;
                 e++;
                 e->str = fn_name;
                 e++;
-                e->sub_expr.size = get_ast_growth(cu, ast_start) - 1;//the one belongs to expr
-                e->sub_expr.type = EXPR_NODE_GENERIC_FN_CALL;
+                e->expr.size = get_ast_growth(cu, ast_start) - 1;//the one belongs to expr
+                e->expr.type = EXPR_NODE_GENERIC_FN_CALL;
                 ureg shy_ops_start = dbuffer_get_size(&cu->shy_ops);
                 continue_parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false,
                                     ast_start,shy_ops_start , shy_ops_start, true);
