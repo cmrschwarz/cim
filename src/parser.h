@@ -12,6 +12,5 @@ enum modifier_e{
 void cunit_init(cunit* cu);
 void cunit_fin(cunit* cu);
 
-char* read_in_file(char* filename);
-void parse(cunit* cu, char* str);
+void parse_file(cunit* cu, char* filename);
 void print_ast(cunit* cu);

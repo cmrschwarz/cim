@@ -1,7 +1,6 @@
 -Parsing
 	-finish parse_leading_string
 		-generic function calls
-		-generic funtion declarations
 		-generic struct variable declarations
 		-array accesses
 	

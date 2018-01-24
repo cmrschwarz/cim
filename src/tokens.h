@@ -63,3 +63,5 @@ typedef struct token_t{
 	token_type type;
     char* str;
 }token;
+
+extern const char* token_strings[255];
