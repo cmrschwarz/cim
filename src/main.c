@@ -15,7 +15,6 @@ int main(){
            sbuffer_get_size(&cu.data_store),
            dbuffer_get_size(&cu.string_ptrs) / sizeof(ureg) - 19);
            */
-    printf("cons: %llu, lah: %llu lah%%: %f\n", cu.cons, cu.lah, (float)cu.lah / (cu.cons + cu.lah)*100.0f);
     printf("\noutput:\n");
     print_ast(&cu);
     cunit_fin(&cu);

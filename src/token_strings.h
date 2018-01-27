@@ -59,10 +59,5 @@ typedef enum tokens_type_e{
     TOKEN_ARROW,
 }token_type;
 
-typedef struct token_t{
-	token_type type;
-    char* str;
-}token;
-
 extern const char* token_strings[255];
 

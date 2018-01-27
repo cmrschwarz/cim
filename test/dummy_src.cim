@@ -1,7 +1,9 @@
+intasdfhkjlaskljdf* foo{int* x}(int* x, int + 2); //lols
 
 
 int* foo{int* x}(int* x){}
-intasdfhkjlaskljdf* foo{int* x}(int* x, int + 2); //lols
+int* foo{int* x}(int* x){}
+
 int* foo{int* x}(int* x);
 
 int* foo{int* x}(int* x, int + 2);

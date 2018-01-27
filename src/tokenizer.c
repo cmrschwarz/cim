@@ -6,7 +6,7 @@
 #include <assert.h>
 #include "error.h"
 #include "compiler.h"
-#include "tokens.h"
+#include "token_strings.h"
 #include <stdarg.h>
 #define ASSERT_NEOF(c) do{if((c) == '\0'){CIM_ERROR("Unexpected EOF");}}while(0)
 static void populate_file_buffer(cunit* cu, u8* pop_start){
@@ -14,12 +14,6 @@ static void populate_file_buffer(cunit* cu, u8* pop_start){
                    1, cu->tknzr.file_buffer.end - pop_start,
                    cu->tknzr.file);
     cu->tknzr.file_buffer.head =  pop_start + s;
-}
-void tokenizer_start_new_line(cunit *cu){
-    cu->tknzr.unloaded_columns_of_line = 0;
-    cu->tknzr.line_start = cu->tknzr.curr;
-    cu->tknzr.line_number++;
-    cu->tknzr.line_comment_offset = 0;
 }
 void tokenizer_open_file(cunit* cu, char* filename) {
     if(cu->tknzr.file != NULL){
@@ -31,9 +25,10 @@ void tokenizer_open_file(cunit* cu, char* filename) {
         exit(-1);
     }
     cu->tknzr.filename = filename;
-    cu->tknzr.line_number = 0;
-    cu->tknzr.unloaded_columns_of_line = 0;
-    cu->tknzr.line_start = (char*)cu->tknzr.file_buffer.start;
+    cu->tknzr.token_start = cu->tknzr.token_buffer;
+    cu->tknzr.token_end = cu->tknzr.token_start;
+    cu->tknzr.token_start->column = 0;
+    cu->tknzr.token_start->line = 0;
     cu->tknzr.curr = (char*)cu->tknzr.file_buffer.start;
     populate_file_buffer(cu, cu->tknzr.file_buffer.start);
 }
@@ -50,9 +45,6 @@ static inline char peek_char(cunit* cu){
         return *cu->tknzr.curr;
     }
     else{
-        cu->tknzr.unloaded_columns_of_line +=
-                cu->tknzr.curr - cu->tknzr.line_start;
-        cu->tknzr.line_start = (char*)cu->tknzr.file_buffer.start;
         cu->tknzr.curr = (char*)cu->tknzr.file_buffer.start;
         populate_file_buffer(cu, cu->tknzr.file_buffer.start);
         if((u8*)cu->tknzr.curr != cu->tknzr.file_buffer.head){
@@ -73,14 +65,6 @@ static inline char peek_string_char(cunit* cu, char** str_start){
     else{
         ureg size = cu->tknzr.curr - *str_start;
         if((u8*)*str_start != cu->tknzr.file_buffer.start) {
-            if(*str_start >= cu->tknzr.line_start){
-                cu->tknzr.unloaded_columns_of_line+= *str_start - cu->tknzr.line_start;
-                cu->tknzr.line_start = (char*)cu->tknzr.file_buffer.start;
-            }
-            else{
-                ureg diff = (u8*)*str_start - cu->tknzr.file_buffer.start;
-                cu->tknzr.line_start -= diff;
-            }
             cu->tknzr.curr = (char*)cu->tknzr.file_buffer.start + size;
             memmove(cu->tknzr.file_buffer.start, *str_start, size);
             populate_file_buffer(cu, (u8*)cu->tknzr.curr);
@@ -90,10 +74,8 @@ static inline char peek_string_char(cunit* cu, char** str_start){
             }
         }
         //not enough space
-        ureg line_offs = (u8*)cu->tknzr.line_start - cu->tknzr.file_buffer.start;
         ureg curr_offs = (u8*)cu->tknzr.curr - cu->tknzr.file_buffer.start;
         dbuffer_grow(&cu->tknzr.file_buffer);
-        cu->tknzr.line_start = (char*)cu->tknzr.file_buffer.start + line_offs;
         populate_file_buffer(cu, cu->tknzr.file_buffer.start + size);
         cu->tknzr.curr = (char*)(cu->tknzr.file_buffer.start + curr_offs);
         *str_start = (char*)cu->tknzr.file_buffer.start;
@@ -190,201 +172,173 @@ char* store_string(cunit* cu, char* str, char* str_end){
 	}
 }
 
-void consume_new_token(cunit* cu, token* tok){
+void consume_new_token(cunit* cu, token* tok, token* next){
 	char curr = peek_char(cu);
-    while(true) {
-        if (curr == ' ') {
-            void_peek(cu);
-            curr = peek_char(cu);
-        }
-        else if (curr == '\n') {
-            void_peek(cu);
-            tokenizer_start_new_line(cu);
-            curr = peek_char(cu);
-        }
-        else {
-            break;
-        }
-    }
-	if((curr>= 'a' && curr <= 'z') || (curr >= 'A' && curr <= 'Z') || curr == '_'){
-		char* str_start = cu->tknzr.curr;
-        do{
-            void_peek(cu);
-            curr = peek_string_char(cu, &str_start);
-		}while((curr >= 'a' && curr <= 'z') ||
-               (curr >= 'A' && curr <= 'Z') ||
-			   (curr >= '0' && curr <= '9') ||
-               (curr == '_'));
-        tok->str = store_string(cu, str_start, cu->tknzr.curr);
-		tok->type = TOKEN_STRING;
-		return;
-	}
-	if(curr>= '0' && curr <= '9'){
-		char* str_start = cu->tknzr.curr;
-        do{
-            void_peek(cu);
-            curr = peek_string_char(cu, &str_start);
-			ASSERT_NEOF(curr);
-		}while(curr >= '0' && curr <= '9');
-        tok->str = store_string(cu, str_start, cu->tknzr.curr);
-		tok->type = TOKEN_NUMBER;
-		return;
-	}
-	if(curr == '\"'){
-		char* str_start = cu->tknzr.curr;
-        do{
-            void_peek(cu);
-            curr = peek_string_char(cu, &str_start);
-			ASSERT_NEOF(curr);
-			if(curr == '\\'){
-                void_peek(cu);
-                curr = peek_string_char(cu, &str_start);
-                ASSERT_NEOF(curr);
-                void_peek(cu);
-                curr = peek_string_char(cu, &str_start);
-                ASSERT_NEOF(curr);
-            }
-            if(curr == '\n'){
-                cu->tknzr.line_number++;
-                void_peek(cu);
-                curr = peek_string_char(cu, &str_start);
-                ASSERT_NEOF(curr);
-            }
-		}while(curr != '\"');
-        tok->str = store_string(cu, str_start, cu->tknzr.curr);
-		tok->type = TOKEN_LITERAL;
-		return;
-	}
-	if(curr == '\''){
-		char* str_start = cu->tknzr.curr;
-        do{
-            void_peek(cu);
-            curr = peek_string_char(cu, &str_start);
-			ASSERT_NEOF(curr);
-			if(curr == '\\'){
-				void_peek(cu);
-                curr = peek_string_char(cu, &str_start);
-                ASSERT_NEOF(curr);
-                void_peek(cu);
-                curr = peek_string_char(cu, &str_start);
-                ASSERT_NEOF(curr);
-            }
-            if(curr == '\n'){
-                void_peek(cu);
-                curr = peek_string_char(cu, &str_start);
-                ASSERT_NEOF(curr);
-            }
-		}while(curr != '\'');
-        tok->str = store_string(cu, str_start, cu->tknzr.curr);
-		tok->type = TOKEN_BINARY_LITERAL;
-        return;
-	}
     void_peek(cu);
+    next->line = tok->line;
 	switch(curr){
-		case '$': tok->type = TOKEN_DOLLAR;return;
-        case '(': tok->type = TOKEN_PAREN_OPEN;return;
-        case ')': tok->type = TOKEN_PAREN_CLOSE;return;
-        case '{': tok->type = TOKEN_BRACE_OPEN;return;
-        case '}': tok->type = TOKEN_BRACE_CLOSE;return;
-        case '[': tok->type = TOKEN_BRACKET_OPEN;return;
-        case ']': tok->type = TOKEN_BRACKET_CLOSE;return;
-        case ',': tok->type = TOKEN_COMMA;return;
-		case ';': tok->type = TOKEN_SEMICOLON; return;
-        case '.': tok->type = TOKEN_DOT; return;
-        case ':': tok->type = TOKEN_COLON; return;
-        case '\0':tok->type = TOKEN_EOF;return;
+		case '$': tok->type = TOKEN_DOLLAR;break;
+        case '(': tok->type = TOKEN_PAREN_OPEN;break;
+        case ')': tok->type = TOKEN_PAREN_CLOSE;break;
+        case '{': tok->type = TOKEN_BRACE_OPEN;break;
+        case '}': tok->type = TOKEN_BRACE_CLOSE;break;
+        case '[': tok->type = TOKEN_BRACKET_OPEN;break;
+        case ']': tok->type = TOKEN_BRACKET_CLOSE;break;
+        case ',': tok->type = TOKEN_COMMA;break;
+		case ';': tok->type = TOKEN_SEMICOLON; break;
+        case '.': tok->type = TOKEN_DOT; break;
+        case ':': tok->type = TOKEN_COLON; break;
+        case '\0':tok->type = TOKEN_EOF;break;
+        case '\t': {
+            tok->column++;
+            curr = peek_char(cu);
+            while(curr == '\t'){
+                tok->column++;
+                void_peek(cu);
+                curr = peek_char(cu);
+            }
+            return consume_new_token(cu, tok, next);
+        }
+        case ' ': {
+            tok->column++;
+            curr = peek_char(cu);
+            while(curr == ' '){
+                tok->column++;
+                void_peek(cu);
+                curr = peek_char(cu);
+            }
+            return consume_new_token(cu, tok, next);
+        }
+        case '\n':{
+            tok->line++;
+            tok->column=0;
+            return consume_new_token(cu, tok, next);
+        }
         case '*': {
             char peek = peek_char(cu);
             if(peek == '=') {
                 void_peek(cu);
                 tok->type = TOKEN_STAR_EQUALS;
+                next->column = tok->column+2;
+                return;
             }
             else{
-                 tok->type = TOKEN_STAR;
+                tok->type = TOKEN_STAR;
+                break;
             }
-        } return;
+        }
         case '+': {
             char peek = peek_char(cu);
             if(peek == '+') {
                 void_peek(cu);
                 tok->type = TOKEN_DOUBLE_PLUS;
+                next->column = tok->column+2;
+                return;
             }
             else if(peek == '='){
                 void_peek(cu);
                 tok->type = TOKEN_PLUS_EQUALS;
+                next->column = tok->column+2;
+                return;
             }
             else{
                 tok->type = TOKEN_PLUS;
+                break;
             }
-        } return;
+        }
 	    case '-': {
             char peek = peek_char(cu);
             if(peek == '-') {
                 void_peek(cu);
                 tok->type = TOKEN_DOUBLE_MINUS;
+                next->column = tok->column+2;
+                return;
             }
             else if(peek == '='){
                 void_peek(cu);
                 tok->type = TOKEN_MINUS_EQUALS;
+                next->column = tok->column+2;
+                return;
             }
             else if(peek == '>'){
                 void_peek(cu);
                 tok->type = TOKEN_ARROW;
+                next->column = tok->column+2;
+                return;
             }
             else{
                 tok->type = TOKEN_MINUS;
+                break;
             }
-        } return;
+        }
         case '!': {
             char peek = peek_char(cu);
             if(peek == '=') {
                 void_peek(cu);
                 tok->type = TOKEN_EXCLAMATION_MARK_EQUALS;
+                next->column = tok->column+2;
+                return;
             }
             else{
                 tok->type = TOKEN_EXCLAMATION_MARK;
+                break;
             }
-        } return;
+        }
         case '|': {
             char peek = peek_char(cu);
             if(peek == '|') {
                 void_peek(cu);
                 tok->type = TOKEN_DOUBLE_PIPE;
+                next->column = tok->column+2;
+                return;
             }
             else if(peek == '='){
                 void_peek(cu);
                 tok->type = TOKEN_PIPE_EQUALS;
+                next->column = tok->column+2;
+                return;
             }
             else{
                 tok->type = TOKEN_PIPE;
+                break;
             }
-        } return;
+        }
 		case '&': {
             char peek = peek_char(cu);
             if(peek == '&') {
                 void_peek(cu);
                 tok->type = TOKEN_DOUBLE_AND;
+                next->column = tok->column+2;
+                return;
             }
             else if(peek == '='){
                 void_peek(cu);
                 tok->type = TOKEN_AND_EQUALS;
+                next->column = tok->column+2;
+                return;
             }
             else{
                 tok->type = TOKEN_AND;
+                break;
             }
-        } return;
+        }
         case '^': {
             char peek = peek_char(cu);
             if(peek == '^') {
                 void_peek(cu);
                 tok->type = TOKEN_DOUBLE_CARET;
+                next->column = tok->column+2;
+                return;
             }
             else if(peek == '='){
                 void_peek(cu);
                 tok->type = TOKEN_CARET_EQUALS;
+                next->column = tok->column+2;
+                return;
             }
             else{
                 tok->type = TOKEN_CARET;
+                break;
             }
         } return;
         case '~': {
@@ -392,21 +346,27 @@ void consume_new_token(cunit* cu, token* tok){
             if(peek == '=') {
                 void_peek(cu);
                 tok->type = TOKEN_TILDE_EQUALS;
+                next->column = tok->column+2;
+                return;
             }
             else{
-                 tok->type = TOKEN_TILDE;
+                tok->type = TOKEN_TILDE;
+                break;
             }
-        } return;
+        }
        case '=': {
             char peek = peek_char(cu);
             if(peek == '=') {
                 void_peek(cu);
                 tok->type = TOKEN_DOUBLE_EQUALS;
+                next->column = tok->column+2;
+                return;
             }
             else{
                  tok->type = TOKEN_EQUALS;
+                break;
             }
-        } return;
+        }
         case '/': {
             char peek = peek_char(cu);
             if(peek == '/'){
@@ -423,78 +383,78 @@ void consume_new_token(cunit* cu, token* tok){
                     }
                 }while(curr != '\n');
                 void_peek(cu);
-                tokenizer_start_new_line(cu);
-                consume_new_token(cu, tok);
-                return;
+                tok->line++;
+                tok->column = 0;
+                return consume_new_token(cu, tok, next);
             }
             if(peek == '*'){
-                //PERF: this isn't optimal, we could only inc this va
-                //when we actually reached a new line
-                bool new_line = false;
-                ureg line_leading_comment_columns = 0;
+                tok->column+=2;
                 do{
                     do{
                         void_peek(cu);
-                        line_leading_comment_columns++;
+                        tok->column++;
                         curr = peek_char(cu);
                         while(curr == '\\'){
                             void_peek(cu);
                             curr = peek_char(cu);
                             ASSERT_NEOF(curr);
                             void_peek(cu);
-                            line_leading_comment_columns+=2;
+                            tok->column+=2;
                             curr = peek_char(cu);
                         }
                         while(curr == '\n'){
                             void_peek(cu);
-                            tokenizer_start_new_line(cu);
                             curr = peek_char(cu);
-                            line_leading_comment_columns =0;
-                            new_line = true;
+                            tok->line++;
+                            tok->column = 0;
                         }
                         ASSERT_NEOF(curr);
                     }while(curr != '*');
                     void_peek(cu);
-                    line_leading_comment_columns++;
+                    tok->column++;
                     peek = peek_char(cu);
                 }while(peek != '/');
                 void_peek(cu);
-                line_leading_comment_columns++;
-                if(new_line){
-                    cu->tknzr.line_comment_offset =
-                        line_leading_comment_columns;
-                }
-                consume_new_token(cu, tok);
-                return;
+                tok->column++;
+                return consume_new_token(cu, tok, next);
             }
             if(peek == '='){
                 void_peek(cu);
                 tok->type = TOKEN_SLASH_EQUALS;
+                next->column= tok->column + 2;
+                return;
             }
             else{
                 tok->type = TOKEN_SLASH;
+                break;
             }
-        } return;
+        }
 		case '%': {
             char peek = peek_char(cu);
             if(peek == '='){
                 void_peek(cu);
                 tok->type = TOKEN_PERCENT_EQUALS;
+                next->column = tok->column + 2;
+                return;
             }
             else{
                 tok->type = TOKEN_PERCENT;
+                break;
             }
-        } return;
+        }
         case '#': {
             char peek = peek_char(cu);
             if(peek == '#'){
                 void_peek(cu);
                 tok->type = TOKEN_DOUBLE_HASH;
+                next->column = tok->column+2;
+                return;
             }
             else{
                 tok->type = TOKEN_HASH;
+                break;
             }
-        } return;
+        }
         case '<': {
             char peek = peek_char(cu);
             if(peek == '<'){
@@ -503,16 +463,23 @@ void consume_new_token(cunit* cu, token* tok){
                 if(peek == '='){
                     void_peek(cu);
                     tok->type = TOKEN_DOUBLE_LESS_THAN_EQUALS;
+                    next->column = tok->column+3;
+                    return;
                 }
                 else{
                     tok->type = TOKEN_DOUBLE_LESS_THAN;
+                    next->column = tok->column+2;
+                    return;
                 }
             }
             else if(peek == '='){
                 tok->type = TOKEN_LESS_THAN_EQUALS;
+                next->column = tok->column+2;
+                return;
             }
             else{
                 tok->type = TOKEN_LESS_THAN;
+                break;
             }
         } return;
         case '>': {
@@ -523,107 +490,171 @@ void consume_new_token(cunit* cu, token* tok){
                 if(peek == '='){
                     void_peek(cu);
                     tok->type = TOKEN_DOUBLE_GREATER_THAN_EQUALS;
+                    next->column = tok->column+3;
+                    return;
                 }
                 else{
                     tok->type = TOKEN_DOUBLE_GREATER_THAN;
+                    next->column = tok->column+2;
+                    return;
                 }
             }
             else if(peek == '='){
                 tok->type = TOKEN_GREATER_THAN_EQUALS;
+                next->column = tok->column+2;
+                return;
             }
             else{
                 tok->type = TOKEN_GREATER_THAN;
+                break;
             }
+        } return;
+        case '\'':{
+            char* str_start = cu->tknzr.curr-1;
+            do{
+                void_peek(cu);
+                next->column++;
+                curr = peek_string_char(cu, &str_start);
+                ASSERT_NEOF(curr);
+                if(curr == '\\'){
+                    void_peek(cu);
+                    curr = peek_string_char(cu, &str_start);
+                    ASSERT_NEOF(curr);
+                    void_peek(cu);
+                    curr = peek_string_char(cu, &str_start);
+                    ASSERT_NEOF(curr);
+                    next->column+=2;
+                }
+                if(curr == '\n'){
+                    curr = peek_string_char(cu, &str_start);
+                    ASSERT_NEOF(curr);
+                }
+            }while(curr != '\'');
+            tok->str = store_string(cu, str_start, cu->tknzr.curr);
+            next->column = tok->column + 2 + cu->tknzr.curr - str_start;
+            tok->type = TOKEN_BINARY_LITERAL;
+        } return;
+        case '\"':{
+            char* str_start = cu->tknzr.curr-1;
+            do{
+                void_peek(cu);
+                curr = peek_string_char(cu, &str_start);
+                ASSERT_NEOF(curr);
+                if(curr == '\\'){
+                    void_peek(cu);
+                    curr = peek_string_char(cu, &str_start);
+                    ASSERT_NEOF(curr);
+                    void_peek(cu);
+                    curr = peek_string_char(cu, &str_start);
+                    ASSERT_NEOF(curr);
+                }
+                if(curr == '\n'){
+                    next->line++;
+                    void_peek(cu);
+                    curr = peek_string_char(cu, &str_start);
+                    ASSERT_NEOF(curr);
+                }
+            }while(curr != '\"');
+            tok->str = store_string(cu, str_start, cu->tknzr.curr);
+            next->column = tok->column + 2 + cu->tknzr.curr - str_start;
+            tok->type = TOKEN_LITERAL;
+        } return;
+        case 'a':
+        case 'b':
+        case 'c':
+        case 'd':
+        case 'e':
+        case 'f':
+        case 'g':
+        case 'h':
+        case 'i':
+        case 'j':
+        case 'k':
+        case 'l':
+        case 'm':
+        case 'n':
+        case 'o':
+        case 'p':
+        case 'q':
+        case 'r':
+        case 's':
+        case 't':
+        case 'u':
+        case 'v':
+        case 'w':
+        case 'x':
+        case 'y':
+        case 'z':
+        case 'A':
+        case 'B':
+        case 'C':
+        case 'D':
+        case 'E':
+        case 'F':
+        case 'G':
+        case 'H':
+        case 'I':
+        case 'J':
+        case 'K':
+        case 'L':
+        case 'M':
+        case 'N':
+        case 'O':
+        case 'P':
+        case 'Q':
+        case 'R':
+        case 'S':
+        case 'T':
+        case 'U':
+        case 'V':
+        case 'W':
+        case 'X':
+        case 'Y':
+        case 'Z':
+        case '_':
+        {
+            char* str_start = cu->tknzr.curr-1;
+            curr = peek_string_char(cu, &str_start);
+            while((curr >= 'a' && curr <= 'z') ||
+                   (curr >= 'A' && curr <= 'Z') ||
+                   (curr >= '0' && curr <= '9') ||
+                   (curr == '_'))
+            {
+                void_peek(cu);
+                curr = peek_string_char(cu, &str_start);
+            }
+            tok->str = store_string(cu, str_start, cu->tknzr.curr);
+            next->column = tok->column + cu->tknzr.curr - str_start;
+            tok->type = TOKEN_STRING;
+            return;
+        }
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+        {
+            char* str_start = cu->tknzr.curr-1;
+            curr = peek_string_char(cu, &str_start);
+            while(curr >= '0' && curr <= '9'){
+                void_peek(cu);
+                curr = peek_string_char(cu, &str_start);
+                ASSERT_NEOF(curr);
+            }
+            tok->str = store_string(cu, str_start, cu->tknzr.curr);
+            next->column = tok->column + cu->tknzr.curr - str_start;
+            tok->type = TOKEN_NUMBER;
         } return;
 		default:{
             printf("unknown token: %c", curr);
         }assert(false);
 	}
-}
-ureg get_pos_in_file(cunit* cu){
-    long r = ftell(cu->tknzr.file);
-    if(r < 0)CIM_ERROR("File IO Error");
-    return (ureg)r;
-}
-ureg get_curr_src_line(cunit* cu){
-    return cu->tknzr.line_number;
-}
-ureg get_curr_src_column(cunit* cu) {
-    return cu->tknzr.curr - cu->tknzr.line_start +
-           cu->tknzr.unloaded_columns_of_line +
-           cu->tknzr.line_comment_offset;
-}
-char* get_curr_src_file_name(cunit* cu){
-    return cu->tknzr.filename;
-}
-ureg setup_entire_line(cunit* cu){
-    char* line_start;
-    if(cu->tknzr.unloaded_columns_of_line != 0){
-        ureg size_after_curr = cu->tknzr.file_buffer.head - (u8*)cu->tknzr.curr;
-        fseek(cu->tknzr.file,
-              -(size_after_curr + get_curr_src_column(cu)),
-              SEEK_CUR);
-        cu->tknzr.curr = (char*)cu->tknzr.file_buffer.start;
-        cu->tknzr.unloaded_columns_of_line = 0;
-        //tknzr.line_start gets set by populate_file_buffer
-        populate_file_buffer(cu, cu->tknzr.file_buffer.start);
-        line_start =  cu->tknzr.curr;
-    }
-    else{
-        line_start = cu->tknzr.line_start;
-    }
-    char c;
-    do{
-        c = peek_string_char(cu, &line_start);
-        void_peek(cu);
-    }while(c!='\n' && c!= '\0');
-    ureg size = cu->tknzr.curr - line_start - 1;
-    cu->tknzr.curr = line_start;
-    return size;
-}
-
-void get_token_range(cunit* cu, ureg tbase_column_start, int offs, ureg cnt,
-                         ureg* start, ureg* end)
-{
-    if(offs > 0){
-        tbase_column_start+= offs;
-        offs = 0;
-    }
-    char* curr_backup= cu->tknzr.curr;
-    char* tgt_column = cu->tknzr.line_start + tbase_column_start;
-    char* offs_column = cu->tknzr.line_start + cu->tknzr.line_comment_offset;
-    cu->tknzr.curr = offs_column;
-    token t;
-    while(offs!=0){
-        if(*cu->tknzr.curr == '\n'){
-            CIM_ERROR("Unexpected end of line");
-            return;
-        }
-        consume_new_token(cu, &t);
-        if(t.type == TOKEN_EOF)CIM_ERROR("Unexpected EOF");
-        offs++;
-    }
-    while(cu->tknzr.curr != tgt_column){
-        if(*cu->tknzr.curr == '\n'){
-            CIM_ERROR("Unexpected end of line");
-            return;
-        }
-        offs_column = cu->tknzr.curr;
-        consume_new_token(cu, &t);
-        if(t.type == TOKEN_EOF)CIM_ERROR("Unexpected EOF");
-    }
-    while(*offs_column == ' ')offs_column++;
-    *start = offs_column - cu->tknzr.line_start;
-    cu->tknzr.curr = offs_column;
-    for(ureg i =0;i<cnt;i++){
-        if(*cu->tknzr.curr == '\n'){
-            CIM_ERROR("Unexpected end of line");
-            return;
-        }
-        consume_new_token(cu, &t);
-    }
-    *end = cu->tknzr.curr - cu->tknzr.line_start;
-    cu->tknzr.curr = curr_backup;
+    next->column = tok->column+1;
 }
 const char* get_token_type_str(token_type t){
     static char buff[6] = {'\''};
@@ -660,15 +691,14 @@ const char* make_token_string(cunit* cu, token* t){
         default: CIM_ERROR("Failed to print the desired token");
     }
 };
-void error(cunit* cu, int offs, int cnt, char* str, ...){
-    ureg pos = get_curr_src_column(cu);
-    ureg line_size = setup_entire_line(cu);
+void error(cunit* cu, token* t, char* str, ...){
+    ureg pos;
+    ureg line_size;
     ureg st, en;
-    get_token_range(cu, pos, offs-1-get_lookahead_count(cu), 1, &st, &en);
     printf("%s:%llu:%llu: ",
-               get_curr_src_file_name(cu),
-               get_curr_src_line(cu) + 1,
-               st + 1);
+               cu->tknzr.filename,
+               t->line + 1,
+               t->column);
     va_list vl;
     va_start(vl, str);
     vprintf(str, vl);
