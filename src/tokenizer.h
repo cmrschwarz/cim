@@ -6,13 +6,14 @@
 
 char* store_string(cunit* cu, char* str, char* str_end);
 void add_keyword(cunit* cu, const char* str);
-const char* get_token_type_str(token_type t);
+const char* get_token_type_str(cunit* cu, token_type t);
 const char* make_token_string(cunit*cu, token* t);
 void tokenizer_open_file(cunit* cu, char* filename);
 void tokenizer_close_file(cunit* cu);
 void display_string_store(cunit* cu);
 void consume_new_token(cunit* cu, token* tok, token* next);
-void error(cunit* cu, token* t, ureg incl_prev, ureg underline_prev, char* str, ...);
+void syntax_error(cunit *cu, token *t, ureg incl_prev, ureg underline_prev, char *str, ...);
+void tokenizing_error(cunit* cu, token* t, char* str, ...);
 static inline void inc_token_buff_ptr(cunit* cu, token** p){
     if(*p != &cu->tknzr.token_buffer[TOKEN_BUFFER_SIZE - 1]){
         (*p)++;
@@ -75,6 +76,9 @@ static inline token* peek_nth_token(cunit* cu, int n){
         }
     }
     return p;
+}
+static inline void clear_lookahead(cunit* cu){
+    cu->tknzr.token_start = cu->tknzr.token_end;
 }
 static inline token* peek_2nd_token(cunit* cu){
     //PERF: maybe optimize this?

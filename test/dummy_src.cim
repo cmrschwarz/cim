@@ -1,6 +1,6 @@
-/*...*/int* foo{int* x}(int* x, int + 2)+//lols
+/*...*/int* foo{int* x}(int* x, int + 2);//lols
 int* foo(int(*)(char*) fn_ptr){bar();}
-/*
+
 intasdfhkjlaskljdf* foo{int* x}(int* x, int + 2); //lols
 
 
@@ -29,4 +29,6 @@ typedef td void(*)(char*) (*)(int);
 int[]**[]**[]*[]****[]*[x] x;
 
 ret_type ***** foo(a1* x, a2* x2, +int) + 3;
-*/
+
+
+asdf-+asdfasdfüül+af

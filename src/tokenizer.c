@@ -45,12 +45,14 @@ static inline char peek_char(cunit* cu){
         return *cu->tknzr.curr;
     }
     else{
+        if(cu->tknzr.file_buffer.start == cu->tknzr.file_buffer.head)return '\0';
         cu->tknzr.curr = (char*)cu->tknzr.file_buffer.start;
         populate_file_buffer(cu, cu->tknzr.file_buffer.start);
         if((u8*)cu->tknzr.curr != cu->tknzr.file_buffer.head){
             return *cu->tknzr.curr;
         }
         else{
+            *cu->tknzr.curr = '\0';
             return '\0';
         }
     }
@@ -63,6 +65,7 @@ static inline char peek_string_char(cunit* cu, char** str_start){
         return *cu->tknzr.curr;
     }
     else{
+        if(cu->tknzr.file_buffer.start == cu->tknzr.file_buffer.head)return '\0';
         ureg size = cu->tknzr.curr - *str_start;
         if((u8*)*str_start != cu->tknzr.file_buffer.start) {
             cu->tknzr.curr = (char*)cu->tknzr.file_buffer.start + size;
@@ -83,6 +86,7 @@ static inline char peek_string_char(cunit* cu, char** str_start){
             return *cu->tknzr.curr;
         }
         else{
+            *cu->tknzr.curr = '\0';
             return '\0';
         }
     };
@@ -174,8 +178,14 @@ char* store_string(cunit* cu, char* str, char* str_end){
 
 void consume_new_token(cunit* cu, token* tok, token* next){
 	char curr = peek_char(cu);
-    void_peek(cu);
     next->line = tok->line;
+    if(curr == '\0'){
+        next->column=tok->column;
+        tok->type = TOKEN_EOF;
+        return;
+    };
+    void_peek(cu);
+
 	switch(curr){
 		case '$': tok->type = TOKEN_DOLLAR;break;
         case '(': tok->type = TOKEN_PAREN_OPEN;break;
@@ -188,7 +198,6 @@ void consume_new_token(cunit* cu, token* tok, token* next){
 		case ';': tok->type = TOKEN_SEMICOLON; break;
         case '.': tok->type = TOKEN_DOT; break;
         case ':': tok->type = TOKEN_COLON; break;
-        case '\0':tok->type = TOKEN_EOF;break;
         case '\t': {
             tok->column++;
             curr = peek_char(cu);
@@ -649,15 +658,19 @@ void consume_new_token(cunit* cu, token* tok, token* next){
             tok->type = TOKEN_NUMBER;
         } return;
 		default:{
+            tokenizing_error(cu,
+                             tok,
+                             "tokenizng error: unknown token \'%c\'", curr);
             printf("unknown token: %c", curr);
         }assert(false);
 	}
     next->column = tok->column+1;
 }
-const char* get_token_type_str(token_type t){
-    static char buff[6] = {'\''};
+const char* get_token_type_str(cunit* cu, token_type t){
     if(token_strings[t]!=0){
         ureg len = strlen(token_strings[t]);
+        char* buff = sbuffer_append(&cu->data_store, len + 3);
+        buff[0]='\'';
         memcpy(buff + 1, token_strings[t], len);
         buff[len+1]='\'';
         return buff;
@@ -674,7 +687,7 @@ const char* get_token_type_str(token_type t){
     }
 };
 const char* make_token_string(cunit* cu, token* t){
-    if(token_strings[t->type]!=0)return get_token_type_str(t->type);
+    if(token_strings[t->type]!=0)return get_token_type_str(cu, t->type);
     ureg len = strlen(t->str);
     char* buff = sbuffer_append(&cu->data_store, len +3);
     cu->data_store.last->head = (u8*)buff;
@@ -694,12 +707,17 @@ static void revert_n_lines(cunit* cu, ureg subtract_lines){
     long fpos = ftell(cu->tknzr.file);
     if(fpos < 0)CIM_ERROR("file IO error");
     char* strp = cu->tknzr.curr;
-    if(*strp == '\n') subtract_lines--;
     while(subtract_lines != 0){
-        do{
+        bool newline_found = false;
+        while(newline_found == false){
+            if(*strp == '\n'){
+                if(subtract_lines==1)break;
+                newline_found = true;
+            }
             if (strp == (char *) cu->tknzr.file_buffer.start) {
                 if (fpos == 0)break;
-                long loff = 2 * (cu->tknzr.file_buffer.head - cu->tknzr.file_buffer.start);
+                long loff = (cu->tknzr.file_buffer.head - cu->tknzr.file_buffer.start)+
+                            (cu->tknzr.file_buffer.end - cu->tknzr.file_buffer.start);
                 fpos -= loff;
                 if (fpos < 0) {
                     fpos = 0;
@@ -713,7 +731,7 @@ static void revert_n_lines(cunit* cu, ureg subtract_lines){
             else {
                 strp--;
             }
-        } while(*strp != '\n');
+        }
         subtract_lines--;
     }
     cu->tknzr.curr = strp;
@@ -724,8 +742,36 @@ static void revert_n_lines(cunit* cu, ureg subtract_lines){
     }
     return;
 }
-
-void error(cunit* cu, token* t, ureg incl_prev, ureg underline_prev, char* str, ...){
+void tokenizing_error(cunit* cu, token* t, char* str, ...){
+    printf("%s:%llu:%llu: ",
+               cu->tknzr.filename,
+               t->line + 1,
+               t->column);
+    va_list vl;
+    va_start(vl, str);
+    vprintf(str, vl);
+    va_end(vl);
+    ureg line_sub = cu->tknzr.token_end->line - t->line;
+    revert_n_lines(cu, line_sub);
+    putchar('\n');
+    ureg lc = 0;
+    char c = peek_char(cu);
+    while(c != '\n' && c!= '\0'){
+        putchar(c);
+        void_peek(cu);
+        c = peek_char(cu);
+        lc++;
+    }
+    putchar('\n');
+    for(ureg i = 0; i!= t->column; i++)putchar(' ');
+    for(ureg i = t->column; i!= t->column + 1; i++)putchar('^');
+    putchar('\n');
+    void_peek(cu);
+    fflush(stdout);
+    CIM_EXIT;
+}
+void syntax_error(cunit* cu, token* t, ureg incl_prev, ureg underline_prev, char* str, ...){
+    clear_lookahead(cu);
     token* prev_incl= t;
     token* prev_underl= t;
     for(ureg i = 0;i!=incl_prev;i++) dec_token_buff_ptr(cu, &prev_incl);
@@ -766,14 +812,17 @@ void error(cunit* cu, token* t, ureg incl_prev, ureg underline_prev, char* str, 
         }
         char* t_start = cu->tknzr.curr;
         //TODO: maybe reverse again instead
-        do {
-            c = peek_string_char(cu, &t_start);
+        c = peek_string_char(cu, &t_start);
+        while(c != '\n' && c !='\0'){
             putchar(c);
             void_peek(cu);
-        }while(c != '\n');
+            c = peek_string_char(cu, &t_start);
+        }
+        putchar('\n');
         cu->tknzr.curr = t_start;
-        consume_token(cu);
+        token* tok = consume_token(cu);
         ureg ts = cu->tknzr.curr - t_start;
+        if(tok->type == TOKEN_EOF)ts++;
         for(ureg i = 0; i< prev_underl->column; i++)putchar(' ');
         for(ureg i = prev_underl->column; i != t->column + ts; i++)putchar('^');
     }
@@ -791,13 +840,16 @@ void error(cunit* cu, token* t, ureg incl_prev, ureg underline_prev, char* str, 
         ureg ld = t->line - prev_underl->line - 1;
         for(ureg l = 0; l!=ld;l++){
             lc = 0;
-            do{
-                c = peek_char(cu);
+            c = peek_char(cu);
+            while(c != '\n' && c !='\0'){
                 putchar(c);
                 void_peek(cu);
+                c = peek_char(cu);
                 lc++;
-            } while(c != '\n');
-            for(ureg i = 0; i!= lc-1; i++)putchar('^');
+            }
+            if(c!='\0') void_peek(cu);
+            putchar('\n');
+            for(ureg i = 0; i!= lc; i++)putchar('^');
             putchar('\n');
         }
         lc = 0;
@@ -809,14 +861,18 @@ void error(cunit* cu, token* t, ureg incl_prev, ureg underline_prev, char* str, 
         }
         char* t_start = cu->tknzr.curr;
         //TODO: maybe reverse again instead
-        do {
-            c = peek_string_char(cu, &t_start);
+        c = peek_string_char(cu, &t_start);
+        while(c != '\n' && c !='\0'){
             putchar(c);
             void_peek(cu);
-        }while(c != '\n' && c!= '\0');
+            c = peek_string_char(cu, &t_start);
+        }
+        putchar('\n');
+        void_peek(cu);
         cu->tknzr.curr = t_start;
-        consume_token(cu);
+        token* tok = consume_token(cu);
         ureg ts = cu->tknzr.curr - t_start;
+        if(tok->type == TOKEN_EOF)ts++;
         for(ureg i = 0; i!= t->column + ts; i++)putchar('^');
         for(ureg i = t->column + ts; i!= t->column + ts + lc; i++)putchar(' ');
     }
