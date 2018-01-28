@@ -531,7 +531,6 @@ void consume_new_token(cunit* cu, token* tok, token* next){
                 }
             }while(curr != '\'');
             tok->str = store_string(cu, str_start, cu->tknzr.curr);
-            next->column = tok->column + 2 + cu->tknzr.curr - str_start;
             tok->type = TOKEN_BINARY_LITERAL;
         } return;
         case '\"':{
@@ -556,7 +555,6 @@ void consume_new_token(cunit* cu, token* tok, token* next){
                 }
             }while(curr != '\"');
             tok->str = store_string(cu, str_start, cu->tknzr.curr);
-            next->column = tok->column + 2 + cu->tknzr.curr - str_start;
             tok->type = TOKEN_LITERAL;
         } return;
         case 'a':
@@ -691,10 +689,51 @@ const char* make_token_string(cunit* cu, token* t){
         default: CIM_ERROR("Failed to print the desired token");
     }
 };
-void error(cunit* cu, token* t, char* str, ...){
-    ureg pos;
+static void revert_n_lines(cunit* cu, ureg subtract_lines){
+    subtract_lines++;
+    long fpos = ftell(cu->tknzr.file);
+    if(fpos < 0)CIM_ERROR("file IO error");
+    char* strp = cu->tknzr.curr;
+    if(*strp == '\n') subtract_lines--;
+    while(subtract_lines != 0){
+        do{
+            if (strp == (char *) cu->tknzr.file_buffer.start) {
+                if (fpos == 0)break;
+                long loff = 2 * (cu->tknzr.file_buffer.head - cu->tknzr.file_buffer.start);
+                fpos -= loff;
+                if (fpos < 0) {
+                    fpos = 0;
+                    fseek(cu->tknzr.file, 0, SEEK_SET);
+                } else {
+                    fseek(cu->tknzr.file, -loff, SEEK_CUR);
+                }
+                populate_file_buffer(cu, cu->tknzr.file_buffer.start);
+                strp = (char*)(cu->tknzr.file_buffer.head - 1);
+            }
+            else {
+                strp--;
+            }
+        } while(*strp != '\n');
+        subtract_lines--;
+    }
+    cu->tknzr.curr = strp;
+    if(fpos !=0){
+        // get rid of the \n
+        peek_char(cu);
+        void_peek(cu);
+    }
+    return;
+}
+
+void error(cunit* cu, token* t, ureg incl_prev, ureg underline_prev, char* str, ...){
+    token* prev_incl= t;
+    token* prev_underl= t;
+    for(ureg i = 0;i!=incl_prev;i++) dec_token_buff_ptr(cu, &prev_incl);
+    for(ureg i = 0;i!=underline_prev;i++) dec_token_buff_ptr(cu, &prev_underl);
+    token* next = t;
+    inc_token_buff_ptr(cu, &next);
     ureg line_size;
-    ureg st, en;
+    ureg entire_size;
     printf("%s:%llu:%llu: ",
                cu->tknzr.filename,
                t->line + 1,
@@ -704,12 +743,83 @@ void error(cunit* cu, token* t, char* str, ...){
     vprintf(str, vl);
     va_end(vl);
     putchar('\n');
-    for(ureg i = 0; i<line_size;i++){
-        putchar(cu->tknzr.curr[i]);
+    char* curr_backup = cu->tknzr.curr;
+    ureg line_sub = cu->tknzr.token_end->line - prev_incl->line;
+    revert_n_lines(cu, line_sub);
+    ureg lines_pre_underline = prev_underl->line - prev_incl->line;
+    char c;
+    for(ureg i = 0;i!=lines_pre_underline;i++){
+        c = peek_char(cu);
+        while(c != '\n'){
+            putchar(c);
+            void_peek(cu);
+            c = peek_char(cu);
+        }
+        putchar('\n');
+        void_peek(cu);
     }
-    putchar('\n');
-    for(ureg i = 0; i!= st; i++)putchar(' ');
-    for(ureg i = st; i!= en; i++)putchar('^');
+    if(prev_underl->line == t->line){
+        for(ureg i = 0; i!= t->column; i++) {
+            c = peek_char(cu);
+            putchar(c);
+            void_peek(cu);
+        }
+        char* t_start = cu->tknzr.curr;
+        //TODO: maybe reverse again instead
+        do {
+            c = peek_string_char(cu, &t_start);
+            putchar(c);
+            void_peek(cu);
+        }while(c != '\n');
+        cu->tknzr.curr = t_start;
+        consume_token(cu);
+        ureg ts = cu->tknzr.curr - t_start;
+        for(ureg i = 0; i< prev_underl->column; i++)putchar(' ');
+        for(ureg i = prev_underl->column; i != t->column + ts; i++)putchar('^');
+    }
+    else{
+        ureg lc = 0;
+        do {
+            c = peek_char(cu);
+            putchar(c);
+            void_peek(cu);
+            lc++;
+        }while(c != '\n');
+        for(ureg i = 0; i != prev_underl->column; i++)putchar(' ');
+        for(ureg i = prev_underl->column; i!= lc-1; i++)putchar('^');
+        putchar('\n');
+        ureg ld = t->line - prev_underl->line - 1;
+        for(ureg l = 0; l!=ld;l++){
+            lc = 0;
+            do{
+                c = peek_char(cu);
+                putchar(c);
+                void_peek(cu);
+                lc++;
+            } while(c != '\n');
+            for(ureg i = 0; i!= lc-1; i++)putchar('^');
+            putchar('\n');
+        }
+        lc = 0;
+        while(lc!= t->column) {
+            c = peek_char(cu);
+            putchar(c);
+            void_peek(cu);
+            lc++;
+        }
+        char* t_start = cu->tknzr.curr;
+        //TODO: maybe reverse again instead
+        do {
+            c = peek_string_char(cu, &t_start);
+            putchar(c);
+            void_peek(cu);
+        }while(c != '\n' && c!= '\0');
+        cu->tknzr.curr = t_start;
+        consume_token(cu);
+        ureg ts = cu->tknzr.curr - t_start;
+        for(ureg i = 0; i!= t->column + ts; i++)putchar('^');
+        for(ureg i = t->column + ts; i!= t->column + ts + lc; i++)putchar(' ');
+    }
     fflush(stdout);
     CIM_EXIT;
 }

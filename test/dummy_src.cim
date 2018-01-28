@@ -1,3 +1,6 @@
+/*...*/int* foo{int* x}(int* x, int + 2)+//lols
+int* foo(int(*)(char*) fn_ptr){bar();}
+/*
 intasdfhkjlaskljdf* foo{int* x}(int* x, int + 2); //lols
 
 
@@ -6,8 +9,7 @@ int* foo{int* x}(int* x){}
 
 int* foo{int* x}(int* x);
 
-int* foo{int* x}(int* x, int + 2);
-int* foo(int(*)(char*) fn_ptr){bar();}
+
 char* foo(+a, int ************b);
 int foo(int x){}
 int**[y]**[x] x;
@@ -27,3 +29,4 @@ typedef td void(*)(char*) (*)(int);
 int[]**[]**[]*[]****[]*[x] x;
 
 ret_type ***** foo(a1* x, a2* x2, +int) + 3;
+*/

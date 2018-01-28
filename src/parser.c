@@ -152,7 +152,7 @@ static inline void add_size_node(cunit* cu, ureg ast_start){
 }
 static void require_token(cunit *cu, token *t, token_type tt, int offs){
     if(t->type != tt){
-        error(cu, t, "syntax error: unexpected token: wanted %s, got %s",
+        error(cu, t, 1, 1, "syntax error: unexpected token: wanted %s, got %s",
               get_token_type_str(tt), make_token_string(cu, t));
     }
 }
@@ -240,12 +240,12 @@ static inline ast_rel_ptr parse_param_list(cunit* cu, token_type end_tok){
 }
 static int error_expecting_op(cunit* cu, token* t1, token_type term1, token_type term2){
      if(term1 == term2){
-        error(cu, t1,
+        error(cu, t1, 1,1,
               "expression syntax error: wanted an operation or %s, got %s",
               get_token_type_str(term1), get_token_type_str(t1->type));
     }
     else{
-         error(cu, t1,
+         error(cu, t1,1,1,
               "expression syntax error: wanted an operation "
               "or %s or %s, got %s",
               get_token_type_str(term1),
@@ -476,12 +476,12 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
                 expecting_op = true;
             }break;
             case TOKEN_EOF:{
-                error(cu, t1, "expression syntax error: reached end of file before the end of the expression");
+                error(cu, t1, 1, 1, "expression syntax error: reached end of file before the end of the expression");
             }return-1;
             default:{
 lbl_default:;
                 if(!expecting_op){
-                    error(cu, t1,
+                    error(cu, t1,1,1,
                           "expression syntax error: reached %s before reaching a valid "
                           "end to the expression",
                           get_token_type_str(t1->type));
@@ -500,12 +500,12 @@ lbl_default:;
                 }
                 else{
                     if(term1 == term2){
-                        error(cu, t1,
+                        error(cu, t1,1,1,
                               "expression syntax error: wanted %s, got %s",
                               get_token_type_str(term1), get_token_type_str(t1->type));
                     }
                     else{
-                         error(cu, t1,
+                         error(cu, t1,1,1,
                               "expression syntax error: wanted %s or %s, got %s",
                               get_token_type_str(term1),
                               get_token_type_str(term2),
@@ -1287,13 +1287,13 @@ static inline int parse_elem(cunit* cu, token_type end_tok){
         case TOKEN_EOF: {
             void_lookahead_token(cu);
             if(end_tok == TOKEN_EOF) return 1;
-            error(cu, t1, "syntax error: reached end of file before reaching %s",
+            error(cu, t1, 1,1,"syntax error: reached end of file before reaching %s",
                   get_token_type_str(end_tok));
         }
         case TOKEN_BRACE_CLOSE:{
             void_lookahead_token(cu);
             if(end_tok == TOKEN_BRACE_CLOSE) return 1;
-            error(cu, t1, "syntax error: reached '}' while not being in a scope",
+            error(cu, t1, 1,1,"syntax error: reached '}' while not being in a scope",
                   get_token_type_str(end_tok));
         }
         default: {

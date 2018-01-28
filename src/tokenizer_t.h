@@ -5,7 +5,7 @@ typedef struct{
     ureg column;
     ureg line;
 }token;
-#define TOKEN_BUFFER_SIZE 4
+#define TOKEN_BUFFER_SIZE 32
 typedef struct {
 	ureg line;
     ureg column;
