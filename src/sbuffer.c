@@ -10,15 +10,15 @@
 #   include <malloc.h>
 #endif
 
-#if PGT_PFM_POSIX
+#if __linux__
 #   include <sys/unistd.h>  //for pagesize
 #endif
 
 int sbuffer_init(sbuffer* s, ureg pages_per_segment){
     ureg seg_size;
-#   if PGT_PFM_POSIX
+#   if __linux__
         seg_size = sysconf(_SC_PAGESIZE) * pages_per_segment;
-#   elif PGT_PFM_WINDOWS
+#   elif defined(_WIN32) || defined(_WIN16)
         SYSTEM_INFO si;
         GetSystemInfo(&si);
         seg_size = si.dwPageSize * pages_per_segment;
@@ -133,7 +133,6 @@ void* sbuffer_insert(sbuffer* sb, sbi* sbi, ureg size){
             return sbi->pos;
         }
     }
-
     if(cs->next != NULL && used_space_after + free_space_after >= size){
         ureg next_free_space_before =
                 cs->next->start - ((u8*)(cs->next) + sizeof(sbuffer_segment));
@@ -156,7 +155,6 @@ void* sbuffer_insert(sbuffer* sb, sbi* sbi, ureg size){
             return sbi->pos;
         }
     }
-    //printf("new seg\n");
     ureg seg_size = cs->end - (u8*)cs;
     if(used_space_before >= used_space_after){
         bool move_ins_too = false;

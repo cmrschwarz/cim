@@ -27,21 +27,19 @@ enum expr_node_type_t{
     EXPR_NODE_LITERAL = TOKEN_LITERAL,
     EXPR_NODE_BINARY_LITERAL = TOKEN_BINARY_LITERAL,
     EXPR_NODE_VARIABLE ,
-    EXPR_NODE_SCOPED_VARIABLE,
     EXPR_NODE_CANCER_PTRS ,
-    EXPR_NODE_SCOPED_CANCER_PTRS ,
     EXPR_NODE_OP_LR,
     EXPR_NODE_OP_L,
     EXPR_NODE_OP_R,
     EXPR_NODE_FN_CALL,
     EXPR_NODE_ARRAY_ACCESS,
     EXPR_NODE_GENERIC_FN_CALL,
+    EXPR_NODE_NOP,
     EXPR_NODE_TYPE_SIMPLE,
-    EXPR_NODE_TYPE_SCOPED,
     EXPR_NODE_TYPE_FN_PTR,
     EXPR_NODE_TYPE_GENERIC_STRUCT,
-    EXPR_NODE_TYPE_SCOPED_GENERIC_STRUCT,
     EXPR_NODE_TYPE_ARRAY,
+    EXPR_NODE_TYPE_SCOPED,
     EXPR_NODE_PAREN,   //temp for shunting yard
 };
 
@@ -64,8 +62,9 @@ typedef union ast_node_u{
     struct {
         expr_node_type type;
         union {
-             operation opcode;
-             u8 ptrs;
+            operation opcode;
+            u8 ptrs;
+            u8 modifiers;
         }special;
         ast_rel_ptr size;
     }expr;
@@ -80,7 +79,7 @@ typedef union ast_node_u{
         ast_rel_ptr size;
     }var_decl;
     char* str;
-    ureg size;
+    ureg full_size;
 }ast_node;
 
 typedef struct astn_assignment_t{

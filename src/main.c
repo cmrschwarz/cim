@@ -2,21 +2,43 @@
 #include "ast.h"
 #include "compiler.h"
 #include <stdio.h>
+#include "hms.h"
+void hms_dump(hms* h)
+{
+	printf("Dumping map of length %lu:\n", h->map_end - h->map);
+	hms_node* n = h->map;
+    while(n != h->map_end){
+        if(n->key == NULL){
+            printf("----\n");
+        }
+        else{
+            printf("%s --> %s\n", n->key, n->value);
+        }
+        n++;
+    }
+}
 int main(){
+
     //printf("sizeof(ast_node): %llu\n", sizeof(ast_node));
 	cunit cu;
 	cunit_init(&cu);
-    parse_file(&cu, "../test/dummy_src.cim");
-    /*
+    for(int i=0;i!=1;i++){
+         parse_file(&cu, "../test/dummy_src.cim");
+    }
+
+
     printf("ast size: %llu bytes (%llu regs)\n",
            dbuffer_get_size(&cu.ast),
            dbuffer_get_size(&cu.ast) / sizeof(ast_node));
     printf("string store size: %llu bytes (%llu strings, 19 keywords)\n",
            sbuffer_get_size(&cu.data_store),
            dbuffer_get_size(&cu.string_ptrs) / sizeof(ureg) - 19);
-           */
+
     printf("\noutput:\n");
     print_ast(&cu);
     cunit_fin(&cu);
-	return 0;
+
+
+    return 0;
+
 }

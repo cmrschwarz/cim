@@ -22,24 +22,25 @@ typedef int64_t s64;
 typedef float f32;
 typedef double f64;
 
-#define U8_MAX 255U
+#define U8_MAX  255U
 #define U16_MAX 65536U
 #define U32_MAX 4294967295U
-#define U64_MAX 18446744073709600000ULL
+#define U64_MAX 18446744073709551615ULL
 
-#define S8_MAX 127U
+#define S8_MAX  127U
 #define S16_MAX 32767U
 #define S32_MAX 2147483647U
-#define S64_MAX 9223372036854780000ULL
+#define S64_MAX 9223372036854775807L
 
-#define S8_MIN -127
-#define S16_MIN -32767
-#define S32_MIN -2147483647
-#define S64_MIN -9223372036854780000LL
+#define S8_MIN  -128
+#define S16_MIN -32768
+#define S32_MIN -2147483648
+#define S64_MIN -9223372036854775808L
 
 #define UREG_MAX UINTPTR_MAX
 #define SREG_MAX INTPTR_MAX
 #define SREG_MIN INTPTR_MAX
+
 
 #if INTPTR_MAX == INT32_MAX
 typedef size_t ureg;  // not defined uint32_t to silence some IDE Warnings
@@ -54,6 +55,7 @@ typedef int8_t sregq;
 #define SREGQ_MAX S8_MAX
 #define SREGH_MIN S16_MIN
 #define SREGQ_MIN S8_MIN
+#define REG_BITS 32
 #elif INTPTR_MAX == INT64_MAX
 typedef unsigned long long int ureg;  // not defined uint64_t to silence some IDE Warnings
 typedef int64_t sreg;
@@ -67,6 +69,7 @@ typedef int16_t sregq;
 #define SREGQ_MAX S16_MAX
 #define SREGH_MIN S32_MIN
 #define SREGQ_MIN S16_MIN
+#define REG_BITS 64
 #else
 #error "Environment not 32 or 64-bit."
 #endif

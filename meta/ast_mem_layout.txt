@@ -7,7 +7,7 @@ General info:
 GROUPS:
 
 OPERATOR_LR/OPERATOR/                :
-VARIABLE/LITERAL                     : SUB_EXPR_CONTENT
+VARIABLE/LITERAL                     : SUB_EXPR
 
 SUB_EXPR/VARIABLE/LITERAL/           :
 CANCER_MULTIPLY/                     :
@@ -27,8 +27,8 @@ EXPRESSIONS:
 u8 type;u8 op;u16 size;             : OPERATOR
 
 
-SUB_EXPR_CONTENT                    : preceeding operand
-SUB_EXPR_CONTENT                    : following operand
+SUB_EXPR                            : preceeding operand
+SUB_EXPR                            : following operand
 u8 type; u8 op; u16 size;           : OPERATOR_LR
 
 
@@ -54,8 +54,8 @@ char* left;                         : scoped var before *'s
 char* right;                        : var after *'s
 u8 type; u8 ptrs; u16 size;         : SCOPED_CANCER_PTRS (amount of ptrs)
 
-SUB_EXPR_CONTENT                    : sub expr content continuation
-SUB_EXPR_CONTENT                    : sub expr content start
+SUB_EXPR                            : sub expr content continuation
+SUB_EXPR                            : sub expr content start
 u8 type;u16 size;                   : SUB_EXPR
 
 
@@ -72,6 +72,9 @@ u16 size;                           : normal params size
 char* str;                          : FN name
 u8 type; u16 size;                  : GENERIC_FN_CALL
 
+ANY_TYPE                            : type to index over
+SUB_EXPR                            : index expression
+u8 type; u16 size;                  : ARRAY_ACCESS
 --------------------------------------------------------------------------------
 TYPES:
 
@@ -79,38 +82,24 @@ TYPES:
 char* str;                          : name
 u8 type; u8 ptrs; u16 size;         : SIMPLE
 
-
-char* str;                          : scope 1
-char* str;                          : scope 2
-char* str;                          : name
-u8 type; u8 ptrs; u16 size;         : SCOPED
-
-
 ANY_TYPE                            : ret type
 ANY_TYPE                            : arg type 1
 ANY_TYPE                            : arg type 2
 u16 size;                           : args size
 u8 type; u8 ptrs; u16 size;         : FN PTR
 
-
 u8 type; u8 ptrs; u16 size;         : generic arg type 1
 u8 type; u8 ptrs; u16 size;         : generic arg type 2
 char* name;                         : name
 u8 type; u8 ptrs; u16 size;         : GENERIC_STRUCT
 
-
-char* str;                          : scope 1
-char* str;                          : scope 2
-GENERIC_PARAM                       : generic arg type 1
-GENERIC_PARAM                       : generic arg type 2
-u16 args_size;                      : generic args size
-char* name;                         : name
-u8 type; u8 ptrs; u16 size;         : SCOPED_GENERIC_STRUCT
-
 ANY_TYPE                            : array type
 EXPRESSION                          : array_bounds_expr
-u16 size;                           : params size
 u8 type; u8 ptrs; u16 size;         : ARRAY
+
+ANY_TYPE                            : scope
+ANY_TYPE                            : the type
+u8 type; u16 size;                  : SCOPED
 
 --------------------------------------------------------------------------------
 AST_NODES:
@@ -154,6 +143,7 @@ OWNED_BLOCK                         : fn body
 
 u8 type; u16 size;                  : VARIABLE_DECLARATION
 ANY_TYPE                            : return type
+char* name;                         : name
 
 
 

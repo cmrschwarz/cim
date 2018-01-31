@@ -8,7 +8,21 @@
 #include "compiler.h"
 #include "token_strings.h"
 #include <stdarg.h>
-#define ASSERT_NEOF(c) do{if((c) == '\0'){CIM_ERROR("Unexpected EOF");}}while(0)
+static inline void comment_assert_neof(cunit* cu, token* t, char c){
+    if(c == '\0'){
+        token* next = t;
+        inc_token_buff_ptr(cu, &next);
+        tokenizing_error(cu, t,t->line - next->line, "tokenizing error: unexpected end of file");
+    }
+}
+static inline void assert_neof(cunit* cu, token* t, char c){
+    if(c == '\0'){
+        tokenizing_error(cu, t, 0,"tokenizing error: unexpected end of file");
+    }
+}
+bool str_eq_keyword(const char* str,const  char* keyword){
+    return strcmp(str, keyword) == 0;
+}
 static void populate_file_buffer(cunit* cu, u8* pop_start){
     ureg s = fread(pop_start,
                    1, cu->tknzr.file_buffer.end - pop_start,
@@ -142,6 +156,11 @@ void add_keyword(cunit* cu, const char* str){
     }
 }
 char* store_string(cunit* cu, char* str, char* str_end){
+    ureg siz = str_end - str;
+    char* s = sbuffer_append(&cu->data_store, siz + 1);
+    s[siz] = '\0';
+    memcpy(s, str, siz);
+    return s;
 	//we do this ahead so we don't have to worry about invalidating pointers
 	dbuffer_make_small_space(&cu->string_ptrs, sizeof(char*));
 	char** sptrs_start = (char**)cu->string_ptrs.start;
@@ -385,10 +404,10 @@ void consume_new_token(cunit* cu, token* tok, token* next){
                     while(curr == '\\'){
                         void_peek(cu);
                         curr = peek_char(cu);
-                        ASSERT_NEOF(curr);
+                        comment_assert_neof(cu, tok, curr);
                         void_peek(cu);
                         curr = peek_char(cu);
-                        ASSERT_NEOF(curr);
+                        comment_assert_neof(cu, tok, curr);
                     }
                 }while(curr != '\n');
                 void_peek(cu);
@@ -406,7 +425,7 @@ void consume_new_token(cunit* cu, token* tok, token* next){
                         while(curr == '\\'){
                             void_peek(cu);
                             curr = peek_char(cu);
-                            ASSERT_NEOF(curr);
+                            comment_assert_neof(cu, tok, curr);
                             void_peek(cu);
                             tok->column+=2;
                             curr = peek_char(cu);
@@ -417,7 +436,7 @@ void consume_new_token(cunit* cu, token* tok, token* next){
                             tok->line++;
                             tok->column = 0;
                         }
-                        ASSERT_NEOF(curr);
+                        comment_assert_neof(cu, tok, curr);
                     }while(curr != '*');
                     void_peek(cu);
                     tok->column++;
@@ -519,49 +538,51 @@ void consume_new_token(cunit* cu, token* tok, token* next){
             }
         } return;
         case '\'':{
-            char* str_start = cu->tknzr.curr-1;
+            char* str_start = cu->tknzr.curr;
             do{
-                void_peek(cu);
                 next->column++;
                 curr = peek_string_char(cu, &str_start);
-                ASSERT_NEOF(curr);
+                assert_neof(cu, tok, curr);
                 if(curr == '\\'){
+                    //TODO: think about handling escaped chars
                     void_peek(cu);
                     curr = peek_string_char(cu, &str_start);
-                    ASSERT_NEOF(curr);
+                    assert_neof(cu, tok, curr);
                     void_peek(cu);
                     curr = peek_string_char(cu, &str_start);
-                    ASSERT_NEOF(curr);
+                    assert_neof(cu, tok, curr);
                     next->column+=2;
                 }
                 if(curr == '\n'){
                     curr = peek_string_char(cu, &str_start);
-                    ASSERT_NEOF(curr);
+                    assert_neof(cu, tok, curr);
                 }
+                void_peek(cu);
             }while(curr != '\'');
             tok->str = store_string(cu, str_start, cu->tknzr.curr);
             tok->type = TOKEN_BINARY_LITERAL;
         } return;
         case '\"':{
-            char* str_start = cu->tknzr.curr-1;
+            char* str_start = cu->tknzr.curr;
             do{
-                void_peek(cu);
+                next->column++;
                 curr = peek_string_char(cu, &str_start);
-                ASSERT_NEOF(curr);
+                assert_neof(cu, tok, curr);
                 if(curr == '\\'){
+                    //TODO: think about handling escaped chars
                     void_peek(cu);
                     curr = peek_string_char(cu, &str_start);
-                    ASSERT_NEOF(curr);
+                    assert_neof(cu, tok, curr);
                     void_peek(cu);
                     curr = peek_string_char(cu, &str_start);
-                    ASSERT_NEOF(curr);
+                    assert_neof(cu, tok, curr);
+                    next->column+=2;
                 }
                 if(curr == '\n'){
-                    next->line++;
-                    void_peek(cu);
                     curr = peek_string_char(cu, &str_start);
-                    ASSERT_NEOF(curr);
+                    assert_neof(cu, tok, curr);
                 }
+                void_peek(cu);
             }while(curr != '\"');
             tok->str = store_string(cu, str_start, cu->tknzr.curr);
             tok->type = TOKEN_LITERAL;
@@ -651,18 +672,15 @@ void consume_new_token(cunit* cu, token* tok, token* next){
             while(curr >= '0' && curr <= '9'){
                 void_peek(cu);
                 curr = peek_string_char(cu, &str_start);
-                ASSERT_NEOF(curr);
+               assert_neof(cu, tok, curr);
             }
             tok->str = store_string(cu, str_start, cu->tknzr.curr);
             next->column = tok->column + cu->tknzr.curr - str_start;
             tok->type = TOKEN_NUMBER;
         } return;
 		default:{
-            tokenizing_error(cu,
-                             tok,
-                             "tokenizng error: unknown token \'%c\'", curr);
-            printf("unknown token: %c", curr);
-        }assert(false);
+            tokenizing_error(cu, tok,0, "tokenizing error: unknown token");
+        }
 	}
     next->column = tok->column+1;
 }
@@ -735,14 +753,12 @@ static void revert_n_lines(cunit* cu, ureg subtract_lines){
         subtract_lines--;
     }
     cu->tknzr.curr = strp;
-    if(fpos !=0){
-        // get rid of the \n
-        peek_char(cu);
-        void_peek(cu);
+    if(*strp == '\n' && cu->tknzr.file_buffer.head != (u8*)cu->tknzr.curr){
+        cu->tknzr.curr++;
     }
     return;
 }
-void tokenizing_error(cunit* cu, token* t, char* str, ...){
+void tokenizing_error(cunit* cu, token* t,ureg lines_to_incl, char* str, ...){
     printf("%s:%llu:%llu: ",
                cu->tknzr.filename,
                t->line + 1,
@@ -751,11 +767,20 @@ void tokenizing_error(cunit* cu, token* t, char* str, ...){
     va_start(vl, str);
     vprintf(str, vl);
     va_end(vl);
-    ureg line_sub = cu->tknzr.token_end->line - t->line;
-    revert_n_lines(cu, line_sub);
     putchar('\n');
+    revert_n_lines(cu, lines_to_incl);
     ureg lc = 0;
     char c = peek_char(cu);
+    for(ureg i = 0; i!= lines_to_incl;i++){
+        while(c != '\n'){
+            putchar(c);
+            void_peek(cu);
+            c = peek_char(cu);
+        }
+        void_peek(cu);
+        c = peek_char(cu);
+        putchar('\n');
+    }
     while(c != '\n' && c!= '\0'){
         putchar(c);
         void_peek(cu);

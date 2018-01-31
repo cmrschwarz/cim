@@ -30,6 +30,7 @@ void print_op(u8 op){
         case OP_MODULO_ASSIGN: putchar('%');putchar('='); return;
         case OP_DIVIDE: putchar('/'); return;
         case OP_DIVIDE_ASSIGN: putchar('/');putchar('='); return;
+        case OP_ADDRESS_OF:
         case OP_BITWISE_AND: putchar('&'); return;
         case OP_LOGICAL_AND: putchar('&');putchar('&'); return;
         case OP_BITWISE_AND_ASSIGN: putchar('&');putchar('='); return;
@@ -111,30 +112,15 @@ static void print_type(ast_node* t){
     ast_node* tn = t-1;
     switch (t->type.type){
         case EXPR_NODE_TYPE_SCOPED:{
-            for(ast_node* i = last ; i != tn; i++){
-                fputs(i->str, stdout);
-                putchar(':');
-            }
-            fputs(tn->str, stdout);
-            print_ptrs(t->type.ptrs);
-        }break;
+            ast_node* sc_type = tn - tn->type.size;
+            print_type(sc_type);
+            putchar(':');
+            print_type(tn);
+        }return;
         case EXPR_NODE_TYPE_GENERIC_STRUCT:{
             fputs(tn->str, stdout);
             putchar('{');
             reverse_print_type_list(t - 2, last-1);
-            putchar('}');
-            print_ptrs(t->type.ptrs);
-        }break;
-        case EXPR_NODE_TYPE_SCOPED_GENERIC_STRUCT:{
-            ast_node* gen_args_rstart = t - 3;
-            ast_node* scopes_end = gen_args_rstart - tn->type.size;
-            for(ast_node* i = last; i!= scopes_end; i++){
-                fputs(i->str, stdout);
-                putchar(':');
-            }
-            fputs((t-2)->str, stdout);
-            putchar('{');
-            reverse_print_type_list(gen_args_rstart, scopes_end);
             putchar('}');
             print_ptrs(t->type.ptrs);
         }break;
@@ -154,7 +140,7 @@ static void print_type(ast_node* t){
             ast_node* expr = t-1;
             print_type(expr - expr->expr.size);
             putchar('[');
-            if(expr->expr.size != 1)print_sub_expr(expr-1, false);
+            if(expr->expr.size != 1)print_sub_expr(expr, false);
             putchar(']');
             print_ptrs(t->type.ptrs);
         }break;
@@ -221,9 +207,9 @@ static void print_sub_expr(ast_node *e, bool allow_types){
             putchar(')');
         }return;
         case EXPR_NODE_ARRAY_ACCESS:{
-            write(e2->str);
+            print_sub_expr(e2 - e2->expr.size, false);
             putchar('[');
-            print_sub_expr(e-2, false);
+            print_sub_expr(e2, false);
             putchar(']');
         }return;
         case EXPR_NODE_CANCER_PTRS:{
@@ -238,23 +224,6 @@ static void print_sub_expr(ast_node *e, bool allow_types){
                 putchar(')');
             }
         };return;
-        case EXPR_NODE_SCOPED_CANCER_PTRS:{
-            putchar('(');
-            ast_node* scope = e - e->expr.size;
-            while(scope != e-2){
-                write(scope->str);putchar(':');
-                scope++;
-            }
-            write((e-1)->str);
-            putchar(' '); putchar('*'); putchar(' ');
-            for(int i = 1; i < e->expr.special.ptrs; i++){
-                putchar('('); putchar('*');
-            }
-            write(e2->str);
-            for(int i = 0; i < e->expr.special.ptrs; i++){
-                putchar(')');
-            }
-        }return;
         default:{
             if(allow_types){
                 print_type(e);
@@ -290,7 +259,7 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
                 reverse_print_func_params(params_size - 1, ret_type);
                 putchar(')');putchar('{');putchar('\n');
                 ast_node* block = fn_name+1;
-                void* block_end = (u8*)block + block->size;
+                void* block_end = (u8*)block + block->full_size;
                 print_ast_within(cu, indent + 1, block + 1, block_end);
                 putchar('}');putchar('\n');
                 astn = block_end;
@@ -311,7 +280,7 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
                 reverse_print_func_params(params_size - 1, generic_params_size);
                 putchar(')');putchar('{');putchar('\n');
                 ast_node* block = fn_name+1;
-                void* block_end = (u8*)block + block->size;
+                void* block_end = (u8*)block + block->full_size;
                 print_ast_within(cu, indent + 1, block + 1, block_end);
                 putchar('}');putchar('\n');
                 astn = block_end;

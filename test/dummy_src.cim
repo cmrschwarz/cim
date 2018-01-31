@@ -1,23 +1,27 @@
-/*...*/int* foo{int* x}(int* x, int + 2);//lols
+scoped:sc2:sc3:int[]**[]**[]*[]****[]*[x] x;
+///*
+typedef sc x:td;
+
+int**[y]**[x] x;
+str[str_size-1] = '\a';
+//int* foo{int* x}(int* x, int + 2);//test comments
 int* foo(int(*)(char*) fn_ptr){bar();}
-
 intasdfhkjlaskljdf* foo{int* x}(int* x, int + 2); //lols
-
-
 int* foo{int* x}(int* x){}
 int* foo{int* x}(int* x){}
-
 int* foo{int* x}(int* x);
-
-
 char* foo(+a, int ************b);
 int foo(int x){}
-int**[y]**[x] x;
+
 fn_call();
 fn_call_with_params(4, var);
 generic_fn_call{int}(x);
 fn_call_nested(4, nested_fn_call(4, 1, nest_3()));
 generic_fn_call{int}(4, nested_fn_call(2), empty_generic_fn{}());
+scoped:int[]**[]**[]*[]****[]*[x] x;
+ret_type ***** foo(a1* x, a2* x2, +int) + 3;
+int alpha;
+
 typedef td x;
 typedef sc x:td;
 typedef td generic{x};
@@ -26,9 +30,46 @@ typedef td scope:generic{scope:nested};
 typedef td scope:generic{nested_generic{x}};
 typedef td scope:generic{scoped:nested_generic{x}};
 typedef td void(*)(char*) (*)(int);
-int[]**[]**[]*[]****[]*[x] x;
+hms h;
+hms_init(&h);
+const int str_size = 6;
+char[str_size] str;
+/*
+    for(char c0 = 'A'; c0 <= 'Z';c0++){
+        str[0] = c0;
+        for(char c1 = 'A'; c1 <= 'Z';c1++){
+            str[1] = c1;
+            for(char c2 = 'A'; c2 <= 'Z';c2++){
+                str[2] = c2;
+                for(char c3 = 'A'; c3 <= 'Z'; c3++){
+                    str[3] = c3;
+                    for(char c4 = 'A'; c4 <= 'Z'; c4++) {
+                        str[4] = c4;
+                        char *t = malloc(str_size);
+                        memcpy(t, str, str_size);
+                        hms_set(&h, t, "value");
+                    }
+                }
 
-ret_type ***** foo(a1* x, a2* x2, +int) + 3;
+            }
+        }
+    }
+    for(char c0 = 'A'; c0 <= 'Z';c0++){
+        str[0] = c0;
+        for(char c1 = 'A'; c1 <= 'Z';c1++){
+            str[1] = c1;
+            for(char c2 = 'A'; c2 <= 'Z';c2++){
+                str[2] = c2;
+                for(char c3 = 'A'; c3 <= 'Z'; c3++){
+                    str[3] = c3;
+                    for(char c4 = 'A'; c4 <= 'Z'; c4++) {
+                        str[4] = c4;
+                        hms_remove(&h, str);
+                    }
+                }
 
-
-asdf-+asdfasdfüül+af
+            }
+        }
+    }
+    hms_dump(&h);
+//*/
