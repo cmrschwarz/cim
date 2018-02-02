@@ -725,6 +725,7 @@ static void revert_n_lines(cunit* cu, ureg subtract_lines){
     long fpos = ftell(cu->tknzr.file);
     if(fpos < 0)CIM_ERROR("file IO error");
     char* strp = cu->tknzr.curr;
+    if(*strp == '\n')subtract_lines++;
     while(subtract_lines != 0){
         bool newline_found = false;
         while(newline_found == false){
@@ -734,17 +735,25 @@ static void revert_n_lines(cunit* cu, ureg subtract_lines){
             }
             if (strp == (char *) cu->tknzr.file_buffer.start) {
                 if (fpos == 0)break;
-                long loff = (cu->tknzr.file_buffer.head - cu->tknzr.file_buffer.start)+
+                long off = cu->tknzr.file_buffer.head - cu->tknzr.file_buffer.start;
+                long loff = off +
                             (cu->tknzr.file_buffer.end - cu->tknzr.file_buffer.start);
-                fpos -= loff;
-                if (fpos < 0) {
-                    fpos = 0;
+                if ((fpos - loff)< 0) {
+                    if(off == fpos){
+                        if(subtract_lines==1)break;
+                        CIM_ERROR("Unexpected begin of file");
+                    }
                     fseek(cu->tknzr.file, 0, SEEK_SET);
+                    populate_file_buffer(cu, cu->tknzr.file_buffer.start);
+                    strp = (char*)(cu->tknzr.file_buffer.start + fpos - 1);
+                    fpos = 0;
                 } else {
+                    fpos -= loff;
                     fseek(cu->tknzr.file, -loff, SEEK_CUR);
+                    populate_file_buffer(cu, cu->tknzr.file_buffer.start);
+                    strp = (char*)(cu->tknzr.file_buffer.head - 1);
                 }
-                populate_file_buffer(cu, cu->tknzr.file_buffer.start);
-                strp = (char*)(cu->tknzr.file_buffer.head - 1);
+
             }
             else {
                 strp--;
@@ -815,7 +824,7 @@ void syntax_error(cunit* cu, token* t, ureg incl_prev, ureg underline_prev, char
     va_end(vl);
     putchar('\n');
     char* curr_backup = cu->tknzr.curr;
-    ureg line_sub = cu->tknzr.token_end->line - prev_incl->line;
+    ureg line_sub = next->line - prev_incl->line;
     revert_n_lines(cu, line_sub);
     ureg lines_pre_underline = prev_underl->line - prev_incl->line;
     char c;
@@ -901,6 +910,8 @@ void syntax_error(cunit* cu, token* t, ureg incl_prev, ureg underline_prev, char
         for(ureg i = 0; i!= t->column + ts; i++)putchar('^');
         for(ureg i = t->column + ts; i!= t->column + ts + lc; i++)putchar(' ');
     }
+    putchar('\n');
     fflush(stdout);
+    tokenizer_close_file(cu);
     CIM_EXIT;
 }
