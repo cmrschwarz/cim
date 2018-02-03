@@ -111,9 +111,9 @@ static u8 assoc_table [OP_RANGE] = {
 };
 
 void cunit_init(cunit* cu){
-	sbuffer_init(&cu->data_store, 4);
-	dbuffer_init_with_capacity(&cu->string_ptrs, 32);
-	dbuffer_init(&cu->ast);
+    sbuffer_init(&cu->data_store, 4);
+    dbuffer_init_with_capacity(&cu->string_ptrs, 32);
+    dbuffer_init(&cu->ast);
     dbuffer_init_with_capacity(&cu->parsr.shy_ops, 1000);
     dbuffer_init_with_capacity(&cu->tknzr.file_buffer, 8192);
     cu->tknzr.file = NULL;

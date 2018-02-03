@@ -5,8 +5,8 @@
 #include "hms.h"
 void hms_dump(hms* h)
 {
-	printf("Dumping map of length %lu:\n", h->map_end - h->map);
-	hms_node* n = h->map;
+    printf("Dumping map of length %lu:\n", h->map_end - h->map);
+    hms_node* n = h->map;
     while(n != h->map_end){
         if(n->key == NULL){
             printf("----\n");
@@ -20,8 +20,8 @@ void hms_dump(hms* h)
 int main(){
 
     //printf("sizeof(ast_node): %llu\n", sizeof(ast_node));
-	cunit cu;
-	cunit_init(&cu);
+    cunit cu;
+    cunit_init(&cu);
     for(int i=0;i!=1;i++){
          parse_file(&cu, "../test/dummy_src.cim");
     }

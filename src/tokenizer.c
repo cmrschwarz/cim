@@ -113,22 +113,22 @@ void display_string_store(cunit* cu){
     }
 }
 static inline int cmp_unended_string_with_stored(char* str_start, const char* str_end, char* stored){
-	for(;;){
+    for(;;){
         if(str_start == str_end){
             if(*stored == '\0')return 0;
             return -*stored;
         }
-		if(*str_start != *stored){
-			return  *str_start - *stored;
-		}
-		str_start++;
-		stored++;
-	}
+        if(*str_start != *stored){
+            return  *str_start - *stored;
+        }
+        str_start++;
+        stored++;
+    }
 }
 void add_keyword(cunit* cu, const char* str){
     char** sptrs_start = (char**)cu->string_ptrs.start;
-	char** sptrs_end = (char**)cu->string_ptrs.head;
-	char** pivot;
+    char** sptrs_end = (char**)cu->string_ptrs.head;
+    char** pivot;
     int res;
     for(;;) {
         if(sptrs_end == sptrs_start) {
@@ -138,21 +138,21 @@ void add_keyword(cunit* cu, const char* str){
             }
             else{
                 if(strcmp(str, *sptrs_end) == 0) CIM_ERROR("keyword already present");
-                 dbuffer_insert_at(&cu->string_ptrs, &str, sptrs_end, sizeof(char*));
+                    dbuffer_insert_at(&cu->string_ptrs, &str, sptrs_end, sizeof(char*));
             }
             return;
         }
         pivot = sptrs_start + (sptrs_end - sptrs_start) / 2;
         res = strcmp(str, *pivot);
         if(res < 0){
-			sptrs_end = pivot;
-		}
-		else if(res > 0){
-			sptrs_start = pivot +1;
-		}
-		else{
-			CIM_ERROR("keyword already present");
-		}
+            sptrs_end = pivot;
+        }
+        else if(res > 0){
+            sptrs_start = pivot +1;
+        }
+        else{
+            CIM_ERROR("keyword already present");
+        }
     }
 }
 char* store_string(cunit* cu, char* str, char* str_end){
@@ -161,14 +161,14 @@ char* store_string(cunit* cu, char* str, char* str_end){
     s[siz] = '\0';
     memcpy(s, str, siz);
     return s;
-	//we do this ahead so we don't have to worry about invalidating pointers
-	dbuffer_make_small_space(&cu->string_ptrs, sizeof(char*));
-	char** sptrs_start = (char**)cu->string_ptrs.start;
-	char** sptrs_end = (char**)cu->string_ptrs.head;
-	char** pivot;
-	int res;
-	for(;;){
-		if(sptrs_end == sptrs_start){
+    //we do this ahead so we don't have to worry about invalidating pointers
+    dbuffer_make_small_space(&cu->string_ptrs, sizeof(char*));
+    char** sptrs_start = (char**)cu->string_ptrs.start;
+    char** sptrs_end = (char**)cu->string_ptrs.head;
+    char** pivot;
+    int res;
+    for(;;){
+        if(sptrs_end == sptrs_start){
             if(sptrs_start != (char**)cu->string_ptrs.head &&
                cmp_unended_string_with_stored(str, str_end, *sptrs_end) == 0)
             {
@@ -183,20 +183,20 @@ char* store_string(cunit* cu, char* str, char* str_end){
         }
         pivot = sptrs_start + (sptrs_end - sptrs_start) / 2;
         res = cmp_unended_string_with_stored(str, str_end, *pivot);
-		if(res < 0){
-			sptrs_end = pivot;
-		}
-		else if(res > 0){
-			sptrs_start = pivot +1;
-		}
-		else{
-			return *pivot;
-		}
-	}
+        if(res < 0){
+            sptrs_end = pivot;
+        }
+        else if(res > 0){
+            sptrs_start = pivot +1;
+        }
+        else{
+            return *pivot;
+        }
+    }
 }
 
 void consume_new_token(cunit* cu, token* tok, token* next){
-	char curr = peek_char(cu);
+    char curr = peek_char(cu);
     next->line = tok->line;
     if(curr == '\0'){
         next->column=tok->column;
@@ -205,8 +205,8 @@ void consume_new_token(cunit* cu, token* tok, token* next){
     };
     void_peek(cu);
 
-	switch(curr){
-		case '$': tok->type = TOKEN_DOLLAR;break;
+    switch(curr){
+        case '$': tok->type = TOKEN_DOLLAR;break;
         case '(': tok->type = TOKEN_PAREN_OPEN;break;
         case ')': tok->type = TOKEN_PAREN_CLOSE;break;
         case '{': tok->type = TOKEN_BRACE_OPEN;break;
@@ -214,7 +214,7 @@ void consume_new_token(cunit* cu, token* tok, token* next){
         case '[': tok->type = TOKEN_BRACKET_OPEN;break;
         case ']': tok->type = TOKEN_BRACKET_CLOSE;break;
         case ',': tok->type = TOKEN_COMMA;break;
-		case ';': tok->type = TOKEN_SEMICOLON; break;
+        case ';': tok->type = TOKEN_SEMICOLON; break;
         case '.': tok->type = TOKEN_DOT; break;
         case ':': tok->type = TOKEN_COLON; break;
         case '\t': {
@@ -274,7 +274,7 @@ void consume_new_token(cunit* cu, token* tok, token* next){
                 break;
             }
         }
-	    case '-': {
+        case '-': {
             char peek = peek_char(cu);
             if(peek == '-') {
                 void_peek(cu);
@@ -331,7 +331,7 @@ void consume_new_token(cunit* cu, token* tok, token* next){
                 break;
             }
         }
-		case '&': {
+        case '&': {
             char peek = peek_char(cu);
             if(peek == '&') {
                 void_peek(cu);
@@ -457,7 +457,7 @@ void consume_new_token(cunit* cu, token* tok, token* next){
                 break;
             }
         }
-		case '%': {
+        case '%': {
             char peek = peek_char(cu);
             if(peek == '='){
                 void_peek(cu);
@@ -678,10 +678,10 @@ void consume_new_token(cunit* cu, token* tok, token* next){
             next->column = tok->column + cu->tknzr.curr - str_start;
             tok->type = TOKEN_NUMBER;
         } return;
-		default:{
+        default:{
             tokenizing_error(cu, tok,0, "tokenizing error: unknown token");
         }
-	}
+    }
     next->column = tok->column+1;
 }
 const char* get_token_type_str(cunit* cu, token_type t){

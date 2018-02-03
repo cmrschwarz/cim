@@ -8,7 +8,7 @@ void write(char* str){
     fputs(str, stdout);
 }
 void print_op(u8 op){
-	switch(op){
+    switch(op){
         case OP_UNARY_PLUS:
         case OP_ADD:putchar('+');return;
         case OP_PREINCREMENT:
@@ -50,7 +50,7 @@ void print_op(u8 op){
         case OP_BITWISE_XOR: putchar('^');return;
         case OP_BITWISE_XOR_ASSIGN: putchar('^');putchar('=');return;
         default:CIM_ERROR("Unknown token");
-	}
+    }
 }
 void print_indent(ureg indent){
     for(ureg i=0;i<indent; i++)fputs("    ", stdout);
