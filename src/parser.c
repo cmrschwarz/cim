@@ -749,12 +749,11 @@ static int parse_block(cunit* cu){
     return 0;
 }
 static int parse_for(cunit* cu){
-    token* t1 = consume_token(cu);
-    require_token(cu, t1, TOKEN_PAREN_OPEN);
-    ureg for_start= get_ast_size(cu);
+    require_token(cu, consume_token(cu), TOKEN_PAREN_OPEN);
+    ureg for_start = get_ast_size(cu);
     claim_ast_space(cu, sizeof(ast_node));
     parse_elem(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON);
-    parse_expr(cu, TOKEN_SEMICOLON,TOKEN_SEMICOLON,false);
+    parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
     ureg stmts_start = get_ast_size(cu);
     while(parse_expr(cu, TOKEN_SEMICOLON, TOKEN_PAREN_CLOSE, false) == 0);
     ast_node* s = claim_ast_space(cu, sizeof(ast_node));
@@ -764,9 +763,19 @@ static int parse_for(cunit* cu){
     s->common.size = get_ast_growth(cu, for_start);
     return parse_block(cu);
 }
+static int parse_while(cunit* cu){
+    require_token(cu, consume_token(cu), TOKEN_PAREN_OPEN);
+    ureg while_start = get_ast_size(cu);
+    claim_ast_space(cu, sizeof(ast_node));
+    parse_expr(cu, TOKEN_PAREN_CLOSE, TOKEN_PAREN_CLOSE, false);
+    ast_node* s = (void*)(cu->ast.start + while_start);
+    s->common.type = ASTNT_WHILE;
+    s->common.size = get_ast_growth(cu, while_start);
+    return parse_block(cu);
+}
 
 static int parse_typedef(cunit* cu, int mods){
-    //it is safe to void 1 lookahead, as KEYWORD_TYPEDEF must aways be looked ahead
+    //it is safe to void 1 lookahead, as KEYWORD_TYPEDEF must always be looked ahead
     void_lookahead_token(cu);
     ureg ast_pos = get_ast_size(cu);
     astn_typedef* td = claim_ast_space(cu, sizeof(astn_typedef));
@@ -1379,6 +1388,10 @@ static inline int parse_elem(cunit* cu, token_type term1, token_type term2){
                 void_lookahead_token(cu);
                 return parse_for(cu);
             }
+            else if(str_eq_keyword(t1->str, KEYWORD_WHILE)){
+                void_lookahead_token(cu);
+                return parse_while(cu);
+            }
             token* t2;
             token* t3;
             t2 = peek_2nd_token(cu);
@@ -1457,4 +1470,3 @@ void parse_file(cunit* cu, char* filename){
     parse_file_scope(cu);
     tokenizer_close_file(cu);
 }
-
