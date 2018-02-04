@@ -47,6 +47,10 @@ ANY_TYPE                            : var before *'s
 char* right;                        : var after *'s
 u8 type; u8 ptrs; u16 size;         : CANCER_PTRS (amount of ptrs)
 
+ANY_TYPE                            : type to cast into
+SUB_EXPR                            : target
+u8 type; u16 size;                  : CAST
+
 SUB_EXPR                            : sub expr content continuation
 SUB_EXPR                            : sub expr content start
 u8 type;u16 size;                   : SUB_EXPR
@@ -140,6 +144,15 @@ OWNED_BLOCK                         : fn body
 u8 type; u16 size;                  : VARIABLE_DECLARATION
 ANY_TYPE                            : return type
 ANY_TYPE                            : name
+
+u8 type; u16 size;                  : FOR
+AST_NODE                            : init statement
+EXPR                                : end condition
+AST_NODE                            : iteration operation 1
+AST_NODE                            : iteration operation 2
+u16 size;                           : iteration operation size
+OWNED_BLOCK                         : block
+
 
 
 

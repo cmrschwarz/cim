@@ -417,28 +417,24 @@ void consume_new_token(cunit* cu, token* tok, token* next){
             }
             if(peek == '*'){
                 tok->column+=2;
+                void_peek(cu);
                 do{
                     do{
-                        void_peek(cu);
                         tok->column++;
                         curr = peek_char(cu);
-                        while(curr == '\\'){
+                        if(curr == '\\'){
                             void_peek(cu);
                             curr = peek_char(cu);
                             comment_assert_neof(cu, tok, curr);
-                            void_peek(cu);
-                            tok->column+=2;
-                            curr = peek_char(cu);
+                            tok->column++;
                         }
-                        while(curr == '\n'){
-                            void_peek(cu);
-                            curr = peek_char(cu);
+                        if(curr == '\n'){
                             tok->line++;
                             tok->column = 0;
                         }
                         comment_assert_neof(cu, tok, curr);
+                        void_peek(cu);
                     }while(curr != '*');
-                    void_peek(cu);
                     tok->column++;
                     peek = peek_char(cu);
                 }while(peek != '/');
@@ -869,7 +865,7 @@ void syntax_error(cunit* cu, token* t, ureg incl_prev, ureg underline_prev, char
             lc++;
         }while(c != '\n');
         for(ureg i = 0; i != prev_underl->column; i++)putchar(' ');
-        for(ureg i = prev_underl->column; i!= lc-1; i++)putchar('^');
+        for(ureg i = prev_underl->column; i< lc-1; i++)putchar('^');
         putchar('\n');
         ureg ld = t->line - prev_underl->line - 1;
         for(ureg l = 0; l!=ld;l++){

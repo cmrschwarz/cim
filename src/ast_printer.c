@@ -208,7 +208,18 @@ static void print_sub_expr(ast_node *e, bool allow_types){
             putchar(' ');
             print_sub_expr(r, false);
             putchar(')');
-        };return;
+        }return;
+        case EXPR_NODE_CAST:{
+            putchar('(');
+            ast_node* r = e2;
+            ast_node* l;
+            l= r - r->expr.size;
+            putchar('(');
+            print_type(l);
+            putchar(')');
+            print_sub_expr(r, false);
+            putchar(')');
+        }return;
         case EXPR_NODE_FN_CALL:{
             ast_node* name = e2 - e2->expr.size;
             print_type(name);
@@ -255,7 +266,7 @@ static void print_sub_expr(ast_node *e, bool allow_types){
         }
     }
 }
-void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
+void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end, bool trailing_nl){
     while(astn!=end){
         print_indent(indent);
         switch(astn->common.type){
@@ -271,7 +282,8 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
                     print_type(name);
                     putchar(' ');putchar('=');putchar(' ');
                     print_sub_expr(expr, false);
-                    putchar(';');putchar('\n');
+                    putchar(';');
+                    if(trailing_nl)putchar('\n');
                 }
                 else{
                     ast_node* name =  decl + decl->common.size -1;
@@ -279,7 +291,8 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
                     print_type(name - name->type.size);
                     putchar(' ');
                     print_type(name);
-                    putchar(';');putchar('\n');
+                    putchar(';');
+                    if(trailing_nl)putchar('\n');
                 }
 
             }break;
@@ -296,8 +309,9 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
                 putchar(')');putchar('{');putchar('\n');
                 ast_node* block = params_size+1;
                 void* block_end = (u8*)block + block->full_size;
-                print_ast_within(cu, indent + 1, block + 1, block_end);
-                putchar('}');putchar('\n');
+                print_ast_within(cu, indent + 1, block + 1, block_end, true);
+                putchar('}');
+                if(trailing_nl)putchar('\n');
                 astn = block_end;
             }break;
             case ASTNT_GENERIC_FUNCTION_DECLARATION:{
@@ -317,7 +331,7 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
                 putchar(')');putchar('{');putchar('\n');
                 ast_node* block = params_size+1;
                 void* block_end = (u8*)block + block->full_size;
-                print_ast_within(cu, indent + 1, block + 1, block_end);
+                print_ast_within(cu, indent + 1, block + 1, block_end, true);
                 putchar('}');putchar('\n');
                 astn = block_end;
             }break;
@@ -336,10 +350,30 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end){
                 putchar(';');
                 putchar('\n');
             }break;
+            case ASTNT_FOR:{
+                write("for(");
+                ast_node* st = astn + 1;
+                print_ast_within(cu,0,st,  st + st->expr.size, false);
+                st+= st->expr.size;
+                ast_node* st_end = astn + astn->common.size;
+                putchar(' ');
+                st+= st->expr.size;
+                print_sub_expr(st-1, false);
+                while(st != st_end - 1){
+                    putchar(';');putchar(' ');
+                    st+= st->expr.size;
+                    print_sub_expr(st-1, false);
+                }
+                putchar(')');putchar('{');putchar('\n');
+                astn = (ast_node*)((u8*)st_end + st_end->full_size);
+                print_ast_within(cu, indent +1 , st_end + 1, astn, true);
+                print_indent(indent); putchar('}');
+                if(trailing_nl)putchar('\n');
+            }break;
             default:CIM_ERROR("Unexpected ASTN");
         }
     }
 }
 void print_ast(cunit* cu){
-    print_ast_within(cu, 0, (void*)cu->ast.start, (void*)cu->ast.head);
+    print_ast_within(cu, 0, (void*)cu->ast.start, (void*)cu->ast.head, true);
 }

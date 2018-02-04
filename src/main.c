@@ -26,10 +26,15 @@ int main(){
          parse_file(&cu, "../test/dummy_src.cim");
     }
 
+    ureg ast_size =  dbuffer_get_size(&cu.ast);
+    ureg regs = dbuffer_get_size(&cu.ast) / sizeof(ast_node);
 
-    printf("ast size: %llu bytes (%llu regs)\n",
-           dbuffer_get_size(&cu.ast),
-           dbuffer_get_size(&cu.ast) / sizeof(ast_node));
+    if(DEBUG_ENUMS){
+        printf("ast size(debug): %llu bytes (%llu regs)\n",ast_size,regs);
+    }
+    else{
+        printf("ast size(release): %llu bytes (%llu regs)\n",ast_size,regs);
+    }
     printf("string store size: %llu bytes (%llu strings, 19 keywords)\n",
            sbuffer_get_size(&cu.data_store),
            dbuffer_get_size(&cu.string_ptrs) / sizeof(ureg) - 19);

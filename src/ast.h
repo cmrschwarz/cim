@@ -13,6 +13,7 @@ typedef uregh ast_rel_ptr;
 
 enum ast_node_type_e{
     ASTNT_EXPRESSION,
+    ASTNT_FOR,
     ASTNT_TYPEDEF,
     ASTNT_ASSIGNMENT,
     ASTNT_VARIABLE_DECLARATION,
@@ -32,6 +33,7 @@ enum expr_node_type_t{
     EXPR_NODE_OP_LR,
     EXPR_NODE_OP_L,
     EXPR_NODE_OP_R,
+    EXPR_NODE_CAST,
     EXPR_NODE_FN_CALL,
     EXPR_NODE_ARRAY_ACCESS,
     EXPR_NODE_GENERIC_FN_CALL,
@@ -83,6 +85,11 @@ typedef union ast_node_u{
         bool assigning;
         ast_rel_ptr size;
     }var_decl;
+    struct {
+        ast_node_type type;
+        bool assigning;
+        ast_rel_ptr size;
+    }for_stmt;
     char* str;
     ureg full_size;
 }ast_node;

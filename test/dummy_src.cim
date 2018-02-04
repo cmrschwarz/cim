@@ -1,14 +1,24 @@
-generic_fn_call{int}(4, nested_fn_call(2), empty_generic_fn{}());
+for(int x; x=2;x++){int x;}
 /*
+int z = arr[x];
+int x = (arr[5]*[3]*)3;
+int y = foo((int)(-x), y);
+
+foo{int * x}(int * x) % e;
+
+generic{int x}:int * int + 3;
+
+
+
+generic_fn_call{int}(4, nested_fn_call(2), empty_generic_fn{int * x}());
+
 int* foo{int* x}(int* x, int + 2);//test comments
 
 int* foo{int * x}(int* x){
 
 }
 
-generic{int x}:int * int + 3;
 
-foo{int * x}(int * x) % e;
 
 sc:foo();
 
