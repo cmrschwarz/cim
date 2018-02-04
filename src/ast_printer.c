@@ -301,13 +301,13 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end, boo
             case ASTNT_FUNCTION_DECLARATION:{
                 ast_node* decl = (void*)astn;
                 ast_node* params_size =  decl + decl->common.size - 1;
-                ast_node* r = params_size - params_size->common.size;
-                print_type(r - r->common.size);
-                ast_node* ret_type = params_size - params_size->common.size;
-                putchar(' ');
+                ast_node* fn_name = params_size - params_size->common.size;
+                ast_node* ret_type = fn_name - fn_name->common.size;
                 print_type(ret_type);
+                putchar(' ');
+                print_type(fn_name);
                 putchar('(');
-                reverse_print_func_params(params_size - 1, ret_type);
+                reverse_print_func_params(params_size - 1, fn_name);
                 putchar(')');putchar('{');putchar('\n');
                 ast_node* block = params_size+1;
                 void* block_end = (u8*)block + block->full_size;

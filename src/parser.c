@@ -674,8 +674,7 @@ static ast_node* parse_type_with_prefetch(cunit* cu, token* t1){
         // function pointer, might be nested
         ast_rel_ptr ret_type_size = (ast_rel_ptr)
                 ((get_ast_size(cu) - ast_pos) / sizeof(ast_node));
-        void_lookahead_token(cu);
-        void_lookahead_token(cu);
+        void_lookahead_tokens(cu, 2);
         u8 ptrs = count_ptrs(cu) + (u8)1;
         t1 = consume_token(cu);
         require_token(cu, t1, TOKEN_PAREN_CLOSE);
@@ -1035,15 +1034,14 @@ static arg_or_params_list parse_arg_or_param_list(cunit* cu){
     return AOPL_AMBIGUOUS;
 its_a_param_list:;
     //handling the current parameter
+    t1 = consume_token(cu);
+    CIM_ASSERT(t1->type == TOKEN_STRING);
     ast_rel_ptr siz = t->type.size + 2;
     ast_node* n = claim_ast_space(cu, sizeof(ast_node) * 2);
     n->str = t1->str;
     n++;
     n->type.type = EXPR_NODE_TYPE_PARAM;
     n->type.size = siz;
-    t1 = consume_token(cu);
-    CIM_ASSERT(t1->type == TOKEN_STRING);
-    n->str = t1->str;
     parse_param_list(cu, TOKEN_PAREN_CLOSE);
     return AOPL_PARAM_LIST;
 its_an_arg_list:;

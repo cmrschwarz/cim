@@ -18,8 +18,6 @@ void hms_dump(hms* h)
     }
 }
 int main(){
-
-    //printf("sizeof(ast_node): %llu\n", sizeof(ast_node));
     cunit cu;
     cunit_init(&cu);
     for(int i=0;i!=1;i++){
@@ -30,17 +28,17 @@ int main(){
     ureg regs = dbuffer_get_size(&cu.ast) / sizeof(ast_node);
 
     if(DEBUG_ENUMS){
-        printf("ast size(debug): %llu bytes (%llu regs)\n",ast_size,regs);
+        printf("ast size(debug_enums): %llu bytes (%llu regs)\n",ast_size,regs);
     }
     else{
-        printf("ast size(release): %llu bytes (%llu regs)\n",ast_size,regs);
+        printf("ast size(release_enums): %llu bytes (%llu regs)\n",ast_size,regs);
     }
     printf("string store size: %llu bytes (%llu strings, 19 keywords)\n",
            sbuffer_get_size(&cu.data_store),
            dbuffer_get_size(&cu.string_ptrs) / sizeof(ureg) - 19);
 
     printf("\noutput:\n");
-    //print_ast(&cu);
+    print_ast(&cu);
     cunit_fin(&cu);
 
 
