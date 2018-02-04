@@ -22,7 +22,7 @@ int main(){
     //printf("sizeof(ast_node): %llu\n", sizeof(ast_node));
     cunit cu;
     cunit_init(&cu);
-    for(int i=0;i!=1000000;i++){
+    for(int i=0;i!=1;i++){
          parse_file(&cu, "../test/dummy_src.cim");
     }
 
