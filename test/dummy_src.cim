@@ -1,5 +1,20 @@
-for(int x; x=2;x++){int x;}
-/*
+
+int* foo{int * x}(int* x){
+
+}
+
+
+
+sc:foo();
+
+var * sc:foo{int}(3) + 4;
+
+int foo{int* f}(float* f){}
+char* foo(+a, int ************b) +1;
+
+for(char c0 = 'A'; c0 <= 'Z';c0++){}
+
+
 int z = arr[x];
 int x = (arr[5]*[3]*)3;
 int y = foo((int)(-x), y);
@@ -14,22 +29,6 @@ generic_fn_call{int}(4, nested_fn_call(2), empty_generic_fn{int * x}());
 
 int* foo{int* x}(int* x, int + 2);//test comments
 
-int* foo{int * x}(int* x){
-
-}
-
-
-
-sc:foo();
-
-var * sc:foo{int}(3) + 4;
-
-
-int foo{int* f}(float* f){}
-
-
-
-char* foo(+a, int ************b);
 
 generic{int x}:int foo(){}
 
@@ -51,7 +50,7 @@ foo();
 int* foo(int(*)(char*) fn_ptr){bar();}
 
 typedef sc x:td;
-sco:ret_type ***** foo(a1* x, a2* x2, +int) + 3;
+//sco:ret_type ***** foo(a1* x, a2* x2, +int) + 3;
 
 
 scoped:sc2:sc3:int[]**[]**[]*[]****[]*[x] x;
@@ -89,7 +88,7 @@ hms h;
 hms_init(&h);
 const int str_size = 6;
 char[str_size] str;
-/*
+
     for(char c0 = 'A'; c0 <= 'Z';c0++){
         str[0] = c0;
         for(char c1 = 'A'; c1 <= 'Z';c1++){

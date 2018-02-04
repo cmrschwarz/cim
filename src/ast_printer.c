@@ -40,8 +40,10 @@ void print_op(u8 op){
         case OP_BITWISE_NOT: putchar('~'); return;
         case OP_BITWISE_NOT_ASSIGN: putchar('~');putchar('='); return;
         case OP_LESS_THAN: putchar('<'); return;
+        case OP_LESS_THAN_OR_EQUAL: putchar('<');putchar('='); return;
         case OP_LSHIFT: putchar('<');putchar('<'); return;
         case OP_GREATER_THAN: putchar('>'); return;
+        case OP_GREATER_THAN_OR_EQUAL: putchar('>');putchar('='); return;
         case OP_RSHIFT: putchar('>');putchar('>'); return;
         case OP_ACCESS_MEMBER: putchar('.'); return;
         case OP_DEREFERENCE_ACCESS_MEMBER: putchar('-');putchar('>'); return;
@@ -348,7 +350,7 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end, boo
                 print_type(tn);
                 astn = tn + 1;
                 putchar(';');
-                putchar('\n');
+                if(trailing_nl)putchar('\n');
             }break;
             case ASTNT_FOR:{
                 write("for(");
@@ -368,7 +370,7 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end, boo
                 astn = (ast_node*)((u8*)st_end + st_end->full_size);
                 print_ast_within(cu, indent +1 , st_end + 1, astn, true);
                 print_indent(indent); putchar('}');
-
+                if(trailing_nl)putchar('\n');
             }break;
             default:CIM_ERROR("Unexpected ASTN");
         }

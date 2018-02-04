@@ -409,19 +409,23 @@ void consume_new_token(cunit* cu, token* tok, token* next){
                         curr = peek_char(cu);
                         comment_assert_neof(cu, tok, curr);
                     }
-                }while(curr != '\n');
+                }while(curr != '\n' && curr != '\0');
                 void_peek(cu);
-                tok->line++;
-                tok->column = 0;
-                return consume_new_token(cu, tok, next);
+                if(curr == '\n'){
+                    tok->line++;
+                    tok->column = 0;
+                    return consume_new_token(cu, tok, next);
+                }
+                tok->type = TOKEN_EOF;
+                return;
             }
             if(peek == '*'){
                 tok->column+=2;
                 void_peek(cu);
+                curr = peek_char(cu);
                 do{
                     do{
                         tok->column++;
-                        curr = peek_char(cu);
                         if(curr == '\\'){
                             void_peek(cu);
                             curr = peek_char(cu);
@@ -434,6 +438,7 @@ void consume_new_token(cunit* cu, token* tok, token* next){
                         }
                         comment_assert_neof(cu, tok, curr);
                         void_peek(cu);
+                        curr = peek_char(cu);
                     }while(curr != '*');
                     tok->column++;
                     peek = peek_char(cu);
@@ -497,6 +502,7 @@ void consume_new_token(cunit* cu, token* tok, token* next){
                 }
             }
             else if(peek == '='){
+                void_peek(cu);
                 tok->type = TOKEN_LESS_THAN_EQUALS;
                 next->column = tok->column+2;
                 return;
@@ -535,27 +541,26 @@ void consume_new_token(cunit* cu, token* tok, token* next){
         } return;
         case '\'':{
             char* str_start = cu->tknzr.curr;
+             curr = peek_string_char(cu, &str_start);
             do{
                 next->column++;
-                curr = peek_string_char(cu, &str_start);
                 assert_neof(cu, tok, curr);
                 if(curr == '\\'){
                     //TODO: think about handling escaped chars
                     void_peek(cu);
                     curr = peek_string_char(cu, &str_start);
                     assert_neof(cu, tok, curr);
-                    void_peek(cu);
-                    curr = peek_string_char(cu, &str_start);
-                    assert_neof(cu, tok, curr);
-                    next->column+=2;
+                    next->column++;
                 }
                 if(curr == '\n'){
                     curr = peek_string_char(cu, &str_start);
                     assert_neof(cu, tok, curr);
                 }
                 void_peek(cu);
+                curr = peek_string_char(cu, &str_start);
             }while(curr != '\'');
             tok->str = store_string(cu, str_start, cu->tknzr.curr);
+            void_peek(cu);
             tok->type = TOKEN_BINARY_LITERAL;
         } return;
         case '\"':{
