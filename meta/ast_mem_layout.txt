@@ -2,148 +2,138 @@ AST MEMORY LAYOUT FOR CIM
 --------------------------------------------------------------------------------
 --------------------------------------------------------------------------------
 General info:
--size nodes always include their own size
+- size nodes always include their own size
+- SIMPLE and VARIABLE are synonymous
+- when there is a list with arg1 and arg2
+  this represents an arbitrarily long list with 0 or more elements
+- AST Nodes are layed out forwards in memory, Expressions and Types backwards.
+  This is due to the order in which they are parsed
+- identifiers are represented with type memory layout, because they can be scoped
 --------------------------------------------------------------------------------
 GROUPS:
-
-OPERATOR_LR/OPERATOR/                :
-VARIABLE/LITERAL                     : SUB_EXPR
-
-SUB_EXPR/VARIABLE/LITERAL/           :
-CANCER_MULTIPLY/                     :
-SCOPED_CANCER_MULTIPLY               : ARGUMENT
-
-SIMPLE/SCOPED/GENERIC_STRUCT/FN_PTR  : ANY_TYPE
-
-ANY_TYPE/SUB_EXPR                    : GENERIC_PARAM
-
-EXPRESSION/FN_DECLARATION/           : AST_NODE
-
-SIMPLE/GENERIC_STRUCT/               :
-|ANY_TYPE      |                     :
-|AMBIGUOUS_TYPE|                     :
-|SCOPED        |                     : REGULAR TYPE
+any element from AST_NODES           : AST_NODE
+any element from TYPES               : TYPE
+any element from EXPRESSIONS         : SUB_EXPR
+TYPE/SUB_EXPR                        : GENERIC_PARAM
 
 --------------------------------------------------------------------------------
 EXPRESSIONS:
 
-
-u8 type;u8 op;u16 size;             : OPERATOR
-
-
-SUB_EXPR                            : preceeding operand
-SUB_EXPR                            : following operand
-u8 type; u8 op; u16 size;           : OPERATOR_LR
-
-
-char* str; /lit* resolved;          : 
-u8 type; u16 size = 2;              : LITERAL (BIN-, DEC-, HEX- NUMBER, STRING,)
-
-
 char* str; / var* resolved;         :
 u8 type; u16 size = 2;              : VARIABLE
 
-ANY_TYPE                            : var before *'s
-char* right;                        : var after *'s
-u8 type; u8 ptrs; u16 size;         : CANCER_PTRS (amount of ptrs)
+char* str; /lit* resolved;          :
+u8 type; u16 size = 2;              : LITERAL (BIN-, DEC-, HEX- NUMBER, STRING,)
 
-ANY_TYPE                            : type to cast into
-SUB_EXPR                            : target
+SUB_EXPR                            : preceeding operand
+SUB_EXPR                            : following operand
+u8 type; u8 opcode;u16 size;        : OPERATOR_LR
+
+SUB_EXPR                            : operand
+u8 type; u8 opcode;u16 size;        : OPERATOR_L
+
+SUB_EXPR                            : operand
+u8 type; u8 opcode;u16 size;        : OPERATOR_R
+
+TYPE                                : type to cast into
+SUB_EXPR                            : target expr
 u8 type; u16 size;                  : CAST
 
-SUB_EXPR                            : sub expr content continuation
-SUB_EXPR                            : sub expr content start
-u8 type;u16 size;                   : SUB_EXPR
-
-ANY_TYPE                            : FN name
-ARGUMENT                            : arg 1
-ARGUMENT                            : arg 2
+TYPE                                : function identifier
+SUB_EXPR                            : arg 1
+SUB_EXPR                            : arg 2
 u16 size;                           : args size
 u8 type; u16 size;                  : FN_CALL
 
-char* str;                          : FN name
+char* str;                          : function identifier
 GENERIC_PARAM                       : generic arg 1
 GENERIC_PARAM                       : generic arg 2
 u16 size;                           : generic params size
-ARGUMENT                            : arg 1
-ARGUMENT                            : arg 2
+SUB_EXPR                            : arg 1
+SUB_EXPR                            : arg 2
 u16 size;                           : normal params size
 u8 type; u16 size;                  : GENERIC_FN_CALL
 
-ANY_TYPE                            : type to index over
+TYPE                                : type to index over
 SUB_EXPR                            : index expression
 u8 type; u16 size;                  : ARRAY_ACCESS
+
+TYPE                                : identifier before *'s
+char* str;                          : var after *'s
+u8 type; u8 ptrs; u16 size;         : CANCER_PTRS (amount of ptrs)
+
 --------------------------------------------------------------------------------
 TYPES:
 
-
 char* str;                          : name
-u8 type; u8 ptrs; u16 size;         : SIMPLE
+u8 type; u8 ptrs; u16 size=2        : SIMPLE
 
-ANY_TYPE                            : name
-char* str;                          : name
+TYPE                                : scope identifier
+char* str;                          : type identifier
 u8 type; u8 ptrs; u16 size;         : SCOPED
 
-ANY_TYPE                            : ret type
-ANY_TYPE                            : arg type 1
-ANY_TYPE                            : arg type 2
+TYPE                                : ret type
+TYPE                                : arg type 1
+TYPE                                : arg type 2
 u16 size;                           : args size
 u8 type; u8 ptrs; u16 size;         : FN PTR
 
-ANY_TYPE                            : name
+TYPE                                : name
 u8 type; u8 ptrs; u16 size;         : generic arg type 1
 u8 type; u8 ptrs; u16 size;         : generic arg type 2
 u16 size;                           : generic args size
 u8 type; u8 ptrs; u16 size;         : GENERIC_STRUCT
 
-ANY_TYPE                            : array type
+TYPE                                : array type
 EXPRESSION                          : array_bounds_expr
 u8 type; u8 ptrs; u16 size;         : ARRAY
 
 --------------------------------------------------------------------------------
 AST_NODES:
 
-u32 blk_size;                       : OWNED_BLOCK (size)
+u8 type; u16 size;                  : EXPRESSION
+SUB_EXPR                            : expression content
+
+u32 full_size;                      : OWNED_BLOCK
 AST_NODE                            : content 1
 AST_NODE                            : content 2
 
 u8 type;                            : FREE_BLOCK
-u32 blk_size;                       : block size
+u32 full_size;                      : block size
 AST_NODE                            : content 1
 AST_NODE                            : content 2
 
-u8 type; u16 size;                  : EXPRESSION
 
 u8 type; u16 size;                  : TYPEDEF
 char* name;                         : defined name
-ANY_TYPE                            : aliased type
+TYPE                                : aliased type
 
-ANY_TYPE                            :
-char* str;                          :
+TYPE                                : type
+char* str;                          : name
 u8 type; u16 size;                  : FN_PARAMETER
 
 u8 type; u16 size;                  : FN_DECLARATION
-ANY_TYPE                            : return type
-ANY_TYPE                            : fn name
+TYPE                                : return type
+TYPE                                : fn name
 FN_PARAMETER                        : param 1
 FN_PARAMETER                        : param 2
 u16 size;                           : params size
 OWNED_BLOCK                         : fn body
 
 u8 type; u16 size;                  : GENRIC_FN_DECLARATION
-ANY_TYPE                            : return type
-ANY_TYPE                            : fn name
+TYPE                                : return type
+TYPE                                : function identifier
 GENERIC_PARAM                       : generic param 1
 GENERIC_PARAM                       : generic param 2
 u16 size;                           : generic params size
 FN_PARAMETER                        : param 1
 FN_PARAMETER                        : param 2
 u16 size;                           : params size
-OWNED_BLOCK                         : fn body
+OWNED_BLOCK                         : function body
 
 u8 type; u16 size;                  : VARIABLE_DECLARATION
-ANY_TYPE                            : return type
-ANY_TYPE                            : name
+TYPE                                : return type
+TYPE                                : name
 
 u8 type; u16 size;                  : FOR
 AST_NODE                            : init statement

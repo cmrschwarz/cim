@@ -2,7 +2,7 @@
 #include "compiler.h"
 #include "tokenizer.h"
 #include "operations.h"
-enum modifier_e{
+typedef enum modifier_e{
     MOD_PUBLIC,
     MOD_PRIVATE,
     MOD_CONST,
