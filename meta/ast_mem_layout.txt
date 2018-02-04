@@ -137,16 +137,8 @@ TYPE                                : name
 
 u8 type; u16 size;                  : FOR
 AST_NODE                            : init statement
-EXPR                                : end condition
+EXPRESSION                          : end condition
 AST_NODE                            : iteration operation 1
 AST_NODE                            : iteration operation 2
 u16 size;                           : iteration operation size
 OWNED_BLOCK                         : block
-
-
-
-
-
-
-
- 
