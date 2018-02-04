@@ -368,7 +368,7 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end, boo
                 astn = (ast_node*)((u8*)st_end + st_end->full_size);
                 print_ast_within(cu, indent +1 , st_end + 1, astn, true);
                 print_indent(indent); putchar('}');
-                if(trailing_nl)putchar('\n');
+
             }break;
             default:CIM_ERROR("Unexpected ASTN");
         }
