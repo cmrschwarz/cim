@@ -14,6 +14,7 @@ typedef uregh ast_rel_ptr;
 enum ast_node_type_e{
     ASTNT_EXPRESSION,
     ASTNT_FOR,
+    ASTNT_WHILE,
     ASTNT_TYPEDEF,
     ASTNT_ASSIGNMENT,
     ASTNT_VARIABLE_DECLARATION,
@@ -109,8 +110,3 @@ typedef struct astn_function_call_t{
     ast_node_type type;
     ureg arg_count;
 }astn_function_call;
-
-
-
-
-
