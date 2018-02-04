@@ -1,11 +1,11 @@
+int x;
 
 int* foo{int * x}(int* x){
 
 }
 
-
-
 sc:foo();
+
 
 var * sc:foo{int}(3) + 4;
 

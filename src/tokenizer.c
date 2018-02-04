@@ -441,6 +441,7 @@ void consume_new_token(cunit* cu, token* tok, token* next){
                         curr = peek_char(cu);
                     }while(curr != '*');
                     tok->column++;
+                    void_peek(cu);
                     peek = peek_char(cu);
                 }while(peek != '/');
                 void_peek(cu);

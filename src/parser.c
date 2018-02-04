@@ -726,7 +726,7 @@ static ast_node* parse_type_with_prefetch(cunit* cu, token* t1){
 }
 static inline ast_node* parse_type(cunit* cu){
     token* t1 = consume_token(cu);
-    parse_type_with_prefetch(cu, t1);
+    return parse_type_with_prefetch(cu, t1);
 }
 static int parse_meta(cunit* cu, token* t1){
 
@@ -1137,7 +1137,9 @@ static inline int parse_leading_string(cunit* cu){
     ast_rel_ptr type_size = t->type.size;
     token* t1;
     token* t2;
+
     t1 = peek_token(cu);
+
     if(t_ptrs == 0){
         //unambiguously parsable as a declaration
         if(t1->type == TOKEN_STRING){
