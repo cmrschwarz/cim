@@ -1132,6 +1132,7 @@ static inline int parse_leading_string(cunit* cu){
     ureg ast_start = get_ast_size(cu);
     claim_ast_space(cu, sizeof(ast_node));
     ast_node* t = parse_type(cu);
+    ureg ast_pos_t = (u8*)t - cu->ast.start;
     u8 t_ptrs = t->type.ptrs;
     ast_rel_ptr type_size = t->type.size;
     token* t1;
@@ -1278,7 +1279,7 @@ static inline int parse_leading_string(cunit* cu){
                         s++;
                         s->expr.size = get_ast_growth(cu, ast_start) - type_size - 1;
                         s->expr.type = EXPR_NODE_FN_CALL;
-                        t = (ast_node*)cu->ast.start + type_size;
+                        t = (ast_node*)(cu->ast.start + ast_pos_t);
                         return parse_type_as_expr_begin(cu, ast_start, t, false,
                                 TOKEN_SEMICOLON, TOKEN_SEMICOLON, true);
                     }
@@ -1324,6 +1325,7 @@ static inline int parse_leading_string(cunit* cu){
                 e++;
                 e->expr.size = get_ast_growth(cu, ast_start) - type_size - 1;
                 e->expr.type = EXPR_NODE_GENERIC_FN_CALL;
+                t = (ast_node*)(cu->ast.start + ast_pos_t);
                 return parse_type_as_expr_begin(cu, ast_start, t, false,
                                             TOKEN_SEMICOLON, TOKEN_SEMICOLON, true);
             }
@@ -1355,6 +1357,7 @@ static inline int parse_leading_string(cunit* cu){
                     n++;
                     n->expr.type = EXPR_NODE_GENERIC_FN_CALL;
                     n->expr.size = get_ast_growth(cu, ast_start) - type_size - 1;
+                    t = (ast_node*)(cu->ast.start + ast_pos_t);
                     return parse_type_as_expr_begin(cu, ast_start, t, false,
                                             TOKEN_SEMICOLON, TOKEN_SEMICOLON, true);
                 }
