@@ -45,7 +45,7 @@ SUB_EXPR                            : arg 2
 u16 size;                           : args size
 u8 type; u16 size;                  : FN_CALL
 
-char* str;                          : function identifier
+TYPE                                : function identifier
 GENERIC_PARAM                       : generic arg 1
 GENERIC_PARAM                       : generic arg 2
 u16 size;                           : generic params size

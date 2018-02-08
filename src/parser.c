@@ -166,20 +166,11 @@ static inline void add_size_node(cunit* cu, ureg ast_start){
     ast_node* n = claim_ast_space(cu, sizeof(ast_node));
     n->expr.size = get_ast_growth(cu, ast_start);
 }
-static inline void add_size_node_abs(cunit* cu, ast_rel_ptr siz){
-    ast_node* n = claim_ast_space(cu, sizeof(ast_node));
-    n->expr.size = siz;
-}
 static void require_token(cunit *cu, token *t, token_type tt){
     if(t->type != tt){
-        syntax_error(cu, t, 1, 0, "syntax error: unexpected token: wanted %s, got %s",
+        syntax_error(cu, t, 1, 0, "syntax error: unexpected token: expected %s, got %s",
                      get_token_type_str(cu, tt), make_token_string(cu, t));
     }
-}
-static inline void consume_required_token(cunit* cu, token_type t){
-    token* t1;
-    t1 = consume_token(cu);
-    require_token(cu, t1, t);
 }
 static inline void flush_shy_op(cunit* cu, ast_node* s){
     ast_node* expr_rit = (void*)(cu->ast.head - sizeof(ast_node));
@@ -263,14 +254,14 @@ static inline void parse_param_list(cunit* cu, token_type end_tok){
     }
 }
 static int error_expecting_op(cunit* cu, token* t1, token_type term1, token_type term2){
-     if(term1 == term2){
+    if(term1 == term2){
          syntax_error(cu, t1, 1, 1,
-                      "expression syntax error: wanted an operation or %s, got %s",
+                      "expression syntax error: expected an operation or %s, got %s",
                       get_token_type_str(cu, term1), get_token_type_str(cu, t1->type));
     }
     else{
          syntax_error(cu, t1, 1, 1,
-                      "expression syntax error: wanted an operation "
+                      "expression syntax error: expected an operation "
                               "or %s or %s, got %s",
                       get_token_type_str(cu, term1),
                       get_token_type_str(cu, term2),
@@ -281,8 +272,6 @@ static int continue_parse_expr(cunit* cu, token_type term1, token_type term2, bo
                                ureg expr_start, ureg shy_ops_start,ureg shy_op_pos,
                                bool expecting_op)
 {
-    int x = 1;
-    int y = x ++ + ++x;
     token* t1;
     token* t2;
     ast_node* e;
@@ -582,13 +571,13 @@ lbl_default:;
                 else{
                     if(term1 == term2){
                         syntax_error(cu, t1, 1, 0,
-                                     "expression syntax error: wanted %s, got %s",
+                                     "expression syntax error: expected operation or %s, got %s",
                                      get_token_type_str(cu, term1),
                                      get_token_type_str(cu, t1->type));
                     }
                     else{
                         syntax_error(cu, t1, 1, 0,
-                                     "expression syntax error: wanted %s or %s, got %s",
+                                     "expression syntax error: expected operation or %s or %s, got %s",
                                      get_token_type_str(cu, term1),
                                      get_token_type_str(cu, term2),
                                      get_token_type_str(cu, t1->type));
@@ -1125,59 +1114,16 @@ its_an_arg_list:;
     while (parse_expr(cu, TOKEN_COMMA, TOKEN_PAREN_CLOSE, true) == 0);
     return AOPL_ARG_LIST;
 }
-static int parse_generic_function_decl_after_type(cunit* cu, int mods, ureg ast_start){
-    token* t1;
-    t1 = consume_token(cu);
-    require_token(cu, t1, TOKEN_STRING);
-    ast_node* n = claim_ast_space(cu, 2 * sizeof(ast_node));
-    n->str = t1->str;
-    n++;
-    n->type.size = 2;
-    n->type.type = EXPR_NODE_TYPE_SIMPLE;
-    t1 = consume_token(cu);
-    require_token(cu, t1, TOKEN_BRACE_OPEN);
-    ureg ast_pos_pre_generic_params = get_ast_size(cu);
-    parse_param_list(cu, TOKEN_BRACE_CLOSE);
-    add_size_node(cu, ast_pos_pre_generic_params);
-    ureg ast_pos_pre_params = get_ast_size(cu);
-    t1= consume_token(cu);
-    require_token(cu, t1, TOKEN_PAREN_OPEN);
-    parse_param_list(cu, TOKEN_PAREN_CLOSE);
-    n = claim_ast_space(cu, sizeof(ast_node));
-    n->expr.size = get_ast_growth(cu, ast_pos_pre_params);
-    n = (ast_node*)(cu->ast.start + ast_start);
-    n->common.type = ASTNT_GENERIC_FUNCTION_DECLARATION;
-    n->common.size = get_ast_growth(cu, ast_start);
-    return parse_block(cu);
-}
-static int parse_function_decl_after_type(cunit *cu, int mods, ureg ast_start){
-    token* t1;
-    t1 = consume_token(cu);
-    require_token(cu, t1, TOKEN_STRING);
-    ast_node* n = claim_ast_space(cu, 2 * sizeof(ast_node));
-    n->str = t1->str;
-    n++;
-    n->type.size = 2;
-    n->type.type = EXPR_NODE_TYPE_SIMPLE;
-    t1 = consume_token(cu);
-    require_token(cu, t1, TOKEN_PAREN_OPEN);
-    ureg ast_pos_pre_params = get_ast_size(cu);
-    parse_param_list(cu, TOKEN_PAREN_CLOSE);
-    ast_node* s = claim_ast_space(cu, sizeof(ast_node));
-    s->common.size = get_ast_growth(cu, ast_pos_pre_params);
-    s = (ast_node*)(cu->ast.start + ast_start);
-    s->common.type = ASTNT_FUNCTION_DECLARATION;
-    s->common.size = get_ast_growth(cu, ast_start);
-    return parse_block(cu);
-}
-static inline int parse_modifiers(cunit* cu, token* t){
+static inline int parse_modifiers(cunit* cu){
+    token* t1 = peek_token(cu);
     int mods = 0;
-    while(true){
-        if(str_eq_keyword(t->str, KEYWORD_CONST))mods |= MOD_CONST;
-        else if(str_eq_keyword(t->str, KEYWORD_CONST))mods|=MOD_PUBLIC;
-        else break;
+    while(t1->type == TOKEN_STRING){
+        if(str_eq_keyword(t1->str, KEYWORD_CONST))mods |= MOD_CONST;
+        else if(str_eq_keyword(t1->str, KEYWORD_PUBLIC))mods|=MOD_PUBLIC;
         //TODO: add missing mods
-        t = consume_token(cu);
+        else break;
+        void_lookahead_token(cu);
+        t1 = peek_token(cu);
     }
     return mods;
 }
@@ -1224,21 +1170,23 @@ static inline int parse_leading_string(cunit* cu){
                 }
                 else{
                     syntax_error(cu, t1, 2, 0,
-                                 "syntax error: got %s, wanted '=' or ';' or '(' to parse as variable or function declaration",
+                                 "syntax error: got %s, expected '=' or ';' or '(' to parse as variable or function declaration",
                                  make_token_string(cu, t1));
                 }
             }
             else if(rt2->type.type == EXPR_NODE_TYPE_GENERIC_STRUCT_DEF
                     || rt2->type.type == EXPR_NODE_TYPE_GENERIC_STRUCT_AMBIGUOUS)
             {
-                // the rt2 type doesnn't matter, this node is used
-                // for the size of the generic arg list
+                cu->ast.head -= sizeof(ast_node);
                 t1 = consume_token(cu);
                 require_token(cu, t1, TOKEN_PAREN_OPEN);
-                add_size_node_abs(cu, parse_arg_list(cu, TOKEN_PAREN_CLOSE));
-                parse_block(cu);
-                 ast_node *n = (ast_node *) (cu->ast.start + ast_start);
+                ureg pre_param_as_size = get_ast_size(cu);
+                parse_param_list(cu, TOKEN_PAREN_CLOSE);
+                add_size_node(cu, pre_param_as_size);
+                ast_node *n = (ast_node *) (cu->ast.start + ast_start);
                 n->common.type = ASTNT_GENERIC_FUNCTION_DECLARATION;
+                n->common.size = get_ast_growth(cu, ast_start);
+                parse_block(cu);
                 return 0;
             }
         }
@@ -1478,44 +1426,10 @@ static inline int parse_elem(cunit* cu, token_type term1, token_type term2){
                 void_lookahead_token(cu);
                 return parse_while(cu);
             }
-            token* t2;
-            token* t3;
-            t2 = peek_2nd_token(cu);
-            if (t2->type == TOKEN_STRING) {
-                int mods = parse_modifiers(cu, t1);
-                //t2 is invalidated, t1 is pointing to first non modifier token
-
-                if(str_eq_keyword(t1->str, KEYWORD_STRUCT))return parse_struct(cu, mods);
-                if(str_eq_keyword(t1->str, KEYWORD_TYPEDEF))return parse_typedef(cu, mods);
-                t3 = peek_nth_token(cu, 3);
-                if(t3->type == TOKEN_PAREN_OPEN){
-                    ureg ast_pos = get_ast_size(cu);
-                    claim_ast_space(cu, sizeof(ast_node));
-                    parse_type(cu);
-                    return parse_function_decl_after_type(cu, mods, ast_pos);
-                };
-                if(t3->type == TOKEN_BRACE_OPEN){
-                    ureg ast_pos = get_ast_size(cu);
-                    claim_ast_space(cu, sizeof(ast_node));
-                    parse_type(cu);
-                    return parse_generic_function_decl_after_type(cu, mods, ast_pos);
-                }
-                return parse_leading_string(cu); //TODO: implement this branch
-            }
-            if(str_eq_keyword(t1->str, KEYWORD_CONST) && t2->type == TOKEN_PAREN_OPEN){
-                ureg ast_pos = get_ast_size(cu);
-                claim_ast_space(cu, sizeof(ast_node));
-                parse_type(cu);
-                t1 = peek_token(cu);
-                if(t1->type == TOKEN_PAREN_OPEN) {
-                    return parse_function_decl_after_type(cu, 0, ast_pos);
-                }
-                if(t1->type == TOKEN_BRACE_OPEN){
-                    return parse_generic_function_decl_after_type(cu, 0, ast_pos);
-                }
-                CIM_ERROR("Unexpected token following type declaration");
-            }
-           return parse_leading_string(cu);
+            int mods = parse_modifiers(cu);
+            if(str_eq_keyword(t1->str, KEYWORD_STRUCT))return parse_struct(cu, mods);
+            else if(str_eq_keyword(t1->str, KEYWORD_TYPEDEF))return parse_typedef(cu, mods);
+            return parse_leading_string(cu);
         }
         case TOKEN_HASH:
         case TOKEN_DOUBLE_HASH: {

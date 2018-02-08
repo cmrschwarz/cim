@@ -1,11 +1,11 @@
-generic{int x}:int * int + 3;
+int foo{float f, int t}(int x){}
 
+generic{int x}:int * int + 3;
 int * foo();
 
 var * sc:foo{int}(3) + 4;
 ret_val* fn{g_t1* g_v1}(a_t1* a_v1, a_v2 + a_v3);
 int* foo(int* x){//test comment
-
 }
 
 
