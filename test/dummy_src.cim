@@ -1,5 +1,22 @@
-int* foo(int(*)(char*) fn_ptr){bar();}
+generic{int x}:int * int + 3;
 
+int * foo();
+
+var * sc:foo{int}(3) + 4;
+ret_val* fn{g_t1* g_v1}(a_t1* a_v1, a_v2 + a_v3);
+int* foo(int* x){//test comment
+
+}
+
+
+
+foo{int * x}(int * x) % e;
+
+
+int* foo(int(*)(char*) fn_ptr){bar();}
+while(1+2){
+    foo();
+}
 int x;
 
 int* foo{int * x}(int* x){
@@ -21,15 +38,13 @@ int z = arr[x];
 int x = (arr[5]*[3]*)3;
 int y = foo((int)(-x), y);
 
-foo{int * x}(int * x) % e;
 
-generic{int x}:int * int + 3;
+
 
 
 
 generic_fn_call{int}(4, nested_fn_call(2), empty_generic_fn{int * x}());
 
-int* foo{int* x}(int* x, int + 2);//test comments
 
 
 generic{int x}:int foo(){}

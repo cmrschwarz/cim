@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "error.h"
 #include "ast.h"
-static void print_type(ast_node* t);
+static void print_type(ast_node* t, ureg ptrs);
 static void print_sub_expr(ast_node *e, bool allow_types);
 void write(char* str){
     fputs(str, stdout);
@@ -57,8 +57,8 @@ void print_op(u8 op){
 void print_indent(ureg indent){
     for(ureg i=0;i<indent; i++)fputs("    ", stdout);
 }
-void print_ptrs(u8 ptrs){
-    for(u8 i = 0;i!=ptrs;i++){
+void print_ptrs(ureg ptrs){
+    for(ureg i = 0; i != ptrs; i++){
         putchar('*');
     }
 }
@@ -88,7 +88,7 @@ void reverse_print_generic_param_list(ast_node* start, ast_node* end){
         reverse_print_generic_param_list(next, end);
         putchar(',');putchar(' ');
     }
-    print_type(start - 2);
+    print_type(start - 2, 0);
     putchar(' ');
     write((start-1)->str);
 }
@@ -99,7 +99,7 @@ void reverse_print_type_list(ast_node* start, ast_node* end){
         reverse_print_type_list(next, end);
         putchar(',');putchar(' ');
     }
-    print_type(start);
+    print_type(start, 0);
 }
 
 void reverse_print_func_params(ast_node* elem, ast_node* end){
@@ -109,46 +109,50 @@ void reverse_print_func_params(ast_node* elem, ast_node* end){
         reverse_print_func_params(nxt, end);
         putchar(',');putchar(' ');
     }
-    print_type(elem-2);
+    print_type(elem-2, 0);
     putchar(' ');
     write((elem-1)->str);
 }
-static void print_type(ast_node* t){
+static void print_type(ast_node* t, ureg ptrs){
     if(t->type.type == EXPR_NODE_TYPE_SIMPLE){
         fputs((t-1)->str, stdout);
-        print_ptrs(t->type.ptrs);
+        print_ptrs(ptrs);
         return;
     }
     ast_node* last = t - t->type.size  + 1;
     ast_node* tn = t-1;
     switch (t->type.type){
+        case EXPR_NODE_TYPE_PTR:{
+            print_type(tn, ptrs + 1);
+        }return;
         case EXPR_NODE_TYPE_SCOPED:{
-            print_type(t - 2);
+            print_type(t - 2, 0);
             putchar(':');
             write(tn->str);
+            print_ptrs(ptrs);
         }return;
         case EXPR_NODE_TYPE_GENERIC_STRUCT_INST:{
-            print_type(tn - tn->type.size);
+            print_type(tn - tn->type.size, 0);
             putchar('{');
             reverse_print_type_list(t - 2,  tn - tn->type.size);
             putchar('}');
-            print_ptrs(t->type.ptrs);
+            print_ptrs(ptrs);
         }break;
         case EXPR_NODE_TYPE_GENERIC_STRUCT_DEF:{
         case EXPR_NODE_TYPE_GENERIC_STRUCT_AMBIGUOUS:
-            print_type(tn - tn->type.size);
+            print_type(tn - tn->type.size, 0);
             putchar('{');
             reverse_print_generic_param_list(t - 2, tn - tn->type.size);
             putchar('}');
-            print_ptrs(t->type.ptrs);
+            print_ptrs(ptrs);
         }break;
         case EXPR_NODE_TYPE_FN_PTR:{
             ast_node* args_start = (t-2);
             ast_node* ret = args_start - tn->type.size + 1;
-            print_type(ret);
+            print_type(ret, 0);
             putchar(' ');
             putchar('(');
-            print_ptrs(t->type.ptrs);
+            print_ptrs(ptrs);
             putchar(')');
             putchar('(');
             reverse_print_type_list(args_start, ret);
@@ -156,11 +160,11 @@ static void print_type(ast_node* t){
         }break;
         case EXPR_NODE_TYPE_ARRAY:{
             ast_node* expr = t-1;
-            print_type(expr - expr->expr.size);
+            print_type(expr - expr->expr.size, 0);
             putchar('[');
             if(expr->expr.size != 1)print_sub_expr(expr, false);
             putchar(']');
-            print_ptrs(t->type.ptrs);
+            print_ptrs(ptrs);
         }break;
         default:CIM_ERROR("Unknown AST_TYPE_TYPE");
     }
@@ -169,7 +173,7 @@ static void print_sub_expr(ast_node *e, bool allow_types){
     ast_node* e2 = e-1;
     switch(e->expr.type){
         case EXPR_NODE_TYPE_SCOPED:{
-            print_type(e - 2);
+            print_type(e - 2, 0);
             putchar(':');
             write(e2->str);
         }return;
@@ -217,14 +221,14 @@ static void print_sub_expr(ast_node *e, bool allow_types){
             ast_node* l;
             l= r - r->expr.size;
             putchar('(');
-            print_type(l);
+            print_type(l, 0);
             putchar(')');
             print_sub_expr(r, false);
             putchar(')');
         }return;
         case EXPR_NODE_FN_CALL:{
             ast_node* name = e2 - e2->expr.size;
-            print_type(name);
+            print_type(name, 0);
             putchar('(');
             reverse_print_func_args(e-2, name);
             putchar(')');
@@ -233,7 +237,7 @@ static void print_sub_expr(ast_node *e, bool allow_types){
             ast_node* params_size = e-1;
             ast_node* generic_args_size = params_size - params_size->expr.size;
             ast_node* name = generic_args_size - generic_args_size->expr.size;
-            print_type(name);
+            print_type(name, 0);
             putchar('{');
             reverse_print_generic_arg_list(generic_args_size - 1, name);
             putchar('}');putchar('(');
@@ -246,21 +250,9 @@ static void print_sub_expr(ast_node *e, bool allow_types){
             print_sub_expr(e2, false);
             putchar(']');
         }return;
-        case EXPR_NODE_CANCER_PTRS:{
-            putchar('(');
-            print_type(e-2);
-            putchar(' ');putchar('*');putchar(' ');
-            for(int i = 1; i < e->expr.special.ptrs; i++){
-                putchar('('); putchar('*');
-            }
-            write(e2->str);
-            for(int i = 0; i < e->expr.special.ptrs; i++){
-                putchar(')');
-            }
-        };return;
         default:{
             if(allow_types){
-                print_type(e);
+                print_type(e, 0);
             }
             else{
                  CIM_ERROR("Unknown expression type");
@@ -279,9 +271,9 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end, boo
                     ast_node* expr =  decl + decl->common.size -1;
                     astn = expr + 1;
                     ast_node* name = expr - expr->expr.size;
-                    print_type(name - name->type.size);
+                    print_type(name - name->type.size, 0);
                     putchar(' ');
-                    print_type(name);
+                    print_type(name, 0);
                     putchar(' ');putchar('=');putchar(' ');
                     print_sub_expr(expr, false);
                     putchar(';');
@@ -290,9 +282,9 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end, boo
                 else{
                     ast_node* name =  decl + decl->common.size -1;
                     astn = name + 1;
-                    print_type(name - name->type.size);
+                    print_type(name - name->type.size, 0);
                     putchar(' ');
-                    print_type(name);
+                    print_type(name, 0);
                     putchar(';');
                     if(trailing_nl)putchar('\n');
                 }
@@ -302,10 +294,10 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end, boo
                 ast_node* decl = (void*)astn;
                 ast_node* params_size =  decl + decl->common.size - 1;
                 ast_node* fn_name = params_size - params_size->common.size;
-                ast_node* ret_type = fn_name - fn_name->common.size;
-                print_type(ret_type);
+                ast_node* ret_type = fn_name - fn_name->type.size;
+                print_type(ret_type, 0);
                 putchar(' ');
-                print_type(fn_name);
+                print_type(fn_name, 0);
                 putchar('(');
                 reverse_print_func_params(params_size - 1, fn_name);
                 putchar(')');putchar('{');putchar('\n');
@@ -321,9 +313,9 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end, boo
                 ast_node* params_size =  decl + decl->common.size - 1;
                 ast_node* generic_params_size = params_size - params_size->common.size;
                 ast_node* fn_name = generic_params_size - generic_params_size->common.size;
-                print_type(fn_name - fn_name->common.size);
+                print_type(fn_name - fn_name->common.size, 0);
                 putchar(' ');
-                print_type(fn_name);
+                print_type(fn_name, 0);
 
                 putchar('{');
                 reverse_print_func_params(generic_params_size - 1, fn_name);
@@ -347,7 +339,7 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end, boo
                 astn_typedef* t = (void*)astn;
                 write("typedef ");write(t->tgt_type.str);putchar(' ');
                 ast_node* tn = (ast_node*)(t+1) + t->size;
-                print_type(tn);
+                print_type(tn, 0);
                 astn = tn + 1;
                 putchar(';');
                 if(trailing_nl)putchar('\n');

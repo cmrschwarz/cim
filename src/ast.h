@@ -40,6 +40,7 @@ enum expr_node_type_t{
     EXPR_NODE_GENERIC_FN_CALL,
     EXPR_NODE_NOP,
 
+
     EXPR_NODE_TYPE_PARAM,
     EXPR_NODE_TYPE_FN_PTR,
     EXPR_NODE_TYPE_GENERIC_STRUCT_INST,
@@ -47,38 +48,41 @@ enum expr_node_type_t{
     EXPR_NODE_TYPE_GENERIC_STRUCT_AMBIGUOUS,
     EXPR_NODE_TYPE_ARRAY,
     EXPR_NODE_TYPE_SCOPED,
+    EXPR_NODE_TYPE_PTR,
     EXPR_NODE_PAREN,   //temp for shunting yard
     EXPR_NODE_TYPE_SIMPLE = EXPR_NODE_VARIABLE,
 };
+
 
 #if DEBUG_ENUMS
     typedef enum ast_node_type_e ast_node_type;
     typedef enum expr_node_type_t expr_node_type;
     typedef enum operation_e operation;
+    typedef u8 _padding_;
 #else
     typedef u8 ast_node_type;
     typedef u8 expr_node_type;
     typedef u8 operation;
+    typedef u8 _padding_;
 #endif
 
 typedef union ast_node_u{
     struct {
         ast_node_type type;
-        operation __padding;
+        _padding_ p;
         ast_rel_ptr size;
     }common;
     struct {
         expr_node_type type;
         union {
             operation opcode;
-            u8 ptrs;
             u8 modifiers;
         }special;
         ast_rel_ptr size;
     }expr;
     struct{
         expr_node_type type;
-        u8 ptrs;
+        u8 mods;
         ast_rel_ptr size;
     }type;
     struct {
