@@ -7,10 +7,15 @@
 #define TO_CHAR(i)((char)((i) & 0xFF))
 #define TO_UREG(c)((ureg)(c))
 
-#define DEBUG_ENUMS 1
+#define DEBUG_ENUMS 0
 
 typedef uregh ast_rel_ptr;
-
+enum modifiers_e{
+    MOD_CONST = 1,
+    MOD_PUBLIC = 2,
+    MOD_PRIVATE = 4,
+    MOD_STATIC = 8,
+}modifiers;
 enum ast_node_type_e{
     ASTNT_EXPRESSION,
     ASTNT_FOR,
@@ -36,8 +41,8 @@ enum expr_node_type_t{
     EXPR_NODE_OP_R,
     EXPR_NODE_CAST,
     EXPR_NODE_FN_CALL,
-    EXPR_NODE_ARRAY_ACCESS,
     EXPR_NODE_GENERIC_FN_CALL,
+    EXPR_NODE_ARRAY_ACCESS,
     EXPR_NODE_NOP,
 
 
@@ -46,10 +51,11 @@ enum expr_node_type_t{
     EXPR_NODE_TYPE_GENERIC_STRUCT_INST,
     EXPR_NODE_TYPE_GENERIC_STRUCT_DEF,
     EXPR_NODE_TYPE_GENERIC_STRUCT_AMBIGUOUS,
-    EXPR_NODE_TYPE_ARRAY,
+
     EXPR_NODE_TYPE_SCOPED,
     EXPR_NODE_TYPE_PTR,
     EXPR_NODE_PAREN,   //temp for shunting yard
+    EXPR_NODE_TYPE_ARRAY = EXPR_NODE_ARRAY_ACCESS,
     EXPR_NODE_TYPE_SIMPLE = EXPR_NODE_VARIABLE,
 };
 

@@ -1,98 +1,54 @@
+const const(const(int*)**)*** x;
+/*
 int foo{float f, int t}(int x){}
-
 generic{int x}:int * int + 3;
 int * foo();
-
 var * sc:foo{int}(3) + 4;
 ret_val* fn{g_t1* g_v1}(a_t1* a_v1, a_v2 + a_v3);
 int* foo(int* x){//test comment
+    bar baz;
 }
-
-
-
 foo{int * x}(int * x) % e;
-
-
 int* foo(int(*)(char*) fn_ptr){bar();}
 while(1+2){
     foo();
 }
 int x;
-
+int* x;
 int* foo{int * x}(int* x){
-
+    bar baz;
 }
-
 sc:foo();
-
-
 var * sc:foo{int}(3) + 4;
-
 int foo{int* f}(float* f){}
 char* foo(+a, int ************b) +1;
-
 for(char c0 = 'A'; c0 <= 'Z';c0++){}
-
-
 int z = arr[x];
 int x = (arr[5]*[3]*)3;
 int y = foo((int)(-x), y);
-
-
-
-
-
-
 generic_fn_call{int}(4, nested_fn_call(2), empty_generic_fn{int * x}());
-
-
-
 generic{int x}:int foo(){}
-
 fn_call_with_params(4, var);
-
 int foo{float f, int t}(int x){}
-
-
 foo(bar());
-
 generic_fn_call{int}(x);
-
-
-
-
 int foo(){}
-
 foo();
-
-
 typedef sc x:td;
 sco:ret_type ***** foo(a1* x, a2* x2, +int) + 3;
-
-
 scoped:sc2:sc3:int[]**[]**[]*[]****[]*[x] x;
-
-
 int**[y]**[x] x;
 str[str_size-1] = '\a';
-
 intasdfhkjlaskljdf* foo{int* x}(int* x, int + 2);// lols
 int* foo{int* x}(int* x){}
 int* foo{int* x}(int* x){}
 int* foo{int* x}(int* x);
-
-
 int foo(int x){}
-
 fn_call();
-
 generic_fn_call{int}(x);
 fn_call_nested(4, nested_fn_call(4, 1, nest_3()));
-
 scoped:int[]**[]**[]*[]****[]*[x] x;
-
 int alpha;
-
 typedef td x;
 typedef sc x:td;
 typedef td generic{x};
@@ -105,7 +61,6 @@ hms h;
 hms_init(&h);
 const int str_size = 6;
 char[str_size] str;
-
     for(char c0 = 'A'; c0 <= 'Z';c0++){
         str[0] = c0;
         for(char c1 = 'A'; c1 <= 'Z';c1++){
@@ -143,4 +98,4 @@ char[str_size] str;
         }
     }
     hms_dump(&h);
-//*/
+int* test;//*/

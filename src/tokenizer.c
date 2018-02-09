@@ -20,9 +20,7 @@ static inline void assert_neof(cunit* cu, token* t, char c){
         tokenizing_error(cu, t, 0,"tokenizing error: unexpected end of file");
     }
 }
-bool str_eq_keyword(const char* str,const  char* keyword){
-    return strcmp(str, keyword) == 0;
-}
+
 static void populate_file_buffer(cunit* cu, u8* pop_start){
     ureg s = fread(pop_start,
                    1, cu->tknzr.file_buffer.end - pop_start,

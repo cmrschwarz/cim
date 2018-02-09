@@ -3,7 +3,6 @@
 #include "token_strings.h"
 #include "memory.h"
 #include "tokenizer_t.h"
-bool str_eq_keyword(const char* str,const char* keyword);
 char* store_string(cunit* cu, char* str, char* str_end);
 void add_keyword(cunit* cu, const char* str);
 const char* get_token_type_str(cunit* cu, token_type t);
@@ -14,6 +13,9 @@ void display_string_store(cunit* cu);
 void consume_new_token(cunit* cu, token* tok, token* next);
 void syntax_error(cunit *cu, token *t, ureg incl_prev, ureg underline_prev, char *str, ...);
 void tokenizing_error(cunit* cu, token* t, ureg lines_to_include, char* str, ...);
+static inline bool str_eq_keyword(const char* str,const  char* keyword){
+    return strcmp(str, keyword) == 0;
+}
 static inline void inc_token_buff_ptr(cunit* cu, token** p){
     if(*p != &cu->tknzr.token_buffer[TOKEN_BUFFER_SIZE - 1]){
         (*p)++;
