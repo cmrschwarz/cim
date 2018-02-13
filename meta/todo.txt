@@ -1,41 +1,59 @@
--Parsing
-    -finish parse_leading_string
-        -generic function calls
-        -generic struct variable declarations
-        -array accesses
-    
-    -struct parsing
-    -scoped / typed function call parsing
-    -scoped / typed variable access parsing
-    -namespaces 
-    -switch, if, for, while, do parsing
+-parsing
+    -optional arguments
+        -insert in parser:
+            -parse param list
+            -parse generic param or arg list
+            -struct parsing with leading optional argument
+        -insert in printer:
+            -reverse_print_func_params
+    -namespaces
+    -lambdas
+    -switch, reflect, do while
     -unions
-    -generic structs
-    -meta #
+    -meta # parsing
+        -ast nodes and parse branch
+        -paste{...} special function
     -modifiers
-        -inline, unlikely, likely, public, const, 
-    -implement hash table
-    -change string store to use hash table
-    -error messages    
-    -exceptions?
-
--Type System etc.
-    -decide the data structures to use (hash table, linked list, all in one, etc.)
-    -start implementing implement type system
-    -add usable error messages
-    -add special (meta?)functions
+    -exceptions: !: syntax, try catch
+    -concepts, inheritance
+    --special functions
         -sizeof
         -typeof
         -offsetof
-        -alignof?
-        -#paste{
+        -alignof    ???
         -assert
-        
-    
-LONG TERM
-    -implement interpreter
-    -implement compiler to C
-    -implement compiler to LLVM
-    -implement compiler to Assembly
-    -implement Optimizer (inlining,)
-        
+        -cast       ???
+
+-type system
+   -add type declarations while parsing
+        -namespaces
+        -typedefs
+        -structs
+        -functions
+        -generic structs
+        -generic functions
+   -do a complete pass over the ast to
+        -add variable declarations (disambiguate with expressions)
+   -go through type tree and
+        -resolve function parameter and return types
+        -resolve generic parameters
+        -fix scoping of (partially) specialized generics
+        -resolve "auto" type inference
+        -deduce the size for each type
+        -disambiguate generic scopes between generic struct decl and inst
+   -do a second pass to resolve
+        -variable accesses
+        -array accesses
+        -(overloaded)(generic) function calls
+        -generic struct scopes
+    -
+
+-backends
+    -decide whether we need an additional intermediate representation before bytecode
+    -bytecode generator
+    -optimizing bytecode generator (inlining, compile time evaluation, unrolling, etc.)
+    -bytecode interpreter
+    -bytecode to C backend
+    -bytecode to LLVM backend
+    -bytecode to to x86 Assembly
+    -bytecode to to x64 Assembly
