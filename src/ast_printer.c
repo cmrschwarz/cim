@@ -2,9 +2,9 @@
 #include <stdio.h>
 #include "error.h"
 #include "ast.h"
-static void print_type(ast_node* t);
-static void print_sub_expr(ast_node *e, bool allow_types);
-void write(char* str){
+static void print_type(astn* t);
+static void print_sub_expr(astn *e, bool allow_types);
+void write(const char* str){
     fputs(str, stdout);
 }
 void print_op(u8 op){
@@ -62,9 +62,9 @@ void print_ptrs(ureg ptrs){
         putchar('*');
     }
 }
-void reverse_print_func_args(ast_node* elem, ast_node* end){
+void reverse_print_func_args(astn* elem, astn* end){
     if(elem == end)return;
-    ast_node* nxt = elem - elem->expr.size;
+    astn* nxt = elem - elem->expr.size;
     if(nxt != end){
         reverse_print_func_args(nxt, end);
         putchar(',');
@@ -72,18 +72,18 @@ void reverse_print_func_args(ast_node* elem, ast_node* end){
     }
     print_sub_expr(elem, false);
 }
-void reverse_print_generic_arg_list(ast_node* start, ast_node* end){
+void reverse_print_generic_arg_list(astn* start, astn* end){
     if(start == end)return;
-    ast_node* next = start - start->type.size ;
+    astn* next = start - start->type.size ;
     if(next != end){
         reverse_print_generic_arg_list(next, end);
         putchar(',');putchar(' ');
     }
     print_sub_expr(start, true);
 }
-void reverse_print_generic_param_list(ast_node* start, ast_node* end){
+void reverse_print_generic_param_list(astn* start, astn* end){
     if(start == end)return;
-    ast_node* next = start - start->type.size ;
+    astn* next = start - start->type.size ;
     if(next != end){
         reverse_print_generic_param_list(next, end);
         putchar(',');putchar(' ');
@@ -92,9 +92,9 @@ void reverse_print_generic_param_list(ast_node* start, ast_node* end){
     putchar(' ');
     write((start-1)->str);
 }
-void reverse_print_type_list(ast_node* start, ast_node* end){
+void reverse_print_type_list(astn* start, astn* end){
     if(start == end)return;
-    ast_node* next = start - start->type.size ;
+    astn* next = start - start->type.size ;
     if(next != end){
         reverse_print_type_list(next, end);
         putchar(',');putchar(' ');
@@ -102,9 +102,9 @@ void reverse_print_type_list(ast_node* start, ast_node* end){
     print_type(start);
 }
 
-void reverse_print_func_params(ast_node* elem, ast_node* end){
+void reverse_print_func_params(astn* elem, astn* end){
     if(elem == end)return;
-    ast_node* nxt = elem - elem->type.size;
+    astn* nxt = elem - elem->type.size;
     if(nxt != end){
         reverse_print_func_params(nxt, end);
         putchar(',');putchar(' ');
@@ -113,13 +113,13 @@ void reverse_print_func_params(ast_node* elem, ast_node* end){
     putchar(' ');
     write((elem-1)->str);
 }
-static void print_type(ast_node* t){
+static void print_type(astn* t){
     bool cnst = false;
     if((t->type.mods & MOD_CONST) != 0){
         write("const(");
         cnst = true;
     }
-    ast_node* tn = t-1;
+    astn* tn = t-1;
     switch (t->type.type){
         case EXPR_NODE_TYPE_SIMPLE:{
             write((t-1)->str);
@@ -147,18 +147,16 @@ static void print_type(ast_node* t){
             putchar('}');
         }break;
         case EXPR_NODE_TYPE_FN_PTR:{
-            ast_node* args_start = (t-2);
-            ast_node* ret = args_start - tn->type.size + 1;
+            astn* args_start = (t-2);
+            astn* ret = args_start - tn->type.size + 1;
             print_type(ret);
-            putchar(' ');
-            putchar('(');
-            putchar(')');
+            write(token_strings[TOKEN_LEFT_ARROW]);
             putchar('(');
             reverse_print_type_list(args_start, ret);
             putchar(')');
         }break;
         case EXPR_NODE_TYPE_ARRAY:{
-            ast_node* expr = t-1;
+            astn* expr = t-1;
             print_type(expr - expr->expr.size);
             putchar('[');
             if(expr->expr.size != 1)print_sub_expr(expr, false);
@@ -168,8 +166,8 @@ static void print_type(ast_node* t){
     }
     if(cnst)putchar(')');
 }
-static void print_sub_expr(ast_node *e, bool allow_types){
-    ast_node* e2 = e-1;
+static void print_sub_expr(astn *e, bool allow_types){
+    astn* e2 = e-1;
     switch(e->expr.type){
         case EXPR_NODE_TYPE_SCOPED:{
             print_type(e - 2);
@@ -204,8 +202,8 @@ static void print_sub_expr(ast_node *e, bool allow_types){
         }return;
         case EXPR_NODE_OP_LR:{
             putchar('(');
-            ast_node* r = e2;
-            ast_node* l;
+            astn* r = e2;
+            astn* l;
             l= r - r->expr.size;
             print_sub_expr(l, false);
             putchar(' ');
@@ -216,8 +214,8 @@ static void print_sub_expr(ast_node *e, bool allow_types){
         }return;
         case EXPR_NODE_CAST:{
             putchar('(');
-            ast_node* r = e2;
-            ast_node* l;
+            astn* r = e2;
+            astn* l;
             l= r - r->expr.size;
             putchar('(');
             print_type(l);
@@ -226,16 +224,16 @@ static void print_sub_expr(ast_node *e, bool allow_types){
             putchar(')');
         }return;
         case EXPR_NODE_FN_CALL:{
-            ast_node* name = e2 - e2->expr.size;
+            astn* name = e2 - e2->expr.size;
             print_type(name);
             putchar('(');
             reverse_print_func_args(e-2, name);
             putchar(')');
         }return;
         case EXPR_NODE_GENERIC_FN_CALL:{
-            ast_node* params_size = e-1;
-            ast_node* generic_args_size = params_size - params_size->expr.size;
-            ast_node* name = generic_args_size - generic_args_size->expr.size;
+            astn* params_size = e-1;
+            astn* generic_args_size = params_size - params_size->expr.size;
+            astn* name = generic_args_size - generic_args_size->expr.size;
             print_type(name);
             putchar('{');
             reverse_print_generic_arg_list(generic_args_size - 1, name);
@@ -259,17 +257,18 @@ static void print_sub_expr(ast_node *e, bool allow_types){
         }
     }
 }
-void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end, bool trailing_nl){
-    while(astn!=end){
+astn* print_block(cunit* cu, ureg indent, astn* blk);
+void print_ast_within(cunit* cu, ureg indent, astn* curr, astn* end, bool trailing_nl){
+    while(curr!=end){
         print_indent(indent);
-        switch(astn->common.type){
+        switch(curr->common.type){
             case ASTNT_VARIABLE_DECLARATION:
             case ASTNT_VARIABLE_DECLARATION_AMBIGUOUS:{
-                ast_node* decl = (void*)astn;
-                if(astn->var_decl.assigning == true){
-                    ast_node* expr =  decl + decl->common.size -1;
-                    astn = expr + 1;
-                    ast_node* name = expr - expr->expr.size;
+                astn* decl = (void*)curr;
+                if(curr->common.special.assigning == true){
+                    astn* expr =  decl + decl->common.size -1;
+                    curr = expr + 1;
+                    astn* name = expr - expr->expr.size;
                     print_type(name - name->type.size);
                     putchar(' ');
                     print_type(name);
@@ -279,76 +278,69 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end, boo
                     if(trailing_nl)putchar('\n');
                 }
                 else{
-                    ast_node* name =  decl + decl->common.size -1;
-                    astn = name + 1;
+                    astn* name =  decl + decl->common.size -1;
+                    curr = name + 1;
                     print_type(name - name->type.size);
                     putchar(' ');
                     print_type(name);
                     putchar(';');
                     if(trailing_nl)putchar('\n');
                 }
-
             }break;
             case ASTNT_FUNCTION_DECLARATION:{
-                ast_node* decl = (void*)astn;
-                ast_node* params_size =  decl + decl->common.size - 1;
-                ast_node* fn_name = params_size - params_size->common.size;
-                ast_node* ret_type = fn_name - fn_name->type.size;
+                astn* decl = (void*)curr;
+                astn* params_size =  decl + decl->common.size - 1;
+                astn* fn_name = params_size - params_size->common.size;
+                astn* ret_type = fn_name - fn_name->type.size;
                 print_type(ret_type);
                 putchar(' ');
                 print_type(fn_name);
                 putchar('(');
                 reverse_print_func_params(params_size - 1, fn_name);
                 putchar(')');putchar('{');putchar('\n');
-                ast_node* block = params_size+1;
-                void* block_end = (u8*)block + block->full_size;
-                print_ast_within(cu, indent + 1, block + 1, block_end, true);
-                putchar('}');
+                curr = print_block(cu, indent + 1, params_size + 1);
+                print_indent(indent);putchar('}');
                 if(trailing_nl)putchar('\n');
-                astn = block_end;
             }break;
             case ASTNT_GENERIC_FUNCTION_DECLARATION:{
-                ast_node* decl = (void*)astn;
-                ast_node* params_size =  decl + decl->common.size - 1;
-                ast_node* generic_params_size = params_size - params_size->common.size;
-                ast_node* fn_name = generic_params_size - generic_params_size->common.size;
+                astn* decl = (void*)curr;
+                astn* params_size =  decl + decl->common.size - 1;
+                astn* generic_params_size = params_size - params_size->common.size;
+                astn* fn_name = generic_params_size - generic_params_size->common.size;
                 print_type(fn_name - fn_name->common.size);
                 putchar(' ');
                 print_type(fn_name);
-
                 putchar('{');
                 reverse_print_func_params(generic_params_size - 1, fn_name);
                 putchar('}');
                 putchar('(');
                 reverse_print_func_params(params_size - 1, generic_params_size);
                 putchar(')');putchar('{');putchar('\n');
-                ast_node* block = params_size+1;
-                void* block_end = (u8*)block + block->full_size;
-                print_ast_within(cu, indent + 1, block + 1, block_end, true);
-                putchar('}');putchar('\n');
-                astn = block_end;
+                curr = print_block(cu, indent + 1, params_size + 1);
+                print_indent(indent);putchar('}');putchar('\n');
             }break;
             case ASTNT_EXPRESSION:{
-                ast_node* n = astn + astn->expr.size - 1;
-                if(n != astn) print_sub_expr(n, false);
-                astn = n + 1;
+                astn* n = curr + curr->expr.size - 1;
+                if(n != curr) print_sub_expr(n, false);
+                curr = n + 1;
                 puts(";");
             }break;
             case ASTNT_TYPEDEF:{
-                astn_typedef* t = (void*)astn;
-                write("typedef ");write(t->tgt_type.str);putchar(' ');
-                ast_node* tn = (ast_node*)(t+1) + t->size;
-                print_type(tn);
-                astn = tn + 1;
+                write("typedef ");
+                astn* tp2 = curr + curr->common.size - 1;
+                print_type(tp2 - tp2->common.size);
+                putchar(' ');
+                print_type(tp2);
+                curr = tp2+1;
                 putchar(';');
                 if(trailing_nl)putchar('\n');
             }break;
             case ASTNT_FOR:{
                 write("for(");
-                ast_node* st = astn + 1;
+                astn* st = curr + 1;
                 print_ast_within(cu,0,st,  st + st->expr.size, false);
                 st+= st->expr.size;
-                ast_node* st_end = astn + astn->common.size;
+                astn* st_end = curr + curr->common.size;
                 putchar(' ');
                 st+= st->expr.size;
                 print_sub_expr(st-1, false);
@@ -358,24 +350,56 @@ void print_ast_within(cunit* cu, ureg indent, ast_node* astn, ast_node* end, boo
                     print_sub_expr(st-1, false);
                 }
                 putchar(')');putchar('{');putchar('\n');
-                astn = (ast_node*)((u8*)st_end + st_end->full_size);
-                print_ast_within(cu, indent + 1 , st_end + 1, astn, true);
+                curr = print_block(cu, indent + 1, st_end);
                 print_indent(indent); putchar('}');
                 if(trailing_nl)putchar('\n');
             }break;
             case ASTNT_WHILE:{
                 write("while(");
-                print_sub_expr(astn + astn[1].expr.size, false);
+                print_sub_expr(curr + curr[1].expr.size, false);
                 write("){\n");
-                ast_node* st_end = astn + astn->common.size;
-                astn = (ast_node*)((u8*)st_end + st_end->full_size);
-                print_ast_within(cu, indent + 1, st_end + 1, astn, true);
+                curr = print_block(cu, indent + 1, curr + curr->common.size);
+                print_indent(indent); putchar('}');
+                if(trailing_nl)putchar('\n');
+            }break;
+            case ASTNT_IF:{
+                write("if(");
+                print_sub_expr(curr+curr->common.size-1, false);
+                write("){\n");
+                curr = print_block(cu, indent + 1, curr + curr->common.size);
+                print_indent(indent); putchar('}');
+                if(trailing_nl)putchar('\n');
+            }break;
+            case ASTNT_IF_ELSE:{
+                write("if(");
+                print_sub_expr(curr+curr->common.size-1, false);
+                write("){\n");
+                curr = print_block(cu, indent + 1, curr + curr->common.size);
+                print_indent(indent); putchar('}');
+                write("\n");
+                print_indent(indent);
+                write("else{\n");
+                curr = print_block(cu, indent + 1, curr);
+                print_indent(indent); putchar('}');
+                if(trailing_nl)putchar('\n');
+            }break;
+            case ASTNT_STRUCT_DECLARATION:{
+                write("struct ");
+                print_type(curr + curr->common.size - 1);
+                putchar('{');putchar('\n');
+                curr = print_block(cu, indent + 1, curr + curr->common.size);
                 print_indent(indent); putchar('}');
                 if(trailing_nl)putchar('\n');
             }break;
             default:CIM_ERROR("Unexpected ASTN");
         }
     }
+}
+astn* print_block(cunit* cu, ureg indent, astn* blk)
+{
+    astn* blk_end = (astn*)((u8*)blk+blk->full_size);
+    print_ast_within(cu, indent, blk+1, blk_end, true);
+    return blk_end;
 }
 void print_ast(cunit* cu){
     print_ast_within(cu, 0, (void*)cu->ast.start, (void*)cu->ast.head, true);

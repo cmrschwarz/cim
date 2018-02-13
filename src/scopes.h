@@ -8,7 +8,6 @@ typedef enum tse_type_t{
     TSE_SCOPE,
     TSE_TYPEDEF,
     TSE_PRIMITIVE,
-
 }tse_type;
 typedef enum tse_primitive_type_t{
     TSE_PRIMITIVE_U8,

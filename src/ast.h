@@ -7,7 +7,7 @@
 #define TO_CHAR(i)((char)((i) & 0xFF))
 #define TO_UREG(c)((ureg)(c))
 
-#define DEBUG_ENUMS 0
+#define DEBUG_ENUMS 1
 
 typedef uregh ast_rel_ptr;
 enum modifiers_e{
@@ -16,8 +16,10 @@ enum modifiers_e{
     MOD_PRIVATE = 4,
     MOD_STATIC = 8,
 }modifiers;
-enum ast_node_type_e{
+enum astn_type_e{
     ASTNT_EXPRESSION,
+    ASTNT_IF,
+    ASTNT_IF_ELSE,
     ASTNT_FOR,
     ASTNT_WHILE,
     ASTNT_TYPEDEF,
@@ -26,6 +28,8 @@ enum ast_node_type_e{
     ASTNT_VARIABLE_DECLARATION_AMBIGUOUS,
     ASTNT_FUNCTION_DECLARATION,
     ASTNT_GENERIC_FUNCTION_DECLARATION,
+    ASTNT_STRUCT_DECLARATION,
+    ASTNT_GENERIC_STRUCT_DECLARATION,
     //@PERF: consider adding function call to avoid expr wrapper
 };
 
@@ -61,21 +65,23 @@ enum expr_node_type_t{
 
 
 #if DEBUG_ENUMS
-    typedef enum ast_node_type_e ast_node_type;
+    typedef enum astn_type_e astn_type;
     typedef enum expr_node_type_t expr_node_type;
     typedef enum operation_e operation;
     typedef u8 _padding_;
 #else
-    typedef u8 ast_node_type;
+    typedef u8 astn_type;
     typedef u8 expr_node_type;
     typedef u8 operation;
     typedef u8 _padding_;
 #endif
 
-typedef union ast_node_u{
+typedef union astn_u{
     struct {
-        ast_node_type type;
-        _padding_ p;
+        astn_type type;
+        union {
+            bool assigning;
+        }special;
         ast_rel_ptr size;
     }common;
     struct {
@@ -91,32 +97,8 @@ typedef union ast_node_u{
         u8 mods;
         ast_rel_ptr size;
     }type;
-    struct {
-        ast_node_type type;
-        bool assigning;
-        ast_rel_ptr size;
-    }var_decl;
-    struct {
-        ast_node_type type;
-        bool assigning;
-        ast_rel_ptr size;
-    }for_stmt;
     char* str;
     ureg full_size;
-}ast_node;
+}astn;
 
-typedef struct astn_assignment_t{
-    ast_node_type type;
-    u16 ptrs;
-}astn_assignment;
 
-typedef struct astn_typedef_s{
-    ast_node_type type;
-    ast_rel_ptr size;
-    ast_node tgt_type;
-}astn_typedef;
-
-typedef struct astn_function_call_t{
-    ast_node_type type;
-    ureg arg_count;
-}astn_function_call;

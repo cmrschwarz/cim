@@ -1,5 +1,32 @@
+struct sc:heureka{
+    int foo;
+    void* haar;
+    struct nested{
+        int* baz(){
+            int woof;
+        }
+    }
+}
+
+sc1:sc2:sc3:type* val;
+if(x==3){
+    foo();
+}
+else if(x==3){
+    bar();
+    while(true){
+        lols() + 3;
+    }
+}
+for(int x; x<3;x++)foo();
+int* foo(int* x){bar();}
+int*<==(int, float)<==(int<==(float)) foo(int x, float f){
+    baz();
+    doo();
+}
+const char* x;
+foo(*var);
 const const(const(int*)**)*** x;
-/*
 int foo{float f, int t}(int x){}
 generic{int x}:int * int + 3;
 int * foo();
@@ -9,7 +36,6 @@ int* foo(int* x){//test comment
     bar baz;
 }
 foo{int * x}(int * x) % e;
-int* foo(int(*)(char*) fn_ptr){bar();}
 while(1+2){
     foo();
 }
@@ -56,46 +82,29 @@ typedef td scope:generic{x};
 typedef td scope:generic{scope:nested};
 typedef td scope:generic{nested_generic{x}};
 typedef td scope:generic{scoped:nested_generic{x}};
-typedef td void(*)(char*) (*)(int);
+typedef td void<==(char*)<==(int);
 hms h;
 hms_init(&h);
 const int str_size = 6;
 char[str_size] str;
-    for(char c0 = 'A'; c0 <= 'Z';c0++){
-        str[0] = c0;
-        for(char c1 = 'A'; c1 <= 'Z';c1++){
-            str[1] = c1;
-            for(char c2 = 'A'; c2 <= 'Z';c2++){
-                str[2] = c2;
-                for(char c3 = 'A'; c3 <= 'Z'; c3++){
-                    str[3] = c3;
-                    for(char c4 = 'A'; c4 <= 'Z'; c4++) {
-                        str[4] = c4;
-                        char *t = malloc(str_size);
-                        memcpy(t, str, str_size);
-                        hms_set(&h, t, "value");
-                    }
+for(char c0 = 'A'; c0 <= 'Z';c0++){
+    str[0] = c0;
+    for(char c1 = 'A'; c1 <= 'Z';c1++){
+        str[1] = c1;
+        for(char c2 = 'A'; c2 <= 'Z';c2++){
+            str[2] = c2;
+            for(char c3 = 'A'; c3 <= 'Z'; c3++){
+                str[3] = c3;
+                for(char c4 = 'A'; c4 <= 'Z'; c4++) {
+                    str[4] = c4;
+                    char *t = malloc(str_size);
+                    memcpy(t, str, str_size);
+                    hms_set(&h, t, "value");
                 }
-
             }
+
         }
     }
-    for(char c0 = 'A'; c0 <= 'Z';c0++){
-        str[0] = c0;
-        for(char c1 = 'A'; c1 <= 'Z';c1++){
-            str[1] = c1;
-            for(char c2 = 'A'; c2 <= 'Z';c2++){
-                str[2] = c2;
-                for(char c3 = 'A'; c3 <= 'Z'; c3++){
-                    str[3] = c3;
-                    for(char c4 = 'A'; c4 <= 'Z'; c4++) {
-                        str[4] = c4;
-                        hms_remove(&h, str);
-                    }
-                }
-
-            }
-        }
-    }
-    hms_dump(&h);
+}
+hms_dump(&h);
 int* test;//*/

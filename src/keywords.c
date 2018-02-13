@@ -21,4 +21,3 @@ const char* KEYWORD_LABEL = "label";
 const char* KEYWORD_GOTO = "goto";
 const char* KEYWORD_PUBLIC = "public";
 const char* KEYWORD_PRIVATE = "private";
-const char* KEYWORDS_ENUM_MAX = "enum max";

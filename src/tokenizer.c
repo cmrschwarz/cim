@@ -38,6 +38,9 @@ void tokenizer_open_file(cunit* cu, char* filename) {
     }
     cu->tknzr.filename = filename;
     cu->tknzr.token_start = cu->tknzr.token_buffer;
+    cu->tknzr.token_start->line = 0;
+    cu->tknzr.token_start->column = 0;
+    inc_token_buff_ptr(cu, &cu->tknzr.token_start);
     cu->tknzr.token_end = cu->tknzr.token_start;
     cu->tknzr.token_start->column = 0;
     cu->tknzr.token_start->line = 0;
@@ -214,7 +217,6 @@ void consume_new_token(cunit* cu, token* tok, token* next){
         case ',': tok->type = TOKEN_COMMA;break;
         case ';': tok->type = TOKEN_SEMICOLON; break;
         case '.': tok->type = TOKEN_DOT; break;
-        case ':': tok->type = TOKEN_COLON; break;
         case '\t': {
             tok->column++;
             curr = peek_char(cu);
@@ -239,6 +241,19 @@ void consume_new_token(cunit* cu, token* tok, token* next){
             tok->line++;
             tok->column=0;
             return consume_new_token(cu, tok, next);
+        }
+        case ':':{
+          char peek = peek_char(cu);
+            if(peek == ':'){
+                void_peek(cu);
+                tok->type = TOKEN_DOUBLE_COLON;
+                next->column = tok->column+2;
+                return;
+            }
+            else{
+                tok->type = TOKEN_COLON;
+                break;
+            }
         }
         case '*': {
             char peek = peek_char(cu);
@@ -502,9 +517,19 @@ void consume_new_token(cunit* cu, token* tok, token* next){
             }
             else if(peek == '='){
                 void_peek(cu);
-                tok->type = TOKEN_LESS_THAN_EQUALS;
-                next->column = tok->column+2;
-                return;
+                peek = peek_char(cu);
+                if(peek == '='){
+                    void_peek(cu);
+                    tok->type = TOKEN_LEFT_ARROW;
+                    next->column = tok->column+3;
+                    return;
+                }
+                else{
+                    tok->type = TOKEN_LESS_THAN_EQUALS;
+                    next->column = tok->column+2;
+                    return;
+                }
+
             }
             else{
                 tok->type = TOKEN_LESS_THAN;
@@ -584,7 +609,7 @@ void consume_new_token(cunit* cu, token* tok, token* next){
                 }
                 void_peek(cu);
             }while(curr != '\"');
-            tok->str = store_string(cu, str_start, cu->tknzr.curr);
+            tok->str = store_string(cu, str_start, cu->tknzr.curr - 1);
             tok->type = TOKEN_LITERAL;
         } return;
         case 'a':
@@ -704,7 +729,7 @@ const char* get_token_type_str(cunit* cu, token_type t){
         }
     }
 };
-const char* make_token_string(cunit* cu, token* t){
+const char* get_token_str(cunit* cu, token* t){
     if(token_strings[t->type]!=0)return get_token_type_str(cu, t->type);
     ureg len = strlen(t->str);
     char* buff = sbuffer_append(&cu->data_store, len +3);

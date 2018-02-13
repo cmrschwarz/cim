@@ -25,7 +25,7 @@ int main(){
     }
 
     ureg ast_size =  dbuffer_get_size(&cu.ast);
-    ureg regs = dbuffer_get_size(&cu.ast) / sizeof(ast_node);
+    ureg regs = dbuffer_get_size(&cu.ast) / sizeof(astn);
 
     if(DEBUG_ENUMS){
         printf("ast size(debug_enums): %llu bytes (%llu regs)\n",ast_size,regs);

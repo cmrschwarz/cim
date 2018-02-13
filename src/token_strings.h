@@ -56,7 +56,9 @@ typedef enum tokens_type_e{
     TOKEN_DOUBLE_HASH,
     TOKEN_DOT,
     TOKEN_COLON,
+    TOKEN_DOUBLE_COLON,
     TOKEN_ARROW,
+    TOKEN_LEFT_ARROW,
 }token_type;
 
 extern const char* token_strings[255];

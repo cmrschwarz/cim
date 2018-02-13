@@ -21,4 +21,4 @@ extern const char* KEYWORD_LABEL;
 extern const char* KEYWORD_GOTO;
 extern const char* KEYWORD_PUBLIC;
 extern const char* KEYWORD_PRIVATE;
-extern const char* KEYWORDS_ENUM_MAX;
+

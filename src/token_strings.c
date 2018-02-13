@@ -56,5 +56,7 @@ const char* token_strings[255] = {
     [TOKEN_DOUBLE_HASH] = "##",
     [TOKEN_DOT] = ".",
     [TOKEN_COLON] = ":",
+    [TOKEN_DOUBLE_COLON] = "::",
     [TOKEN_ARROW] = "->",
+    [TOKEN_LEFT_ARROW] = "<==",
 };

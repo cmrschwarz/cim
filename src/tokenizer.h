@@ -6,7 +6,7 @@
 char* store_string(cunit* cu, char* str, char* str_end);
 void add_keyword(cunit* cu, const char* str);
 const char* get_token_type_str(cunit* cu, token_type t);
-const char* make_token_string(cunit*cu, token* t);
+const char* get_token_str(cunit* cu, token* t);
 void tokenizer_open_file(cunit* cu, char* filename);
 void tokenizer_close_file(cunit* cu);
 void display_string_store(cunit* cu);
