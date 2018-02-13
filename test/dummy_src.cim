@@ -1,13 +1,18 @@
-struct sc:heureka{
+struct s1{int* x, type t}{
+    int* foo(int x){
+
+    }
     int foo;
-    void* haar;
+    int x;
+}
+/*
+
+ void* haar;
     struct nested{
         int* baz(){
             int woof;
         }
     }
-}
-
 sc1:sc2:sc3:type* val;
 if(x==3){
     foo();

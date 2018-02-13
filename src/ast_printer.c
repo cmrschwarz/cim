@@ -136,10 +136,10 @@ static void print_type(astn* t){
         case EXPR_NODE_TYPE_GENERIC_STRUCT_INST:{
             print_type(tn - tn->type.size);
             putchar('{');
-            reverse_print_type_list(t - 2,  tn - tn->type.size);
+            reverse_print_generic_arg_list(t - 2,  tn - tn->type.size);
             putchar('}');
         }break;
-        case EXPR_NODE_TYPE_GENERIC_STRUCT_DEF:{
+        case EXPR_NODE_TYPE_GENERIC_STRUCT_DECL:{
         case EXPR_NODE_TYPE_GENERIC_STRUCT_AMBIGUOUS:
             print_type(tn - tn->type.size);
             putchar('{');
@@ -264,28 +264,26 @@ void print_ast_within(cunit* cu, ureg indent, astn* curr, astn* end, bool traili
         switch(curr->common.type){
             case ASTNT_VARIABLE_DECLARATION:
             case ASTNT_VARIABLE_DECLARATION_AMBIGUOUS:{
-                astn* decl = (void*)curr;
-                if(curr->common.special.assigning == true){
-                    astn* expr =  decl + decl->common.size -1;
-                    curr = expr + 1;
-                    astn* name = expr - expr->expr.size;
-                    print_type(name - name->type.size);
-                    putchar(' ');
-                    print_type(name);
-                    putchar(' ');putchar('=');putchar(' ');
-                    print_sub_expr(expr, false);
-                    putchar(';');
-                    if(trailing_nl)putchar('\n');
-                }
-                else{
-                    astn* name =  decl + decl->common.size -1;
-                    curr = name + 1;
-                    print_type(name - name->type.size);
-                    putchar(' ');
-                    print_type(name);
-                    putchar(';');
-                    if(trailing_nl)putchar('\n');
-                }
+                astn* name =  curr + curr->common.size -1;
+                curr = name + 1;
+                print_type(name - name->type.size);
+                putchar(' ');
+                print_type(name);
+                putchar(';');
+                if(trailing_nl)putchar('\n');
+            }break;
+            case ASTNT_ASSIGNING_VARIABLE_DECLARATION:
+            case ASTNT_ASSIGNING_VARIABLE_DECLARATION_AMBIGUOUS: {
+                astn* expr =  curr + curr->common.size -1;
+                curr = expr + 1;
+                astn* name = expr - expr->expr.size;
+                print_type(name - name->type.size);
+                putchar(' ');
+                print_type(name);
+                putchar(' ');putchar('=');putchar(' ');
+                print_sub_expr(expr, false);
+                putchar(';');
+                if(trailing_nl)putchar('\n');
             }break;
             case ASTNT_FUNCTION_DECLARATION:{
                 astn* decl = (void*)curr;
@@ -387,6 +385,18 @@ void print_ast_within(cunit* cu, ureg indent, astn* curr, astn* end, bool traili
                 write("struct ");
                 print_type(curr + curr->common.size - 1);
                 putchar('{');putchar('\n');
+                curr = print_block(cu, indent + 1, curr + curr->common.size);
+                print_indent(indent); putchar('}');
+                if(trailing_nl)putchar('\n');
+            }break;
+            case ASTNT_GENERIC_STRUCT_DECLARATION:{
+                write("struct ");
+                astn* generic_params_size = curr + curr->common.size - 1;
+                print_type(generic_params_size - generic_params_size->common.size);
+                putchar('{');
+                reverse_print_generic_param_list(generic_params_size-1,
+                     generic_params_size-generic_params_size->common.size);
+                putchar('}');putchar('{');putchar('\n');
                 curr = print_block(cu, indent + 1, curr + curr->common.size);
                 print_indent(indent); putchar('}');
                 if(trailing_nl)putchar('\n');

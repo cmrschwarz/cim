@@ -10,9 +10,10 @@
 #define OP_RANGE 256
 
 typedef enum arg_or_params_list_e{
-    AOPL_ARG_LIST,
-    AOPL_PARAM_LIST,
-    AOPL_AMBIGUOUS, //in this case it was parsed as a param list
+    AOPL_ARG_LIST = EXPR_NODE_TYPE_GENERIC_STRUCT_INST,
+    AOPL_PARAM_LIST = EXPR_NODE_TYPE_GENERIC_STRUCT_DECL,
+    //in this case it was parsed as a param list
+    AOPL_AMBIGUOUS = EXPR_NODE_TYPE_GENERIC_STRUCT_AMBIGUOUS,
 }arg_or_params_list;
 enum assocs{
     LEFT_ASSOCIATIVE = 0,
@@ -22,7 +23,7 @@ static inline int parse_elem(cunit* cu, token_type term1, token_type term2, bool
 static astn* parse_type(cunit* cu);
 static astn* parse_type_no_ptrs(cunit* cu, ureg* ptrs);
 static astn* parse_type_with_prefetch(cunit* cu, token* t1, ureg* ptrs);
-
+static ast_rel_ptr parse_generic_args_list(cunit* cu);
 static arg_or_params_list parse_generic_arg_or_params_list(cunit* cu);
 static void change_param_list_to_arg_list(cunit* cu, astn* rit, astn* rend);
 static astn* emit_ptrs(cunit* cu, astn* t, ureg ptrs);
@@ -160,6 +161,7 @@ static inline astn* claim_ast_space(cunit* cu, ureg size){
     return dbuffer_claim_small_space(&cu->ast, size);
 }
 static inline ast_rel_ptr get_ast_growth(cunit* cu, ureg ast_start){
+    //TODO: check for overflow
     return (ast_rel_ptr)((dbuffer_get_size(&cu->ast) - ast_start) / sizeof(astn));
 }
 static inline void add_size_node(cunit* cu, ureg ast_start){
@@ -185,6 +187,7 @@ static inline void flush_shy_op(cunit* cu, astn* s){
         expr_rit = expr_rit - expr_rit->expr.size;
     }
     //needs to be precomputed because the realloc might invalidate the expr_rit ptr
+    //TODO: check for overflow
     ast_rel_ptr size = (ast_rel_ptr)((astn*)cu->ast.head - expr_rit);
     astn* e = claim_ast_space(cu, sizeof(astn));
     //shy ops don't come from the ast but from shy_ops therefore s doesn't get invalidated
@@ -287,6 +290,12 @@ static const char* get_term_string(cunit* cu, token_type term1, token_type term2
         r[ls - 1] = '\0';
         return r;
     }
+}
+static inline int get_matching_term(token_type t, token_type term1, token_type term2, token_type term3){
+    if(t == term1) return 0;
+    if(t == term2) return 1;
+    if(t == term3) return 2;
+    return -1;
 }
 static inline int continue_parse_expr(cunit* cu, token_type term1, token_type term2, token_type term3,
                                ureg expr_start, ureg shy_ops_start, ureg shy_op_pos,
@@ -593,10 +602,7 @@ lbl_default:;
                                          "end to the expression",
                                  get_token_type_str(cu, t1->type));
                 }
-                int tn = -1;
-                if(t1->type == term1) tn = 0;
-                else if(t1->type == term2) tn = 1;
-                else if(t1->type == term3) tn = 2;
+                int tn = get_matching_term(t1->type, term1, term2, term3);
                 if(tn != -1){
                     for(;sho_ri != sho_re; sho_ri--){
                         flush_shy_op(cu, sho_ri);
@@ -610,7 +616,7 @@ lbl_default:;
                     return tn;
                 }
                 else{
-                    syntax_error(cu, t1, 1, 1, "expression syntax error:"
+                    syntax_error(cu, t1, 1, 1, "expression syntax error: "
                         "expected operator or %s, got %s",
                         get_term_string(cu, term1, term2, term3),
                         get_token_type_str(cu, t1->type));
@@ -707,14 +713,7 @@ static astn* parse_type_with_prefetch(cunit* cu, token* t1, ureg* ptrs_p){
             t->type.size = get_ast_growth(cu, ast_pos_pre_args) - 1;
             t++;
             t->type.size = get_ast_growth(cu, ast_pos);
-            switch (r){
-                case AOPL_AMBIGUOUS:
-                    t->type.type =EXPR_NODE_TYPE_GENERIC_STRUCT_AMBIGUOUS;break;
-                case AOPL_PARAM_LIST:
-                    t->type.type = EXPR_NODE_TYPE_GENERIC_STRUCT_DEF;break;
-                case AOPL_ARG_LIST:
-                    t->type.type = EXPR_NODE_TYPE_GENERIC_STRUCT_INST; break;
-            }
+            t->type.type = (expr_node_type)r;
             t->type.mods = 0;
             t2 = peek_token(cu);
         }
@@ -788,6 +787,7 @@ static astn* parse_type_with_prefetch(cunit* cu, token* t1, ureg* ptrs_p){
             }
             tn = claim_ast_space(cu, sizeof(astn) * 2);
             t = tn+1;
+            //TODO: check for overflow
             t->type.size = (ast_rel_ptr)
                         (get_ast_size(cu) - ast_pos) / sizeof(astn);
             t->type.type = EXPR_NODE_TYPE_FN_PTR;
@@ -823,9 +823,11 @@ static void parse_meta(cunit* cu, token* t1){
 }
 static void parse_struct(cunit* cu, int mods){
     ureg ast_pos = get_ast_size(cu);
-    astn* n = claim_ast_space(cu, sizeof(astn) * 4); //simple + astn + blocksize
+    astn* n = claim_ast_space(cu, sizeof(astn) * 4); //astn + simple + block size
     n++;//leave space for astnt
     bool scoped = false;
+    bool generic = false;
+    ureg block_start;
     while(true){
         token* t1 = consume_token(cu);
         require_token(cu, t1, TOKEN_STRING);
@@ -843,20 +845,107 @@ static void parse_struct(cunit* cu, int mods){
         n->type.mods = 0;
         token* t2 = consume_token(cu);
         if(t2->type == TOKEN_BRACE_OPEN){
-            n++;
-            ast_rel_ptr ast_growth = get_ast_growth(cu, ast_pos) - 1;
-            int r = parse_elem(cu, TOKEN_COMMA, TOKEN_BRACE_CLOSE, true);
+            ureg astn_start = get_ast_size(cu);
+            int r = parse_elem(cu, TOKEN_COMMA, TOKEN_BRACE_CLOSE, false);
+            n = get_ast_pos(cu, astn_start);
             if(r == 0){
-                n= get_ast_pos(cu, ast_pos);
-                n->common.type = ASTNT_STRUCT_DECLARATION;
-                n->common.size = ast_growth;
-                while(parse_elem(cu, TOKEN_BRACE_CLOSE, TOKEN_BRACE_CLOSE, true) == 0);
-                n = get_ast_pos(cu, ast_pos) + ast_growth;
-                n->full_size = get_ast_size(cu) - ast_pos - sizeof(astn) * ast_growth;
+                if(n->common.type == ASTNT_VARIABLE_DECLARATION_AMBIGUOUS){
+                    n->common.type = ASTNT_VARIABLE_DECLARATION;
+                }
+                else if(n->common.type == ASTNT_EXPRESSION)
+                {
+                    token* tok = cu->tknzr.token_start;
+                    dec_token_buff_ptr(cu, &tok);
+                    syntax_error(cu, tok, 1, 0,
+                                 "expressions aren't allowed inside structs");
+                }
+                block_start = astn_start - sizeof(astn);
                 break;
             }
             else{
+                ast_rel_ptr astn_siz = n->common.size;
+                astn_type astn_t = n->common.type;
+                //PERF: in some cases this moves 1 node more than necessary
+                memmove(n - 1, n + 1, (astn_siz - 1) * sizeof(astn));
+                astn_start -= sizeof(astn);
+                cu->ast.head-= sizeof(astn) * 2;
+                if(astn_t == ASTNT_VARIABLE_DECLARATION ||
+                   astn_t == ASTNT_VARIABLE_DECLARATION_AMBIGUOUS)
+                {
+                    astn* h = (astn*)cu->ast.head - 1;
+                    if(h->type.type != EXPR_NODE_TYPE_SIMPLE){
+                        syntax_error(cu, cu->tknzr.token_start, 1, 0,
+                                 "invalid syntax for generic arg or param list");
+                    }
+                    h->type.type = EXPR_NODE_TYPE_PARAM;
+                    h->type.size = (h-2)->type.size + 2;
+                    arg_or_params_list aopl;
+                    if(r==1){
+                        if(astn_t == ASTNT_VARIABLE_DECLARATION){
+                            aopl = AOPL_PARAM_LIST;
+                            parse_param_list(cu, TOKEN_BRACE_CLOSE);
+                        }
+                        else{
+                            aopl = parse_generic_arg_or_params_list(cu);
+                        };
+                    }
+                    t1 = consume_token(cu);
+                    if(t1->type == TOKEN_COLON) {
+                        scoped=true;
+                        //two for struct decl, 3 for simple and blocksize
+                        n = claim_ast_space(cu, 5 * sizeof(astn));
+                        n->type.size = get_ast_growth(cu, astn_start) - 4;
+                        n++;
+                        n->type.type = (expr_node_type)r;;
+                        n->type.size = get_ast_growth(cu, ast_pos) - 3 - 1;
+                        n->type.mods = 0;
+                        n++;
+                    }
+                    else if(t1->type == TOKEN_BRACE_OPEN){
+                        if(aopl == AOPL_ARG_LIST){
+                            syntax_error(cu, t1,1,0, "invalid struct declaration syntax");
+                        }
+                        //one for generic args size, one for blocksize
+                        n = claim_ast_space(cu, sizeof(astn) * 2);
+                        n->common.size = get_ast_growth(cu, astn_start)-1;
+                        generic = true;
+                        block_start = get_ast_size(cu) - sizeof(astn);
+                        break;
+                    }
+                    else{
+                        syntax_error(cu, t1, 1, 0,
+                                 "invalid syntax for struct declaration");
+                    }
+                }
+                else if(astn_t == ASTNT_ASSIGNING_VARIABLE_DECLARATION){
+                    syntax_error(cu, cu->tknzr.token_start, 1, 0,
+                                 "sorry, this branch isn't implemented yet");
+                }
+                else if(astn_t == ASTNT_ASSIGNING_VARIABLE_DECLARATION_AMBIGUOUS){
+                    syntax_error(cu, cu->tknzr.token_start, 1, 0,
+                                 "sorry, this branch isn't implemented yet");
+                }
+                else if(astn_t == ASTNT_EXPRESSION){
+                    if(r==1) parse_generic_args_list(cu);
+                    //two for struct decl, 3 for simple and blocksize
+                    n = claim_ast_space(cu, 5 * sizeof(astn));
+                    n->type.size = get_ast_growth(cu, block_start) - 4;
+                    n++;
+                    n->type.type = EXPR_NODE_TYPE_GENERIC_STRUCT_INST;
+                    n->type.size = get_ast_growth(cu, ast_pos) - 3 - 1;
+                    n->type.mods = 0;
+                    n++;
+                    scoped=true;
+                    t1 = consume_token(cu);
+                    require_token(cu, t1, TOKEN_COLON);
+                }
+                else{
+                    syntax_error(cu, cu->tknzr.token_start, 1, 0,
+                                 "invalid syntax for generic arg or param list");
+                }
+
                 //TODO: resolve generic scope vs struct block ambiguity
+                //syntax_error(cu, t2, 1, 0, "sorry, this branch isn't implemented yet");
             }
         }
         else if(t2->type == TOKEN_COLON){
@@ -866,11 +955,19 @@ static void parse_struct(cunit* cu, int mods){
             scoped = true;
         }
         else{
-            syntax_error(cu, t2, 0,0, "syntax error: expected ':' or '{', got %s",
+            syntax_error(cu, t2, 1,0, "syntax error: expected ':' or '{', got %s",
                          get_token_str(cu, t2));
         }
     }
-
+    n = get_ast_pos(cu, ast_pos);
+    n->common.type = generic ?
+                     ASTNT_GENERIC_STRUCT_DECLARATION :
+                     ASTNT_STRUCT_DECLARATION;
+    //TODO: check overflow
+    n->common.size = (ast_rel_ptr)((block_start - ast_pos) / sizeof(astn));
+    while(parse_elem(cu, TOKEN_BRACE_CLOSE, TOKEN_BRACE_CLOSE, true) == 0);
+    n = get_ast_pos(cu, block_start);
+    n->full_size = get_ast_size(cu) - block_start;
 }
 static void parse_block(cunit* cu){
     token* t1;
@@ -959,7 +1056,7 @@ static inline ureg add_sops_from_ptrs(cunit* cu, ureg ptrs){
     }
 }
 static int parse_type_as_expr_begin(cunit *cu, ureg ast_start, astn *type,ureg ptrs, bool sub_expr,
-                                    token_type term1, token_type term2, bool after_second)
+                                    token_type term1, token_type term2, token_type term3, bool after_second)
 {
     ureg shy_ops_start = dbuffer_get_size(&cu->parsr.shy_ops);
     ureg shy_ops_pos;
@@ -971,7 +1068,7 @@ static int parse_type_as_expr_begin(cunit *cu, ureg ast_start, astn *type,ureg p
     else{
         shy_ops_pos = shy_ops_start;
     }
-    return continue_parse_expr(cu, term1, term2, term2,
+    return continue_parse_expr(cu, term1, term2, term3,
                                ast_start, shy_ops_start,shy_ops_pos,
                                sub_expr, (after_second == true || ptrs == 0));
 };
@@ -1028,7 +1125,8 @@ static ast_rel_ptr parse_generic_args_list(cunit* cu){
                 if (parse_type_as_expr_begin(cu,
                                              get_ast_size(cu) -
                                              t->type.size * sizeof(astn),
-                                             t,ptrs, true, TOKEN_COMMA, TOKEN_BRACE_CLOSE, false) == 1)
+                                             t,ptrs, true, TOKEN_COMMA,
+                                             TOKEN_BRACE_CLOSE,TOKEN_BRACE_CLOSE, false) == 1)
                 {
                     return get_ast_growth(cu, ast_start);
                 }
@@ -1121,7 +1219,8 @@ its_an_arg_list:;
         }
         if(t1->type != TOKEN_COMMA && t1->type != TOKEN_BRACE_CLOSE){
             if(parse_type_as_expr_begin(cu, get_ast_size(cu) - t->type.size,
-                                        t, ptrs, true, TOKEN_COMMA, TOKEN_BRACE_CLOSE, false) == 1)
+                                        t, ptrs, true, TOKEN_COMMA,
+                                        TOKEN_BRACE_CLOSE,TOKEN_BRACE_CLOSE, false) == 1)
             {
                 return AOPL_ARG_LIST;
             };
@@ -1219,7 +1318,8 @@ its_an_arg_list:;
     }
     if(preparsed_type){
         if(parse_type_as_expr_begin(cu, ast_start+list_size, t, t_ptrs, true,
-                                    TOKEN_COMMA, TOKEN_PAREN_CLOSE, false) == 1)
+                                    TOKEN_COMMA, TOKEN_PAREN_CLOSE,
+                                    TOKEN_PAREN_CLOSE, false) == 1)
         {
             return AOPL_ARG_LIST;
         }
@@ -1227,8 +1327,9 @@ its_an_arg_list:;
     while (parse_expr_2t(cu, TOKEN_COMMA, TOKEN_PAREN_CLOSE, true) == 0);
     return AOPL_ARG_LIST;
 }
-static inline void parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
-                                      ureg ast_start, astn* t)
+static inline int parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
+                                     ureg ast_start, astn* t,
+                                     token_type term1, token_type term2)
 {
     token* t1 = peek_token(cu);
     if(t_ptrs == 0){
@@ -1239,19 +1340,18 @@ static inline void parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                rt2->type.type == EXPR_NODE_TYPE_SCOPED)
             {
                 t1 = consume_token(cu);
-                if (t1->type == TOKEN_SEMICOLON) {
+                if (t1->type == TOKEN_SEMICOLON || t1->type == term1 || t1->type == term2){
                     astn *n = (astn *) (cu->ast.start + ast_start);
                     n->common.type = ASTNT_VARIABLE_DECLARATION;
                     n->common.size = get_ast_growth(cu, ast_start);
-                    n->common.special.assigning = false;
-                    return;
-                } else if (t1->type == TOKEN_EQUALS) {
-                    parse_expr_1t(cu, TOKEN_SEMICOLON, true);
+                    return get_matching_term(t1->type, TOKEN_SEMICOLON, term1, term2);
+                }
+                else if (t1->type == TOKEN_EQUALS) {
+                    int r = parse_expr_3t(cu, TOKEN_SEMICOLON,term1, term2, true);
                     astn *n = (astn*) (cu->ast.start + ast_start);
-                    n->common.type = ASTNT_VARIABLE_DECLARATION;
+                    n->common.type = ASTNT_ASSIGNING_VARIABLE_DECLARATION;
                     n->common.size = get_ast_growth(cu, ast_start);
-                    n->common.special.assigning = true;
-                    return;
+                    return r;
                 }
                 else if (t1->type == TOKEN_PAREN_OPEN){
                     ureg ast_pos_pre_params = get_ast_size(cu);
@@ -1261,15 +1361,17 @@ static inline void parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                     s->common.type = ASTNT_FUNCTION_DECLARATION;
                     s->common.size = get_ast_growth(cu, ast_start);
                     parse_block(cu);
-                    return;
+                    return 0;
                 }
                 else{
                     syntax_error(cu, t1, 2, 0,
-                                 "syntax error: got %s, expected '=' or ';' or '(' to parse as variable or function declaration",
-                                 get_token_str(cu, t1));
+                         "syntax error: expected '=' or %s or '('"
+                         "to parse as variable, function declaration, got %s",
+                         get_term_string(cu, TOKEN_SEMICOLON, term1, term2),
+                         get_token_str(cu, t1));
                 }
             }
-            else if(rt2->type.type == EXPR_NODE_TYPE_GENERIC_STRUCT_DEF
+            else if(rt2->type.type == EXPR_NODE_TYPE_GENERIC_STRUCT_DECL
                     || rt2->type.type == EXPR_NODE_TYPE_GENERIC_STRUCT_AMBIGUOUS)
             {
                 cu->ast.head -= sizeof(astn);
@@ -1282,7 +1384,7 @@ static inline void parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                 n->common.type = ASTNT_GENERIC_FUNCTION_DECLARATION;
                 n->common.size = get_ast_growth(cu, ast_start);
                 parse_block(cu);
-                return;
+                return 0;
             }
         }
         else if(t1->type == TOKEN_PAREN_OPEN){
@@ -1297,10 +1399,9 @@ static inline void parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                 e->expr.size = get_ast_growth(cu, ast_start) - 1;
                 e->expr.type = EXPR_NODE_FN_CALL;
                 ureg shy_ops_pos = dbuffer_get_size(&cu->parsr.shy_ops);
-                continue_parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, TOKEN_SEMICOLON,
+                return continue_parse_expr(cu, TOKEN_SEMICOLON, term1, term2,
                                     ast_start, shy_ops_pos,shy_ops_pos,
                                     false, true);
-                return;
             }
             else if(t->type.type == EXPR_NODE_TYPE_GENERIC_STRUCT_INST ||
                     t->type.type == EXPR_NODE_TYPE_GENERIC_STRUCT_AMBIGUOUS)
@@ -1318,7 +1419,7 @@ static inline void parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                 e->expr.size = get_ast_growth(cu, ast_start) -1;
                 e->expr.type = EXPR_NODE_GENERIC_FN_CALL;
                 ureg shy_ops_pos = dbuffer_get_size(&cu->parsr.shy_ops);
-                continue_parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, TOKEN_SEMICOLON,
+                return continue_parse_expr(cu, TOKEN_SEMICOLON, term1, term2,
                                     ast_start, shy_ops_pos, shy_ops_pos,
                                     false, true);
             }
@@ -1327,9 +1428,8 @@ static inline void parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
             }
         }
         else{
-            parse_type_as_expr_begin(cu, ast_start, t, t_ptrs, false,
-                                     TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
-            return;
+            return parse_type_as_expr_begin(cu, ast_start, t, t_ptrs, false,
+                                     TOKEN_SEMICOLON, term1, term2, false);
         }
     }
     else{
@@ -1346,22 +1446,20 @@ static inline void parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
             {
                 if(t2_ptrs == 0){
                     t1 = peek_token(cu);
-                    if (t1->type == TOKEN_SEMICOLON) {
+                    if (t1->type == TOKEN_SEMICOLON || t1->type == term1 || t1->type == term2) {
                         void_lookahead_token(cu);
                         astn *n = (astn *) (cu->ast.start + ast_start);
                         n->common.type = ASTNT_VARIABLE_DECLARATION_AMBIGUOUS;
                         n->common.size = get_ast_growth(cu, ast_start);
-                        n->common.special.assigning = false;
-                        return;
+                        return get_matching_term(t1->type, TOKEN_SEMICOLON, term1, term2);
                     }
                     else if (t1->type == TOKEN_EQUALS) {
                         void_lookahead_token(cu);
                         astn *n = (astn *) (cu->ast.start + ast_start);
-                        parse_expr_1t(cu, TOKEN_SEMICOLON, true);
-                        n->common.type = ASTNT_VARIABLE_DECLARATION_AMBIGUOUS;
+                        int r = parse_expr_3t(cu, TOKEN_SEMICOLON,term1, term2, true);
+                        n->common.type = ASTNT_ASSIGNING_VARIABLE_DECLARATION_AMBIGUOUS;
                         n->common.size = get_ast_growth(cu, ast_start);
-                        n->common.special.assigning = true;
-                        return;
+                        return r;
                     }
                     else if (t1->type == TOKEN_PAREN_OPEN) {
                         void_lookahead_token(cu);
@@ -1374,7 +1472,7 @@ static inline void parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                             s->common.type = ASTNT_FUNCTION_DECLARATION;
                             s->common.size = get_ast_growth(cu, ast_start);
                             parse_block(cu);
-                            return;
+                            return 0;
                         }
                         else{
                             t = (astn*)(cu->ast.start + ast_pos_t);
@@ -1396,9 +1494,8 @@ static inline void parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                             s->expr.size = get_ast_growth(cu, ast_start) - type_size - 1;
                             s->expr.type = EXPR_NODE_FN_CALL;
                             t = (astn*)(cu->ast.start + ast_pos_t);
-                            parse_type_as_expr_begin(cu, ast_start, t,t_ptrs, false,
-                                 TOKEN_SEMICOLON, TOKEN_SEMICOLON, true);
-                            return;
+                            return parse_type_as_expr_begin(cu, ast_start, t,t_ptrs, false,
+                                 TOKEN_SEMICOLON, term1, term2, true);
                         }
                     }
                 }
@@ -1416,11 +1513,11 @@ static inline void parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                 add_sops_from_ptrs(cu, t_ptrs);
                 if (t2_ptrs) add_sops_from_ptrs(cu, t2_ptrs);
                 shy_ops_pos = dbuffer_get_size(&cu->parsr.shy_ops);
-                continue_parse_expr(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, TOKEN_SEMICOLON,
+                return continue_parse_expr(cu, TOKEN_SEMICOLON, term1, term2,
                                     ast_start, shy_ops_start, shy_ops_pos,
                                     false, (t2_ptrs == 0));
             }
-            else if (tt2->type.type == EXPR_NODE_TYPE_GENERIC_STRUCT_DEF)
+            else if (tt2->type.type == EXPR_NODE_TYPE_GENERIC_STRUCT_DECL)
             {
                 cu->ast.head -= sizeof(astn);
                 t1 = consume_token(cu);
@@ -1432,6 +1529,7 @@ static inline void parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                 n->common.size = get_ast_growth(cu, ast_start);
                 n->common.type = ASTNT_GENERIC_FUNCTION_DECLARATION;
                 parse_block(cu);
+                return 0;
             }
             else if(tt2->type.type == EXPR_NODE_TYPE_GENERIC_STRUCT_INST){
                 cu->ast.head -= sizeof(astn);
@@ -1457,8 +1555,8 @@ static inline void parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                 e->expr.size = get_ast_growth(cu, ast_start) - type_size - 1;
                 e->expr.type = EXPR_NODE_GENERIC_FN_CALL;
                 t = (astn*)(cu->ast.start + ast_pos_t);
-                parse_type_as_expr_begin(cu, ast_start, t,t_ptrs, false,
-                                         TOKEN_SEMICOLON, TOKEN_SEMICOLON, true);
+                return parse_type_as_expr_begin(cu, ast_start, t,t_ptrs, false,
+                                         TOKEN_SEMICOLON, term1, term2, true);
             }
             else if(tt2->type.type == EXPR_NODE_TYPE_GENERIC_STRUCT_AMBIGUOUS){
                 cu->ast.head -= sizeof(astn);
@@ -1474,6 +1572,7 @@ static inline void parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                     n->common.size = get_ast_growth(cu, ast_start);
                     n->common.type = ASTNT_GENERIC_FUNCTION_DECLARATION;
                     parse_block(cu);
+                    return 0;
                 }
                 else{
                     t = (astn*)(cu->ast.start + ast_pos_t);
@@ -1499,19 +1598,20 @@ static inline void parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                     n->expr.type = EXPR_NODE_GENERIC_FN_CALL;
                     n->expr.size = get_ast_growth(cu, ast_start) - type_size - 1;
                     t = (astn*)(cu->ast.start + ast_pos_t);
-                    parse_type_as_expr_begin(cu, ast_start, t,t_ptrs, false,
-                                             TOKEN_SEMICOLON, TOKEN_SEMICOLON, true);
+                    return parse_type_as_expr_begin(cu, ast_start, t,t_ptrs, false,
+                                             TOKEN_SEMICOLON, term1, term2, true);
                 }
             }
         }
         else{
-            parse_type_as_expr_begin(cu, ast_start, t, t_ptrs, false,
-                                     TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
+            return parse_type_as_expr_begin(cu, ast_start, t, t_ptrs, false,
+                                     TOKEN_SEMICOLON, term1, term2, false);
         }
     }
 }
-static inline void parse_leading_string(cunit* cu, u8 mods, bool decl_mode){
-
+static inline int parse_leading_string(cunit* cu, u8 mods, bool decl_mode,
+                                       token_type term1, token_type term2)
+{
     ureg ast_start = get_ast_size(cu);
     claim_ast_space(cu, sizeof(astn));
     ureg t_ptrs;
@@ -1520,7 +1620,8 @@ static inline void parse_leading_string(cunit* cu, u8 mods, bool decl_mode){
         t = emit_ptrs(cu, t, t_ptrs);
         t_ptrs = 0;
     }
-    parse_leading_type(cu, mods, t_ptrs, ast_start, t);
+    return parse_leading_type(cu, mods, t_ptrs, ast_start, t,
+                              term1, term2);
 }
 static inline int parse_elem(cunit* cu, token_type term1, token_type term2, bool decl_only)
 {
@@ -1571,8 +1672,7 @@ static inline int parse_elem(cunit* cu, token_type term1, token_type term2, bool
                    // return parse_switch(cu);
                 }
             }
-            parse_leading_string(cu, mods, decl_only);
-            return 0;
+            return parse_leading_string(cu, mods, decl_only, term1, term2);
         }
         case TOKEN_HASH:
         case TOKEN_DOUBLE_HASH: {

@@ -26,6 +26,8 @@ enum astn_type_e{
     ASTNT_ASSIGNMENT,
     ASTNT_VARIABLE_DECLARATION,
     ASTNT_VARIABLE_DECLARATION_AMBIGUOUS,
+    ASTNT_ASSIGNING_VARIABLE_DECLARATION,
+    ASTNT_ASSIGNING_VARIABLE_DECLARATION_AMBIGUOUS,
     ASTNT_FUNCTION_DECLARATION,
     ASTNT_GENERIC_FUNCTION_DECLARATION,
     ASTNT_STRUCT_DECLARATION,
@@ -49,11 +51,10 @@ enum expr_node_type_t{
     EXPR_NODE_ARRAY_ACCESS,
     EXPR_NODE_NOP,
 
-
     EXPR_NODE_TYPE_PARAM,
     EXPR_NODE_TYPE_FN_PTR,
     EXPR_NODE_TYPE_GENERIC_STRUCT_INST,
-    EXPR_NODE_TYPE_GENERIC_STRUCT_DEF,
+    EXPR_NODE_TYPE_GENERIC_STRUCT_DECL,
     EXPR_NODE_TYPE_GENERIC_STRUCT_AMBIGUOUS,
 
     EXPR_NODE_TYPE_SCOPED,
@@ -79,9 +80,7 @@ enum expr_node_type_t{
 typedef union astn_u{
     struct {
         astn_type type;
-        union {
-            bool assigning;
-        }special;
+        _padding_ _padding_;
         ast_rel_ptr size;
     }common;
     struct {

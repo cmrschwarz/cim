@@ -29,6 +29,13 @@ u8 type; u8 mods; u16 size;         : ptr2
 AMBIGUOUS_TYPE                      : type
 char* str;                          : name
 u8 type; u16 size;                  : FN_PARAMETER_AMBIGUOUS
+
+AMBIGUOUS_TYPE                      : type
+char* str;                          : name
+SUB_EXPR                            : assign
+u8 type; u16 size;                  : FN_PARAMETER_OPT_AMBIGUOUS
+
+FN_PARAMETER/FN_PARAMETER_OPT/      : FUNCTION_PARAMETER_ANY
 --------------------------------------------------------------------------------
 EXPRESSIONS:
 
@@ -91,7 +98,6 @@ u8 type; u8 mods; u16 size;         : FN PTR
 TYPE                                : base type
 u8 type; u8 mods; u16 size;         : PTR
 
-
 TYPE                                : name
 GENERIC_ARG                         : generic arg 1
 GENERIC_ARG                         : generic arg 2
@@ -99,8 +105,8 @@ u16 size;                           : generic args size
 u8 type; u8 mods; u16 size;         : GENERIC_STRUCT_INST
 
 TYPE                                : name
-FN_PARAMETER                        : generic param 1
-FN_PARAMETER                        : generic param 2
+FUNCTION_PARAMETER_ANY              : generic param 1
+FUNCTION_PARAMETER_ANY              : generic param 2
 u16 size;                           : generic params size
 u8 type; u8 mods; u16 size;         : GENERIC_STRUCT_DECL
 
@@ -138,6 +144,11 @@ TYPE                                : type
 char* str;                          : name
 u8 type; u16 size;                  : FN_PARAMETER
 
+TYPE                                : type
+char* str;                          : name
+SUB_EXPR                            : assign
+u8 type; u16 size;                  : FN_PARAMETER_OPT
+
 u8 type; u16 size;                  : FN_DECLARATION
 TYPE                                : return type
 TYPE                                : fn name
@@ -172,8 +183,20 @@ ureg size;                          : decl block size
 AST_NODE                            : declaration 1
 AST_NODE                            : declaration 2
 
-u8 type; u16 size;                  : VARIABLE_DECLARATION
-TYPE                                : return type
+u8 type; bool assigning; u16 size;  : VARIABLE_DECLARATION
+TYPE                                : type
+TYPE                                : name
+
+u8 type; bool assigning; u16 size;  : VARIABLE_DECLARATION_AMBIGUOUS
+AMBIGUOUS_TYPE                      : type
+TYPE                                : name
+
+u8 type; u16 size;                  : ASSIGNING_VARIABLE_DECLARATION
+TYPE                                : type
+TYPE                                : name
+
+u8 type; u16 size;                  : ASSIGNING_VARIABLE_DECLARATION_AMBIGUOUS
+AMBIGUOUS_TYPE                      : type
 TYPE                                : name
 
 u8 type; u16 size;                  : FOR
