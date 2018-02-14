@@ -14,6 +14,7 @@ typedef enum arg_or_params_list_e{
     AOPL_PARAM_LIST = EXPR_NODE_TYPE_GENERIC_STRUCT_DECL,
     //in this case it was parsed as a param list
     AOPL_AMBIGUOUS = EXPR_NODE_TYPE_GENERIC_STRUCT_AMBIGUOUS,
+    AOPL_NO_ARG_LIST = EXPR_NODE_TYPE_SIMPLE,
 }arg_or_params_list;
 enum assocs{
     LEFT_ASSOCIATIVE = 0,
@@ -818,7 +819,8 @@ static inline astn* parse_type_no_ptrs(cunit* cu, ureg* ptrs){
 static void parse_meta(cunit* cu, token* t1){
 
 }
-static astn* parse_type_and_block_or_stmnt(cunit* cu, bool decl_only){
+static astn* parse_type_and_block_or_stmnt(cunit* cu, bool decl_only, arg_or_params_list* aopl_for_structs){
+    bool struct_mode = aopl_for_structs ? true : false;
     ureg ast_pos = get_ast_size(cu);
     bool scoped = false;
     ureg astn_start;
@@ -847,6 +849,7 @@ static astn* parse_type_and_block_or_stmnt(cunit* cu, bool decl_only){
             if(r == 0){
                 while(parse_elem(cu, TOKEN_BRACE_CLOSE,
                                  TOKEN_BRACE_CLOSE, decl_only, false) == 0);
+                if(struct_mode)*aopl_for_structs = AOPL_NO_ARG_LIST;
                 break;
             }
             else{
@@ -881,21 +884,27 @@ static astn* parse_type_and_block_or_stmnt(cunit* cu, bool decl_only){
                     }
                     t1 = peek_token(cu);
                     if(t1->type == TOKEN_COLON){
-                        //two for g struct decl, 2 for simple and 1 for blocksize
-                        n = claim_ast_space(cu, 5 * sizeof(astn));
-                        n->type.size = get_ast_growth(cu, astn_start) - 4;
-                        n++;
-                        n->type.size = get_ast_growth(cu, ast_pos) - 2 - 1;
+                        //two(one) for g struct decl, 2 for simple and 1 for blocksize
+                        n = claim_ast_space(cu, (5 - struct_mode) * sizeof(astn));
+                        n->type.size = get_ast_growth(cu, astn_start) - 4 + struct_mode;
+                        if(!struct_mode){
+                            n++;
+                            n->type.size = get_ast_growth(cu, ast_pos) - 2 - 1;
+                        }
                     }
                     else{
-                        //two for g struct decl, and 1 for blocksize
-                        n = claim_ast_space(cu, 3 * sizeof(astn));
-                        n->type.size = get_ast_growth(cu, astn_start) - 2;
-                        n++;
-                        n->type.size = get_ast_growth(cu, ast_pos) - 1;
+                        //two(one) for g struct decl, and 1 for blocksize
+                        n = claim_ast_space(cu, (3 - struct_mode) * sizeof(astn));
+                        n->type.size = get_ast_growth(cu, astn_start) - 2 + struct_mode;
+                        if(!struct_mode) {
+                            n++;
+                            n->type.size = get_ast_growth(cu, ast_pos) - 1;
+                        }
                     }
-                    n->type.type = (expr_node_type)aopl; //--> generic_struct
-                    n->type.mods = 0;
+                    if(!struct_mode){
+                        n->type.type = (expr_node_type)aopl; //--> generic_struct
+                        n->type.mods = 0;
+                    }
                     if(t1->type == TOKEN_COLON) {
                         scoped=true;
                         void_lookahead_token(cu);
@@ -906,11 +915,13 @@ static astn* parse_type_and_block_or_stmnt(cunit* cu, bool decl_only){
                         astn_start = get_ast_size(cu);
                         while(parse_elem(cu, TOKEN_BRACE_CLOSE,
                              TOKEN_BRACE_CLOSE, decl_only, false) == 0);
+                        if(struct_mode)*aopl_for_structs = aopl;
                         break;
                     }
                     else{
                         astn_start = get_ast_size(cu);
                         parse_elem(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, decl_only, false);
+                        if(struct_mode)*aopl_for_structs = aopl;
                         break;
                     }
                 }
@@ -952,6 +963,7 @@ static astn* parse_type_and_block_or_stmnt(cunit* cu, bool decl_only){
         else{
             astn_start = get_ast_size(cu);
             parse_elem(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, decl_only, false);
+            if(struct_mode)*aopl_for_structs = AOPL_NO_ARG_LIST;
             break;
         }
     }
@@ -963,10 +975,23 @@ static astn* parse_type_and_block_or_stmnt(cunit* cu, bool decl_only){
 static void parse_struct(cunit* cu, int mods){
     ureg ast_pos = get_ast_size(cu);
     claim_ast_space(cu, sizeof(astn));
-    astn* t = parse_type_and_block_or_stmnt(cu, true);
+    arg_or_params_list aopl;
+    astn* t = parse_type_and_block_or_stmnt(cu, true, &aopl);
     astn* n = get_ast_pos(cu, ast_pos);
-    n->common.type = ASTNT_STRUCT_DECLARATION;
-    n->common.size = t->common.size + 1;
+    if(aopl == AOPL_NO_ARG_LIST){
+        n->common.type = ASTNT_STRUCT_DECLARATION;
+        n->common.size = t->common.size + 1;
+    }
+    else if(aopl == AOPL_ARG_LIST){
+        syntax_error(cu, cu->tknzr.token_start, 1,0,
+                     "invalid generic parameter list for struct declaration");
+    }
+    else{
+        n->common.type = ASTNT_GENERIC_STRUCT_DECLARATION;
+        //TODO: overflow
+        n->common.size = (ast_rel_ptr)(t - n + 1);
+    }
+
 }
 static void parse_block(cunit* cu){
     ureg ast_start = get_ast_size(cu);
@@ -992,7 +1017,7 @@ static void parse_block_or_stmt(cunit* cu){
 static void parse_namespace(cunit* cu, int mods){
     ureg ast_pos = get_ast_size(cu);
     claim_ast_space(cu, sizeof(astn));
-    astn* t = parse_type_and_block_or_stmnt(cu, true);
+    astn* t = parse_type_and_block_or_stmnt(cu, true, NULL);
     astn* n = get_ast_pos(cu, ast_pos);
     n->common.type = ASTNT_NAMESPACE;
     n->common.size = t->common.size + 1;
@@ -1009,7 +1034,7 @@ static void parse_loop(cunit* cu){
         n->common.size = 1;
     }
     else{
-        astn* t = parse_type_and_block_or_stmnt(cu, true);
+        astn* t = parse_type_and_block_or_stmnt(cu, true, NULL);
         astn* n = get_ast_pos(cu, ast_pos);
         n->common.type = ASTNT_NAMED_LOOP;
         n->common.size = t->common.size + 1;

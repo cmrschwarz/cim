@@ -391,6 +391,16 @@ void print_ast_within(cunit* cu, ureg indent, astn* curr, astn* end, bool traili
                 print_type(curr + curr->common.size - 1);
                 curr = print_block(cu, curr + curr->common.size, indent, trailing_nl);
             }break;
+            case ASTNT_GENERIC_STRUCT_DECLARATION:{
+                write("struct ");
+                astn* gparams_s = curr + curr->common.size - 1;
+                astn* ident =  gparams_s - gparams_s->common.size;
+                print_type(ident);
+                putchar(' ');putchar('{');
+                reverse_print_generic_param_list(gparams_s - 1, ident);
+                putchar('}');
+                curr = print_block(cu, curr + curr->common.size, indent, trailing_nl);
+            }break;
             default:CIM_ERROR("Unexpected ASTN");
         }
     }

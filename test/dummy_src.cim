@@ -1,13 +1,6 @@
-loop {
-    int x;
-    while(true){
-        int f;
-    }
-    loop named{
-        int xyz;
-    }
-}
+struct g{int x}{
 
+}
 struct s1{int* x, type* t}{
     int* foo(int x){
 
@@ -21,6 +14,17 @@ struct s1{int* x, type* t}{
         }
     }
 }
+loop {
+    int x;
+    while(true){
+        int f;
+    }
+    loop named{
+        int xyz;
+    }
+}
+
+
 
 sc1:sc2:sc3:type* val;
 if(x==3){

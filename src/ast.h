@@ -35,6 +35,7 @@ enum astn_type_e{
     ASTNT_FUNCTION_DECLARATION,
     ASTNT_GENERIC_FUNCTION_DECLARATION,
     ASTNT_STRUCT_DECLARATION,
+    ASTNT_GENERIC_STRUCT_DECLARATION,
     //@PERF: consider adding function call to avoid expr wrapper
 };
 
