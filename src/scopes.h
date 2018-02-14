@@ -11,7 +11,7 @@ typedef enum tse_type_t{
 }tse_type;
 typedef enum tse_primitive_type_t{
     TSE_PRIMITIVE_U8,
-    TSE_PRIMITIVE_U16,
+    TSE_PRIMITIVE_U16 ,
     TSE_PRIMITIVE_U32,
     TSE_PRIMITIVE_U64,
     TSE_PRIMITIVE_S8,

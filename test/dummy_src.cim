@@ -1,4 +1,14 @@
-struct s1{int* x, type t}{
+loop {
+    int x;
+    while(true){
+        int f;
+    }
+    loop named{
+        int xyz;
+    }
+}
+
+struct s1{int* x, type* t}{
     int* foo(int x){
 
     }

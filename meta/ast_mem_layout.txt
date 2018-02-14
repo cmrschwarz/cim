@@ -168,15 +168,6 @@ FN_PARAMETER                        : param 2
 u16 size;                           : params size
 OWNED_BLOCK                         : function body
 
-u8 type; u16 size;                  : GENERIC_STRUCT_DECLARATION
-TYPE                                : struct name
-FN_PARAMETER                        : generic param 1
-FN_PARAMETER                        : generic param 2
-ureg size;                          : generic params size
-ureg size;                          : decl block size
-AST_NODE                            : declaration 1
-AST_NODE                            : declaration 2
-
 u8 type; u16 size=1;                : STRUCT_DECLARATION
 TYPE                                : struct name
 ureg size;                          : decl block size
@@ -209,6 +200,13 @@ OWNED_BLOCK                         : block
 
 u8 type; u16 size;                  : WHILE
 EXPRESSION                          : condition
+OWNED_BLOCK                         : block
+
+u8 type; u16 size;                  : LOOP
+OWNED_BLOCK                         : block
+
+u8 type; u16 size;                  : NAMED_LOOP
+TYPE                                : name
 OWNED_BLOCK                         : block
 
 u8 type; u16 size;                  : IF

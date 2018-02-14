@@ -18,10 +18,14 @@ enum modifiers_e{
 }modifiers;
 enum astn_type_e{
     ASTNT_EXPRESSION,
+    ASTNT_FREE_BLOCK,
+    ASTNT_NAMESPACE,
     ASTNT_IF,
     ASTNT_IF_ELSE,
     ASTNT_FOR,
     ASTNT_WHILE,
+    ASTNT_LOOP,
+    ASTNT_NAMED_LOOP,
     ASTNT_TYPEDEF,
     ASTNT_ASSIGNMENT,
     ASTNT_VARIABLE_DECLARATION,
@@ -31,7 +35,6 @@ enum astn_type_e{
     ASTNT_FUNCTION_DECLARATION,
     ASTNT_GENERIC_FUNCTION_DECLARATION,
     ASTNT_STRUCT_DECLARATION,
-    ASTNT_GENERIC_STRUCT_DECLARATION,
     //@PERF: consider adding function call to avoid expr wrapper
 };
 

@@ -839,7 +839,7 @@ void syntax_error(cunit* cu, token* t, ureg incl_prev, ureg underline_prev, char
     inc_token_buff_ptr(cu, &next);
     ureg line_size;
     ureg entire_size;
-    printf("%s:%llu:%llu: ",
+    printf("%s:%llu:%llu: syntax error: ",
                cu->tknzr.filename,
                t->line + 1,
                t->column);

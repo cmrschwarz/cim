@@ -4,6 +4,7 @@
 #include "ast.h"
 static void print_type(astn* t);
 static void print_sub_expr(astn *e, bool allow_types);
+astn* print_block(cunit* cu, astn* blk, ureg indent, bool trailing_nl);
 void write(const char* str){
     fputs(str, stdout);
 }
@@ -257,7 +258,7 @@ static void print_sub_expr(astn *e, bool allow_types){
         }
     }
 }
-astn* print_block(cunit* cu, ureg indent, astn* blk);
+
 void print_ast_within(cunit* cu, ureg indent, astn* curr, astn* end, bool trailing_nl){
     while(curr!=end){
         print_indent(indent);
@@ -295,10 +296,8 @@ void print_ast_within(cunit* cu, ureg indent, astn* curr, astn* end, bool traili
                 print_type(fn_name);
                 putchar('(');
                 reverse_print_func_params(params_size - 1, fn_name);
-                putchar(')');putchar('{');putchar('\n');
-                curr = print_block(cu, indent + 1, params_size + 1);
-                print_indent(indent);putchar('}');
-                if(trailing_nl)putchar('\n');
+                putchar(')');
+                curr = print_block(cu,params_size + 1, indent, trailing_nl);
             }break;
             case ASTNT_GENERIC_FUNCTION_DECLARATION:{
                 astn* decl = (void*)curr;
@@ -313,9 +312,8 @@ void print_ast_within(cunit* cu, ureg indent, astn* curr, astn* end, bool traili
                 putchar('}');
                 putchar('(');
                 reverse_print_func_params(params_size - 1, generic_params_size);
-                putchar(')');putchar('{');putchar('\n');
-                curr = print_block(cu, indent + 1, params_size + 1);
-                print_indent(indent);putchar('}');putchar('\n');
+                putchar(')');
+                curr = print_block(cu,params_size + 1, indent, trailing_nl);
             }break;
             case ASTNT_EXPRESSION:{
                 astn* n = curr + curr->expr.size - 1;
@@ -333,6 +331,20 @@ void print_ast_within(cunit* cu, ureg indent, astn* curr, astn* end, bool traili
                 putchar(';');
                 if(trailing_nl)putchar('\n');
             }break;
+            case ASTNT_NAMESPACE:{
+                write("namespace ");
+                print_type(curr + curr->common.size - 1);
+                curr = print_block(cu, curr + curr->common.size, indent, trailing_nl);
+            }break;
+            case ASTNT_NAMED_LOOP:{
+                write("loop ");
+                print_type(curr + curr->common.size - 1);
+                curr = print_block(cu, curr + curr->common.size, indent, trailing_nl);
+            }break;
+            case ASTNT_LOOP:{
+                write("loop");
+                curr = print_block(cu, curr + curr->common.size, indent, trailing_nl);
+            }break;
             case ASTNT_FOR:{
                 write("for(");
                 astn* st = curr + 1;
@@ -347,68 +359,48 @@ void print_ast_within(cunit* cu, ureg indent, astn* curr, astn* end, bool traili
                     st+= st->expr.size;
                     print_sub_expr(st-1, false);
                 }
-                putchar(')');putchar('{');putchar('\n');
-                curr = print_block(cu, indent + 1, st_end);
-                print_indent(indent); putchar('}');
-                if(trailing_nl)putchar('\n');
+                putchar(')');
+                curr = print_block(cu, st_end, indent, trailing_nl);
             }break;
             case ASTNT_WHILE:{
                 write("while(");
                 print_sub_expr(curr + curr[1].expr.size, false);
-                write("){\n");
-                curr = print_block(cu, indent + 1, curr + curr->common.size);
-                print_indent(indent); putchar('}');
-                if(trailing_nl)putchar('\n');
+                putchar(')');
+                curr = print_block(cu, curr + curr->common.size, indent, trailing_nl);
+            }break;
+            case ASTNT_FREE_BLOCK:{
+                curr = print_block(cu, curr + 1, indent, trailing_nl);
             }break;
             case ASTNT_IF:{
                 write("if(");
                 print_sub_expr(curr+curr->common.size-1, false);
-                write("){\n");
-                curr = print_block(cu, indent + 1, curr + curr->common.size);
-                print_indent(indent); putchar('}');
-                if(trailing_nl)putchar('\n');
+                putchar(')');
+                curr = print_block(cu, curr + curr->common.size, indent, trailing_nl);
             }break;
             case ASTNT_IF_ELSE:{
                 write("if(");
                 print_sub_expr(curr+curr->common.size-1, false);
-                write("){\n");
-                curr = print_block(cu, indent + 1, curr + curr->common.size);
-                print_indent(indent); putchar('}');
-                write("\n");
+                putchar(')');
+                curr = print_block(cu, curr + curr->common.size, indent, true);
                 print_indent(indent);
-                write("else{\n");
-                curr = print_block(cu, indent + 1, curr);
-                print_indent(indent); putchar('}');
-                if(trailing_nl)putchar('\n');
+                write("else");
+                curr = print_block(cu, curr, indent, trailing_nl);
             }break;
             case ASTNT_STRUCT_DECLARATION:{
                 write("struct ");
                 print_type(curr + curr->common.size - 1);
-                putchar('{');putchar('\n');
-                curr = print_block(cu, indent + 1, curr + curr->common.size);
-                print_indent(indent); putchar('}');
-                if(trailing_nl)putchar('\n');
-            }break;
-            case ASTNT_GENERIC_STRUCT_DECLARATION:{
-                write("struct ");
-                astn* generic_params_size = curr + curr->common.size - 1;
-                print_type(generic_params_size - generic_params_size->common.size);
-                putchar('{');
-                reverse_print_generic_param_list(generic_params_size-1,
-                     generic_params_size-generic_params_size->common.size);
-                putchar('}');putchar('{');putchar('\n');
-                curr = print_block(cu, indent + 1, curr + curr->common.size);
-                print_indent(indent); putchar('}');
-                if(trailing_nl)putchar('\n');
+                curr = print_block(cu, curr + curr->common.size, indent, trailing_nl);
             }break;
             default:CIM_ERROR("Unexpected ASTN");
         }
     }
 }
-astn* print_block(cunit* cu, ureg indent, astn* blk)
-{
+astn* print_block(cunit* cu, astn* blk, ureg indent, bool trailing_nl) {
+    write("{\n");
     astn* blk_end = (astn*)((u8*)blk+blk->full_size);
-    print_ast_within(cu, indent, blk+1, blk_end, true);
+    print_ast_within(cu, indent + 1, blk+1, blk_end, true);
+    print_indent(indent); putchar('}');
+    if(trailing_nl)putchar('\n');
     return blk_end;
 }
 void print_ast(cunit* cu){

@@ -19,7 +19,8 @@ enum assocs{
     LEFT_ASSOCIATIVE = 0,
     RIGHT_ASSOCIATIVE = 1,
 };
-static inline int parse_elem(cunit* cu, token_type term1, token_type term2, bool decl_only);
+static inline int parse_elem(cunit* cu, token_type term1, token_type term2,
+                             bool decl_only, bool disambiguation);
 static astn* parse_type(cunit* cu);
 static astn* parse_type_no_ptrs(cunit* cu, ureg* ptrs);
 static astn* parse_type_with_prefetch(cunit* cu, token* t1, ureg* ptrs);
@@ -170,7 +171,7 @@ static inline void add_size_node(cunit* cu, ureg ast_start){
 }
 static void require_token(cunit *cu, token *t, token_type tt){
     if(t->type != tt){
-        syntax_error(cu, t, 1, 0, "syntax error: unexpected token: expected %s, got %s",
+        syntax_error(cu, t, 1, 0, "unexpected token: expected %s, got %s",
                      get_token_type_str(cu, tt), get_token_str(cu, t));
     }
 }
@@ -242,8 +243,7 @@ static inline void parse_param_list(cunit* cu, token_type end_tok){
         do{
             ast_rel_ptr siz = parse_type(cu)->type.size + 2;
             astn* n = claim_ast_space(cu, sizeof(astn) * 2);
-            t1 = consume_token(cu);
-            require_token(cu, t1, TOKEN_STRING);
+            require_token(cu,consume_token(cu), TOKEN_STRING);
             n->str = t1->str;
             n++;
             n->type.type = EXPR_NODE_TYPE_PARAM;
@@ -257,7 +257,7 @@ static inline void parse_param_list(cunit* cu, token_type end_tok){
     }
 }
 static const char* get_term_string(cunit* cu, token_type term1, token_type term2, token_type term3){
-    if(term1 == term2 == term3){
+    if(term1 == term2 && term1 == term3){
         return get_token_type_str(cu, term1);
     }
     else if(term2 == term3){
@@ -368,7 +368,7 @@ static inline int continue_parse_expr(cunit* cu, token_type term1, token_type te
             case TOKEN_TILDE:{
                  if(expecting_op) {
                      syntax_error(cu, t1, 1, 0,
-                                  "syntax error: expected infix operator or %s, got unary operator",
+                                  "expected infix operator or %s, got unary operator",
                                   get_term_string(cu, term1, term2, term3));
                  }
                  sop.expr.special.opcode= OP_BITWISE_NOT;
@@ -497,8 +497,7 @@ static inline int continue_parse_expr(cunit* cu, token_type term1, token_type te
             case TOKEN_BINARY_LITERAL:
             {
                 if(expecting_op){
-                    syntax_error(cu, t1, 1, 1, "expression syntax error:"
-                        "expected an operation or %s, got %s",
+                    syntax_error(cu, t1, 1, 1, "expected an operation or %s, got %s",
                         get_term_string(cu, term1, term2, term3),
                         get_token_type_str(cu, t1->type));
                 }
@@ -511,8 +510,7 @@ static inline int continue_parse_expr(cunit* cu, token_type term1, token_type te
             }break;
             case TOKEN_STRING: {
                 if(expecting_op){
-                    syntax_error(cu, t1, 1, 1, "expression syntax error:"
-                        "expected an operation or %s, got %s",
+                    syntax_error(cu, t1, 1, 1, "expected an operation or %s, got %s",
                         get_term_string(cu, term1, term2, term3),
                         get_token_type_str(cu, t1->type));
                 }
@@ -549,7 +547,7 @@ static inline int continue_parse_expr(cunit* cu, token_type term1, token_type te
                     default:{
                         consume_token(cu);
                         syntax_error(cu, t1, 1, 0,
-                            "syntax error: unexpected type statement in expression");
+                                     "unexpected type statement in expression");
                     }break;
                     case EXPR_NODE_TYPE_GENERIC_STRUCT_INST:{
                         t1 = peek_token(cu);
@@ -592,14 +590,14 @@ static inline int continue_parse_expr(cunit* cu, token_type term1, token_type te
             }break;
             case TOKEN_EOF:{
                 syntax_error(cu, t1, 1, 1,
-                             "expression syntax error: reached end of file before the end of the expression");
+                             "reached end of file before the end of the expression");
             }return-1;
             default:{
 lbl_default:;
                 if(!expecting_op && sho_ri != sho_re){
                     syntax_error(cu, t1, 1, 1,
-                                 "expression syntax error: reached %s before reaching a valid "
-                                         "end to the expression",
+                                 "reached %s before reaching a valid "
+                                 "end to the expression",
                                  get_token_type_str(cu, t1->type));
                 }
                 int tn = get_matching_term(t1->type, term1, term2, term3);
@@ -616,8 +614,7 @@ lbl_default:;
                     return tn;
                 }
                 else{
-                    syntax_error(cu, t1, 1, 1, "expression syntax error: "
-                        "expected operator or %s, got %s",
+                    syntax_error(cu, t1, 1, 1, "expected operator or %s, got %s",
                         get_term_string(cu, term1, term2, term3),
                         get_token_type_str(cu, t1->type));
                 }
@@ -821,13 +818,11 @@ static inline astn* parse_type_no_ptrs(cunit* cu, ureg* ptrs){
 static void parse_meta(cunit* cu, token* t1){
 
 }
-static void parse_struct(cunit* cu, int mods){
+static astn* parse_type_and_block_or_stmnt(cunit* cu, bool decl_only){
     ureg ast_pos = get_ast_size(cu);
-    astn* n = claim_ast_space(cu, sizeof(astn) * 4); //astn + simple + block size
-    n++;//leave space for astnt
     bool scoped = false;
-    bool generic = false;
-    ureg block_start;
+    ureg astn_start;
+    astn* n = claim_ast_space(cu, sizeof(astn) * 3); //simple type + blocksize
     while(true){
         token* t1 = consume_token(cu);
         require_token(cu, t1, TOKEN_STRING);
@@ -839,27 +834,19 @@ static void parse_struct(cunit* cu, int mods){
         }
         else{
              n->type.type = EXPR_NODE_TYPE_SCOPED;
-            //-1 for astnt, -1 for blocksize
-             n->type.size = get_ast_growth(cu, ast_pos)-2;
+            //-1 for blocksize
+             n->type.size = get_ast_growth(cu, ast_pos) - 1;
         }
         n->type.mods = 0;
-        token* t2 = consume_token(cu);
+        token* t2 = peek_token(cu);
         if(t2->type == TOKEN_BRACE_OPEN){
-            ureg astn_start = get_ast_size(cu);
-            int r = parse_elem(cu, TOKEN_COMMA, TOKEN_BRACE_CLOSE, false);
+            void_lookahead_token(cu);
+            astn_start = get_ast_size(cu);
+            int r = parse_elem(cu, TOKEN_COMMA, TOKEN_BRACE_CLOSE, decl_only, true);
             n = get_ast_pos(cu, astn_start);
             if(r == 0){
-                if(n->common.type == ASTNT_VARIABLE_DECLARATION_AMBIGUOUS){
-                    n->common.type = ASTNT_VARIABLE_DECLARATION;
-                }
-                else if(n->common.type == ASTNT_EXPRESSION)
-                {
-                    token* tok = cu->tknzr.token_start;
-                    dec_token_buff_ptr(cu, &tok);
-                    syntax_error(cu, tok, 1, 0,
-                                 "expressions aren't allowed inside structs");
-                }
-                block_start = astn_start - sizeof(astn);
+                while(parse_elem(cu, TOKEN_BRACE_CLOSE,
+                                 TOKEN_BRACE_CLOSE, decl_only, false) == 0);
                 break;
             }
             else{
@@ -880,41 +867,51 @@ static void parse_struct(cunit* cu, int mods){
                     h->type.type = EXPR_NODE_TYPE_PARAM;
                     h->type.size = (h-2)->type.size + 2;
                     arg_or_params_list aopl;
-                    if(r==1){
-                        if(astn_t == ASTNT_VARIABLE_DECLARATION){
-                            aopl = AOPL_PARAM_LIST;
-                            parse_param_list(cu, TOKEN_BRACE_CLOSE);
+                    if(astn_t == ASTNT_VARIABLE_DECLARATION){
+                        aopl = AOPL_PARAM_LIST;
+                        if(r==1)parse_param_list(cu, TOKEN_BRACE_CLOSE);
+                    }
+                    else{
+                        if(r==1){
+                            aopl = parse_generic_arg_or_params_list(cu);
                         }
                         else{
-                            aopl = parse_generic_arg_or_params_list(cu);
-                        };
+                            aopl = AOPL_AMBIGUOUS;
+                        }
                     }
-                    t1 = consume_token(cu);
-                    if(t1->type == TOKEN_COLON) {
-                        scoped=true;
-                        //two for struct decl, 3 for simple and blocksize
+                    t1 = peek_token(cu);
+                    if(t1->type == TOKEN_COLON){
+                        //two for g struct decl, 2 for simple and 1 for blocksize
                         n = claim_ast_space(cu, 5 * sizeof(astn));
                         n->type.size = get_ast_growth(cu, astn_start) - 4;
                         n++;
-                        n->type.type = (expr_node_type)r;;
-                        n->type.size = get_ast_growth(cu, ast_pos) - 3 - 1;
-                        n->type.mods = 0;
+                        n->type.size = get_ast_growth(cu, ast_pos) - 2 - 1;
+                    }
+                    else{
+                        //two for g struct decl, and 1 for blocksize
+                        n = claim_ast_space(cu, 3 * sizeof(astn));
+                        n->type.size = get_ast_growth(cu, astn_start) - 2;
+                        n++;
+                        n->type.size = get_ast_growth(cu, ast_pos) - 1;
+                    }
+                    n->type.type = (expr_node_type)aopl; //--> generic_struct
+                    n->type.mods = 0;
+                    if(t1->type == TOKEN_COLON) {
+                        scoped=true;
+                        void_lookahead_token(cu);
                         n++;
                     }
                     else if(t1->type == TOKEN_BRACE_OPEN){
-                        if(aopl == AOPL_ARG_LIST){
-                            syntax_error(cu, t1,1,0, "invalid struct declaration syntax");
-                        }
-                        //one for generic args size, one for blocksize
-                        n = claim_ast_space(cu, sizeof(astn) * 2);
-                        n->common.size = get_ast_growth(cu, astn_start)-1;
-                        generic = true;
-                        block_start = get_ast_size(cu) - sizeof(astn);
+                        void_lookahead_token(cu);
+                        astn_start = get_ast_size(cu);
+                        while(parse_elem(cu, TOKEN_BRACE_CLOSE,
+                             TOKEN_BRACE_CLOSE, decl_only, false) == 0);
                         break;
                     }
                     else{
-                        syntax_error(cu, t1, 1, 0,
-                                 "invalid syntax for struct declaration");
+                        astn_start = get_ast_size(cu);
+                        parse_elem(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, decl_only, false);
+                        break;
                     }
                 }
                 else if(astn_t == ASTNT_ASSIGNING_VARIABLE_DECLARATION){
@@ -929,7 +926,7 @@ static void parse_struct(cunit* cu, int mods){
                     if(r==1) parse_generic_args_list(cu);
                     //two for struct decl, 3 for simple and blocksize
                     n = claim_ast_space(cu, 5 * sizeof(astn));
-                    n->type.size = get_ast_growth(cu, block_start) - 4;
+                    n->type.size = get_ast_growth(cu, astn_start) - 4;
                     n++;
                     n->type.type = EXPR_NODE_TYPE_GENERIC_STRUCT_INST;
                     n->type.size = get_ast_growth(cu, ast_pos) - 3 - 1;
@@ -943,60 +940,85 @@ static void parse_struct(cunit* cu, int mods){
                     syntax_error(cu, cu->tknzr.token_start, 1, 0,
                                  "invalid syntax for generic arg or param list");
                 }
-
-                //TODO: resolve generic scope vs struct block ambiguity
-                //syntax_error(cu, t2, 1, 0, "sorry, this branch isn't implemented yet");
             }
         }
         else if(t2->type == TOKEN_COLON){
+            void_lookahead_token(cu);
             //alloc two new spaces one was still free for blocksize
             n = claim_ast_space(cu, sizeof(astn) * 2);
             n--;
             scoped = true;
         }
         else{
-            syntax_error(cu, t2, 1,0, "syntax error: expected ':' or '{', got %s",
-                         get_token_str(cu, t2));
+            astn_start = get_ast_size(cu);
+            parse_elem(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, decl_only, false);
+            break;
         }
     }
-    n = get_ast_pos(cu, ast_pos);
-    n->common.type = generic ?
-                     ASTNT_GENERIC_STRUCT_DECLARATION :
-                     ASTNT_STRUCT_DECLARATION;
-    //TODO: check overflow
-    n->common.size = (ast_rel_ptr)((block_start - ast_pos) / sizeof(astn));
-    while(parse_elem(cu, TOKEN_BRACE_CLOSE, TOKEN_BRACE_CLOSE, true) == 0);
+    ureg block_start = astn_start - sizeof(astn);
     n = get_ast_pos(cu, block_start);
     n->full_size = get_ast_size(cu) - block_start;
+    return n-1;
+}
+static void parse_struct(cunit* cu, int mods){
+    ureg ast_pos = get_ast_size(cu);
+    claim_ast_space(cu, sizeof(astn));
+    astn* t = parse_type_and_block_or_stmnt(cu, true);
+    astn* n = get_ast_pos(cu, ast_pos);
+    n->common.type = ASTNT_STRUCT_DECLARATION;
+    n->common.size = t->common.size + 1;
 }
 static void parse_block(cunit* cu){
-    token* t1;
     ureg ast_start = get_ast_size(cu);
     claim_ast_space(cu, sizeof(astn));
-    t1 = consume_token(cu);
-    require_token(cu, t1, TOKEN_BRACE_OPEN);
-    while(parse_elem(cu, TOKEN_BRACE_CLOSE, TOKEN_BRACE_CLOSE, false) == 0);
+    while(parse_elem(cu, TOKEN_BRACE_CLOSE, TOKEN_BRACE_CLOSE, false, false) == 0);
     astn* n = (astn*)(cu->ast.start + ast_start);
     n->full_size = get_ast_size(cu) - ast_start;
 }
 static void parse_block_or_stmt(cunit* cu){
     token* t1 = peek_token(cu);
     if(t1->type == TOKEN_BRACE_OPEN){
-        //PERF: could be optimized to avoid checking and peeking twice
+        void_lookahead_token(cu);
         parse_block(cu);
     }
     else{
         ureg ast_size = get_ast_size(cu);
         claim_ast_space(cu, sizeof(astn));
-        parse_elem(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
+        parse_elem(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false, false);
         ((astn*)(cu->ast.start + ast_size))->full_size =
                 dbuffer_get_size(&cu->ast)- ast_size;
+    }
+}
+static void parse_namespace(cunit* cu, int mods){
+    ureg ast_pos = get_ast_size(cu);
+    claim_ast_space(cu, sizeof(astn));
+    astn* t = parse_type_and_block_or_stmnt(cu, true);
+    astn* n = get_ast_pos(cu, ast_pos);
+    n->common.type = ASTNT_NAMESPACE;
+    n->common.size = t->common.size + 1;
+}
+static void parse_loop(cunit* cu){
+    ureg ast_pos = get_ast_size(cu);
+    claim_ast_space(cu, sizeof(astn));
+    token* t1 = peek_token(cu);
+    if(t1->type == TOKEN_BRACE_OPEN){
+        void_lookahead_token(cu);
+        parse_block(cu);
+        astn* n = get_ast_pos(cu, ast_pos);
+        n->common.type = ASTNT_LOOP;
+        n->common.size = 1;
+    }
+    else{
+        astn* t = parse_type_and_block_or_stmnt(cu, true);
+        astn* n = get_ast_pos(cu, ast_pos);
+        n->common.type = ASTNT_NAMED_LOOP;
+        n->common.size = t->common.size + 1;
     }
 }
 static void parse_for(cunit* cu){
     ureg for_start = get_ast_size(cu);
     claim_ast_space(cu, sizeof(astn));
-    parse_elem(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false);
+    parse_elem(cu, TOKEN_SEMICOLON, TOKEN_SEMICOLON, false, false);
     parse_expr_1t(cu, TOKEN_SEMICOLON, false);
     ureg stmts_start = get_ast_size(cu);
     while(parse_expr_2t(cu, TOKEN_SEMICOLON, TOKEN_PAREN_CLOSE, false) == 0);
@@ -1016,7 +1038,7 @@ static void parse_while(cunit* cu){
     s->common.size = get_ast_growth(cu, while_start);
     parse_block_or_stmt(cu);
 }
-static int parse_if(cunit* cu){
+static void parse_if(cunit* cu){
     ureg if_start = get_ast_size(cu);
     claim_ast_space(cu, sizeof(astn));
     parse_expr_1t(cu, TOKEN_PAREN_CLOSE, false);
@@ -1032,7 +1054,7 @@ static int parse_if(cunit* cu){
         parse_block_or_stmt(cu);
     }
 }
-static int parse_typedef(cunit* cu, int mods){
+static void parse_typedef(cunit* cu, int mods){
     ureg ast_pos = get_ast_size(cu);
     claim_ast_space(cu, sizeof(astn));
     parse_type(cu);
@@ -1042,7 +1064,6 @@ static int parse_typedef(cunit* cu, int mods){
     n->common.size = get_ast_growth(cu, ast_pos);
     token* t1 = consume_token(cu);
     require_token(cu, t1, TOKEN_SEMICOLON);
-    return 0;
 }
 static inline ureg add_sops_from_ptrs(cunit* cu, ureg ptrs){
     astn* sop = dbuffer_claim_small_space(&cu->parsr.shy_ops, sizeof(astn) * ptrs);
@@ -1360,12 +1381,14 @@ static inline int parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                     astn* s = (void*)(cu->ast.start + ast_start);
                     s->common.type = ASTNT_FUNCTION_DECLARATION;
                     s->common.size = get_ast_growth(cu, ast_start);
+                    t1 = consume_token(cu);
+                    require_token(cu, t1, TOKEN_BRACE_OPEN);
                     parse_block(cu);
                     return 0;
                 }
                 else{
                     syntax_error(cu, t1, 2, 0,
-                         "syntax error: expected '=' or %s or '('"
+                         "expected '=' or %s or '('"
                          "to parse as variable, function declaration, got %s",
                          get_term_string(cu, TOKEN_SEMICOLON, term1, term2),
                          get_token_str(cu, t1));
@@ -1383,6 +1406,7 @@ static inline int parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                 astn *n = (astn *) (cu->ast.start + ast_start);
                 n->common.type = ASTNT_GENERIC_FUNCTION_DECLARATION;
                 n->common.size = get_ast_growth(cu, ast_start);
+                require_token(cu,consume_token(cu), TOKEN_BRACE_OPEN);
                 parse_block(cu);
                 return 0;
             }
@@ -1424,7 +1448,7 @@ static inline int parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                                     false, true);
             }
             else{
-                syntax_error(cu, t1, 1, 0, "syntax error: invalid function call syntax");
+                syntax_error(cu, t1, 1, 0, "invalid function call syntax");
             }
         }
         else{
@@ -1471,6 +1495,7 @@ static inline int parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                             astn *s = (void *) (cu->ast.start + ast_start);
                             s->common.type = ASTNT_FUNCTION_DECLARATION;
                             s->common.size = get_ast_growth(cu, ast_start);
+                            require_token(cu,consume_token(cu), TOKEN_BRACE_OPEN);
                             parse_block(cu);
                             return 0;
                         }
@@ -1528,6 +1553,7 @@ static inline int parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                 astn *n = (astn *) (cu->ast.start + ast_start);
                 n->common.size = get_ast_growth(cu, ast_start);
                 n->common.type = ASTNT_GENERIC_FUNCTION_DECLARATION;
+                require_token(cu,consume_token(cu), TOKEN_BRACE_OPEN);
                 parse_block(cu);
                 return 0;
             }
@@ -1571,6 +1597,7 @@ static inline int parse_leading_type(cunit* cu, u8 mods, ureg t_ptrs,
                     astn *n = (astn *) (cu->ast.start + ast_start);
                     n->common.size = get_ast_growth(cu, ast_start);
                     n->common.type = ASTNT_GENERIC_FUNCTION_DECLARATION;
+                    require_token(cu,consume_token(cu), TOKEN_BRACE_OPEN);
                     parse_block(cu);
                     return 0;
                 }
@@ -1623,12 +1650,17 @@ static inline int parse_leading_string(cunit* cu, u8 mods, bool decl_mode,
     return parse_leading_type(cu, mods, t_ptrs, ast_start, t,
                               term1, term2);
 }
-static inline int parse_elem(cunit* cu, token_type term1, token_type term2, bool decl_only)
+static inline int parse_elem(cunit* cu, token_type term1, token_type term2, bool decl_only, bool disambiguation)
 {
     token* t1;
     t1 = peek_token(cu);
     switch(t1->type) {
         case TOKEN_STRING: {
+            if(str_eq_keyword(t1->str, KEYWORD_LOOP)){
+                void_lookahead_token(cu);
+                parse_loop(cu);
+                return 0;
+            }
             u8 mods = 0;
             //avoid checking certain branches based on looked ahead tokens
             token* t2 = peek_2nd_token(cu);
@@ -1649,6 +1681,11 @@ static inline int parse_elem(cunit* cu, token_type term1, token_type term2, bool
                 else if(str_eq_keyword(t1->str, KEYWORD_TYPEDEF)){
                     void_lookahead_token(cu);
                     parse_typedef(cu, mods);
+                    return 0;
+                }
+                else if(str_eq_keyword(t1->str, KEYWORD_NAMESPACE)){
+                    void_lookahead_token(cu);
+                    parse_namespace(cu, mods);
                     return 0;
                 }
             }
@@ -1672,7 +1709,21 @@ static inline int parse_elem(cunit* cu, token_type term1, token_type term2, bool
                    // return parse_switch(cu);
                 }
             }
-            return parse_leading_string(cu, mods, decl_only, term1, term2);
+            if(disambiguation) {
+                return parse_leading_string(cu, mods, decl_only, term1, term2);
+            }
+            else{
+                return parse_leading_string(cu, mods, decl_only,
+                                            TOKEN_SEMICOLON, TOKEN_SEMICOLON);
+            }
+        }
+        case TOKEN_BRACE_OPEN:{
+            astn* n = claim_ast_space(cu, sizeof(astn));
+            n->common.size = 1;
+            n->common.type = ASTNT_FREE_BLOCK;
+            void_lookahead_token(cu);
+            parse_block(cu);
+            return 0;
         }
         case TOKEN_HASH:
         case TOKEN_DOUBLE_HASH: {
@@ -1684,7 +1735,7 @@ static inline int parse_elem(cunit* cu, token_type term1, token_type term2, bool
             if(term1 == TOKEN_EOF) return 1;
             if(term2 == TOKEN_EOF) return 2;
             syntax_error(cu, t1, 1, 1,
-                         "syntax error: reached end of file before reaching %s",
+                         "reached end of file before reaching %s",
                          get_token_type_str(cu, term1));
         }
         case TOKEN_BRACE_CLOSE:{
@@ -1692,21 +1743,27 @@ static inline int parse_elem(cunit* cu, token_type term1, token_type term2, bool
             if(term1 == TOKEN_BRACE_CLOSE) return 1;
             if(term2 == TOKEN_BRACE_CLOSE) return 2;
             syntax_error(cu, t1, 1, 1,
-                         "syntax error: reached '}' while not being in a scope");
+                         "reached '}' while not being in a scope");
         }
         case TOKEN_PAREN_CLOSE:{
             void_lookahead_token(cu);
             if(term1 == TOKEN_PAREN_CLOSE) return 1;
             if(term2 == TOKEN_PAREN_CLOSE) return 2;
-            syntax_error(cu, t1, 1, 1, "syntax error: unmatched ')'");
+            syntax_error(cu, t1, 1, 1, "unmatched ')'");
         }
         default: {
-            return parse_expr_3t(cu, TOKEN_SEMICOLON, term1, term2, false);
+            if(disambiguation){
+                return parse_expr_3t(cu, TOKEN_SEMICOLON, term1, term2, false);
+            }
+            else{
+                return parse_expr_1t(cu, TOKEN_SEMICOLON, false);
+            }
+
         }
     }
 }
 static void parse_file_scope(cunit* cu){
-    while (parse_elem(cu, TOKEN_EOF, TOKEN_EOF, false) == 0);
+    while (parse_elem(cu, TOKEN_EOF, TOKEN_EOF, false, false) == 0);
 }
 void parse_file(cunit* cu, char* filename){
     tokenizer_open_file(cu, filename);

@@ -6,7 +6,12 @@
             -struct parsing with leading optional argument
         -insert in printer:
             -reverse_print_func_params
-    -namespaces
+    -ternaries
+    -varargs
+    -named parameters?
+    -tuples?
+    -quick arrays
+    -dynamic arrays
     -lambdas
     -switch, reflect, do while
     -unions
@@ -16,7 +21,7 @@
     -modifiers
     -exceptions: !: syntax, try catch
     -concepts, inheritance
-    --special functions
+    -special functions
         -sizeof
         -typeof
         -offsetof
@@ -25,6 +30,7 @@
         -cast       ???
 
 -type system
+   -add error function that goes through file until it reaches the ast node at fault
    -add type declarations while parsing
         -namespaces
         -typedefs

@@ -21,3 +21,5 @@ const char* KEYWORD_LABEL = "label";
 const char* KEYWORD_GOTO = "goto";
 const char* KEYWORD_PUBLIC = "public";
 const char* KEYWORD_PRIVATE = "private";
+const char* KEYWORD_NAMESPACE = "namespace";
+const char* KEYWORD_LOOP = "loop";
