@@ -1,8 +1,10 @@
+#include <stdio.h>
+
 #include "parser.h"
 #include "ast.h"
 #include "compiler.h"
-#include <stdio.h>
 #include "hms.h"
+
 void hms_dump(hms* h)
 {
     printf("Dumping map of length %lu:\n", h->map_end - h->map);
@@ -17,21 +19,27 @@ void hms_dump(hms* h)
         n++;
     }
 }
-int main(){
+
+int main(int argc, char **argv)
+{
     cunit cu;
     cunit_init(&cu);
-    for(int i=0;i!=1;i++){
-         parse_file(&cu, "../test/dummy_src.cim");
+    for(int i = 1; i < argc; i++){
+         parse_file(&cu, argv[i]);
     }
 
-    ureg ast_size =  dbuffer_get_size(&cu.ast);
+    if(argc == 1) {
+        parse_file(&cu, "../test/dummy_src.cim");
+    }
+
+    ureg ast_size = dbuffer_get_size(&cu.ast);
     ureg regs = dbuffer_get_size(&cu.ast) / sizeof(astn);
 
     if(DEBUG_ENUMS){
-        printf("ast size(debug_enums): %llu bytes (%llu regs)\n",ast_size,regs);
+        printf("ast size(debug_enums): %llu bytes (%llu regs)\n", ast_size, regs);
     }
     else{
-        printf("ast size(release_enums): %llu bytes (%llu regs)\n",ast_size,regs);
+        printf("ast size(release_enums): %llu bytes (%llu regs)\n", ast_size, regs);
     }
     printf("string store size: %llu bytes (%llu strings, 19 keywords)\n",
            sbuffer_get_size(&cu.data_store),
