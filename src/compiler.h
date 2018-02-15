@@ -11,7 +11,6 @@ typedef struct{
 } parser;
 
 typedef struct {
-    dbuffer string_ptrs;
     sbuffer data_store;
     dbuffer ast;
     parser parsr;

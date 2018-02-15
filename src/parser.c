@@ -117,38 +117,13 @@ static u8 assoc_table [OP_RANGE] = {
 
 void cunit_init(cunit* cu){
     sbuffer_init(&cu->data_store, 4);
-    dbuffer_init_with_capacity(&cu->string_ptrs, 32);
     dbuffer_init(&cu->ast);
-    dbuffer_init_with_capacity(&cu->parsr.shy_ops, 1000);
+    dbuffer_init_with_capacity(&cu->parsr.shy_ops, 1024);
     dbuffer_init_with_capacity(&cu->tknzr.file_buffer, 8192);
     cu->tknzr.file = NULL;
-
-    add_keyword(cu, KEYWORD_IF);
-    add_keyword(cu, KEYWORD_ELSE);
-    add_keyword(cu, KEYWORD_BREAK);
-    add_keyword(cu, KEYWORD_RETURN);
-
-    add_keyword(cu, KEYWORD_SWITCH);
-    add_keyword(cu, KEYWORD_CASE);
-
-    add_keyword(cu, KEYWORD_WHILE);
-    add_keyword(cu, KEYWORD_FOR);
-    add_keyword(cu, KEYWORD_STRUCT);
-    add_keyword(cu, KEYWORD_ENUM);
-    add_keyword(cu, KEYWORD_UNION);
-
-    add_keyword(cu, KEYWORD_CONTINUE);
-    add_keyword(cu, KEYWORD_INLINE);
-    add_keyword(cu, KEYWORD_CONST);
-    add_keyword(cu, KEYWORD_CAST);
-    add_keyword(cu, KEYWORD_STATIC);
-    add_keyword(cu, KEYWORD_TYPEDEF);
-    add_keyword(cu, KEYWORD_LABEL);
-    add_keyword(cu, KEYWORD_GOTO);
 }
 void cunit_fin(cunit* cu) {
     sbuffer_fin(&cu->data_store);
-    dbuffer_fin(&cu->string_ptrs);
     dbuffer_fin(&cu->ast);
     dbuffer_fin(&cu->parsr.shy_ops);
     dbuffer_fin(&cu->tknzr.file_buffer);

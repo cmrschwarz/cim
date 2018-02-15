@@ -33,9 +33,7 @@ int main(){
     else{
         printf("ast size(release_enums): %llu bytes (%llu regs)\n",ast_size,regs);
     }
-    printf("string store size: %llu bytes (%llu strings, 19 keywords)\n",
-           sbuffer_get_size(&cu.data_store),
-           dbuffer_get_size(&cu.string_ptrs) / sizeof(ureg) - 19);
+    printf("data store size: %llu byte\n", sbuffer_get_size(&cu.data_store));
 
     printf("\noutput:\n");
     print_ast(&cu);

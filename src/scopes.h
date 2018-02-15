@@ -20,8 +20,8 @@ typedef enum tse_primitive_type_t{
     TSE_PRIMITIVE_S64,
 }tse_primitive_type;
 typedef struct tse_head_t{
-    char* name;
     tse_type type;
+    struct tse_head_t* next;
 }tse_head;
 
 typedef struct tse_primitive_t{
