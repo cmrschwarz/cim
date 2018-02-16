@@ -47,7 +47,7 @@
         -resolve "auto" type inference
         -deduce the size for each type
         -disambiguate generic scopes between generic struct decl and inst
-   -do a second pass to resolve
+   -do a second ast pass to resolve
         -variable accesses
         -array accesses
         -(overloaded)(generic) function calls

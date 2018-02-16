@@ -1,18 +1,17 @@
 #pragma once
 #include "dbuffer.h"
 #include "sbuffer.h"
-#include <assert.h>
-#include "token_strings.h"
-#include <stdio.h>
-#include "tokenizer_t.h"
-
-typedef struct{
-    dbuffer shy_ops;    //shunting yard operators
-} parser;
+#include "scopes.h"
+#include "tokens.h"
+#include "tokenizer.h"
 
 typedef struct {
-    sbuffer data_store;
+    char* path;
     dbuffer ast;
-    parser parsr;
-    tokenizer tknzr;
-}cunit;
+}cim_file;
+
+typedef struct{
+    dbuffer files;
+    dbuffer parsers;
+    tse_scope root_scope;
+}cimc;

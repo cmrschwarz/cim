@@ -10,5 +10,5 @@ add_executable( cim
                 src/sbuffer.c
                 src/scopes.c
                 src/keywords.c
-                src/token_strings.c
-                src/hms.c)
+        src/tokens.c
+                src/hms.c src/settings.h src/compiler.c)

@@ -1,4 +1,4 @@
-#include "token_strings.h"
+#include "tokens.h"
 const char* token_strings[255] = {
     [TOKEN_MINUS_EQUALS] = "-=",
     [TOKEN_PLUS_EQUALS] = "+=",

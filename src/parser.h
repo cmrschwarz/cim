@@ -3,8 +3,13 @@
 #include "tokenizer.h"
 #include "operations.h"
 
-void cunit_init(cunit* cu);
-void cunit_fin(cunit* cu);
+typedef struct {
+    dbuffer* ast;
+    dbuffer shy_ops;
+    tokenizer tk;
+}parser;
 
-void parse_file(cunit* cu, char* filename);
-void print_ast(cunit* cu);
+void parser_init(parser* p);
+void parser_fin(parser* p);
+
+void parse_file(parser* p, cim_file* f);

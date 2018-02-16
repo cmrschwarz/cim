@@ -1,13 +1,9 @@
 #pragma once
+#include "settings.h"
 #include "types.h"
 #include "tokenizer.h"
 #include "parser.h"
 #include "scopes.h"
-#define TO_U8(i)((u8)((i) & 0xFF))
-#define TO_CHAR(i)((char)((i) & 0xFF))
-#define TO_UREG(c)((ureg)(c))
-
-#define DEBUG_ENUMS 1
 
 typedef uregh ast_rel_ptr;
 enum modifiers_e{
