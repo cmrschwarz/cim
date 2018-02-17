@@ -1,4 +1,5 @@
 #pragma once
+#include "tokens.h"
 enum operation_e{
     OP_SUBTRACT_ASSIGN = TOKEN_MINUS_EQUALS,
     OP_ADD_ASSIGN = TOKEN_PLUS_EQUALS,

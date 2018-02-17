@@ -1,7 +1,6 @@
 #pragma once
 #include "compiler.h"
 #include "tokenizer.h"
-#include "operations.h"
 
 typedef struct {
     dbuffer* ast;

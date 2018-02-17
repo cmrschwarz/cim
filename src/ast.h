@@ -1,9 +1,7 @@
 #pragma once
 #include "settings.h"
 #include "types.h"
-#include "tokenizer.h"
-#include "parser.h"
-#include "scopes.h"
+#include "operations.h"
 
 typedef uregh ast_rel_ptr;
 enum modifiers_e{

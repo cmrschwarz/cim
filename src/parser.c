@@ -4,8 +4,7 @@
 #include <assert.h>
 #include "error.h"
 #include "keywords.h"
-#include "compiler.h"
-#include <stdarg.h>
+#include "operations.h"
 
 #define OP_RANGE 256
 
