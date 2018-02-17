@@ -13,7 +13,6 @@ int main(int argc, char **argv)
         }
     }
     cimc_compile(&c);
-    cimc_print_stats(&c);
     cimc_dump_asts(&c);
     cimc_fin(&c);
     return 0;
